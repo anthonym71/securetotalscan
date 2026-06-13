@@ -1,0 +1,124 @@
+# Deploy to Railway + Vercel after CI passes on master.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   RAILWAY_TOKEN  — https://railway.com/account/tokens
+#   VERCEL_TOKEN   — https://vercel.com/account/tokens
+#
+# Optional repository variables (Settings → Variables); defaults are set below.
+#   RAILWAY_PROJECT_ID, RAILWAY_SERVICE_ID, VERCEL_ORG_ID, VERCEL_PROJECT_ID, NEXT_PUBLIC_API_URL
+
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master, main]
+  workflow_dispatch:
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: true
+
+env:
+  RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID || '9191b4bb-daef-4939-b12e-2e1dd1e1c499' }}
+  RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID || 'cybersentinel-api' }}
+  VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID || 'team_xebFQIzxvYQi13b4zO7ILMv3' }}
+  VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_F7rj6qqmjKusL7DJdRbPOQ5L5Pzq' }}
+  NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://cybersentinel-api-production.up.railway.app' }}
+
+jobs:
+  changes:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.targets.outputs.backend }}
+      frontend: ${{ steps.targets.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 2
+
+      - uses: dorny/paths-filter@v3
+        if: github.event_name == 'workflow_run'
+        id: filter
+        with:
+          base: ${{ github.event.workflow_run.head_sha }}~1
+          ref: ${{ github.event.workflow_run.head_sha }}
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'app/**'
+              - 'components/**'
+              - 'lib/**'
+              - 'public/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'next.config.*'
+              - 'tailwind.config.*'
+              - 'postcss.config.*'
+              - 'tsconfig*.json'
+              - 'middleware.*'
+              - 'eslint.config.*'
+              - 'vercel.json'
+              - 'scripts/vercel-ignore.sh'
+
+      - name: Set deploy targets
+        id: targets
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend=${{ steps.filter.outputs.backend }}" >> "$GITHUB_OUTPUT"
+            echo "frontend=${{ steps.filter.outputs.frontend }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy-backend:
+    name: Railway
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Deploy backend to Railway
+        working-directory: backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          npx --yes @railway/cli@5.12.1 link \
+            -p "$RAILWAY_PROJECT_ID" \
+            -s "$RAILWAY_SERVICE_ID" \
+            -e production
+          npx --yes @railway/cli@5.12.1 up --detach
+
+  deploy-frontend:
+    name: Vercel
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Deploy frontend to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          npm ci
+          npx --yes vercel@54.13.0 deploy --prod --yes --force --token="$VERCEL_TOKEN"
