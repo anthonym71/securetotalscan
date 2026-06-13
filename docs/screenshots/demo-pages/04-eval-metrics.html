@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Secure Total Scan — Eval metrics</title>
+  <link rel="stylesheet" href="_demo.css" />
+</head>
+<body>
+  <div class="wrap">
+    <span class="back">← Back to home</span>
+    <h1>Agent dashboard</h1>
+
+    <div class="tabs">
+      <span class="tab">analysis</span>
+      <span class="tab active">evals</span>
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><div class="label">Cost</div><div class="value">$0.0042</div></div>
+      <div class="metric"><div class="label">Saved by cache</div><div class="value grade-a">$0.0042</div></div>
+      <div class="metric"><div class="label">Total tokens</div><div class="value">1,847</div></div>
+      <div class="metric"><div class="label">Cache hit rate</div><div class="value grade-a">100%</div></div>
+    </div>
+
+    <div class="panel">
+      <h3>Per-agent</h3>
+      <table>
+        <thead>
+          <tr><th>Agent</th><th>Type</th><th>Tokens</th><th>Cost</th><th>Latency</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Log Monitor</td><td>deterministic</td><td>0</td><td>$0.0000</td><td>12 ms</td></tr>
+          <tr><td>Threat Intel</td><td>external_api</td><td>0</td><td>$0.0000</td><td>284 ms</td></tr>
+          <tr><td>Vuln Scanner</td><td>deterministic</td><td>0</td><td>$0.0000</td><td>18 ms</td></tr>
+          <tr><td>Docker Scanner</td><td>external_api</td><td>0</td><td>$0.0000</td><td>41 ms</td></tr>
+          <tr><td>Incident Response</td><td>llm</td><td>1,847</td><td>$0.0042</td><td>3 ms</td></tr>
+          <tr><td>Policy Checker</td><td>deterministic</td><td>0</td><td>$0.0000</td><td>22 ms</td></tr>
+          <tr><td>Slack Notifier</td><td>external_api</td><td>0</td><td>$0.0000</td><td>8 ms</td></tr>
+        </tbody>
+      </table>
+      <p class="note">Source: synthetic · 48 lines · cache hits 1/1 · Incident Response latency reflects LLM cache hit (~1 ms vs ~2 s uncached).</p>
+    </div>
+    <span class="badge">Step 4 — Token cost, cache, and per-agent latency</span>
+  </div>
+</body>
+</html>

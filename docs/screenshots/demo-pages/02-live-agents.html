@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Secure Total Scan — Live agents</title>
+  <link rel="stylesheet" href="_demo.css" />
+</head>
+<body>
+  <div class="wrap">
+    <span class="back">← Back to home</span>
+    <h1>Agent dashboard</h1>
+    <p class="sub">Run the deep analysis on a GitHub repo, Docker Hub image, your logs, or an uploaded file. Each agent reports live as it finishes.</p>
+
+    <div class="modes">
+      <span class="mode">GitHub repo</span>
+      <span class="mode">Docker Hub image</span>
+      <span class="mode active">Synthetic logs</span>
+      <span class="mode">System logs</span>
+      <span class="mode">Upload logs</span>
+    </div>
+
+    <button class="btn disabled" type="button">Analyzing…</button>
+
+    <h2>Agent pipeline</h2>
+    <div class="grid">
+      <div class="card done"><div class="name">Log Monitor</div><div class="status done">done</div></div>
+      <div class="card done"><div class="name">Threat Intel</div><div class="status done">done</div></div>
+      <div class="card done"><div class="name">Vuln Scanner</div><div class="status done">done</div></div>
+      <div class="card done"><div class="name">Docker Scanner</div><div class="status done">done</div></div>
+      <div class="card running"><div class="name">Incident Response</div><div class="status running">running</div></div>
+      <div class="card pending"><div class="name">Policy Checker</div><div class="status pending">pending</div></div>
+      <div class="card pending"><div class="name">Slack Notifier</div><div class="status pending">pending</div></div>
+    </div>
+    <p class="note">Updates stream over SSE — each card flips from pending → running → done as LangGraph advances.</p>
+    <span class="badge">Step 2 — Live agent progress (SSE)</span>
+  </div>
+</body>
+</html>

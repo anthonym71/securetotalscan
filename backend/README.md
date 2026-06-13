@@ -1,6 +1,6 @@
 # CyberSentinel AI — Backend
 
-Python FastAPI service that orchestrates a five-agent LangGraph security pipeline. It analyzes logs, scans GitHub repositories, streams live agent progress over SSE, and exposes session eval metrics.
+Python FastAPI service that orchestrates a seven-agent LangGraph security pipeline. It analyzes logs, scans GitHub repositories and Docker Hub images, streams live agent progress over SSE, and exposes session eval metrics.
 
 ## Quick start
 
@@ -40,8 +40,8 @@ Run tests:
   (SSE queues)        (LangGraph)        (metrics API)
          │                  │
          │                  ▼
-         │     LogMonitor → ThreatIntel → VulnScanner
-         │              → IncidentResponse → PolicyChecker
+         │     LogMonitor → ThreatIntel → VulnScanner → DockerScanner
+         │              → IncidentResponse → PolicyChecker → SlackNotifier
          │                  │
          │                  ▼
          └──────────► SecurityState (shared TypedDict)
@@ -50,7 +50,7 @@ Run tests:
               ▼                           ▼
          agents/                      tools/
     (pure node functions)      (log_parser, github_scanner,
-                                 nvd_api, abuseipdb)
+                                 nvd_api, abuseipdb, docker_scanner, rag)
               │
               ▼
          llm_client.py + llm_cache.py  (Incident Response only)
@@ -58,7 +58,7 @@ Run tests:
 
 ### Request lifecycle
 
-1. Client calls `POST /analyze`, `/analyze/upload`, or `/analyze/github`.
+1. Client calls `POST /analyze`, `/analyze/upload`, `/analyze/github`, or `/analyze/docker`.
 2. FastAPI creates a `session_id`, event queue, and eval session; starts analysis in a background thread via `asyncio.to_thread`.
 3. LangGraph runs agents sequentially; each wrapper emits `running` / `done` / `error` to the SSE queue.
 4. Client subscribes to `GET /stream/{session_id}` for live updates.
@@ -71,8 +71,10 @@ Run tests:
 | `log_monitor` | Deterministic | Parse logs, detect anomalies, attach remediation hints |
 | `threat_intel` | External API | NVD CVE lookup, AbuseIPDB reputation → `threat_score` |
 | `vuln_scanner` | Deterministic + HTTP | OWASP mapping, optional header checks, GitHub static scan |
-| `incident_response` | LLM (cached) | OpenRouter action plan; deterministic fallback if LLM fails |
-| `policy_checker` | Rule-based | Map anomalies + code findings to NIST / SOC 2 gaps |
+| `docker_scanner` | External API + Trivy | Docker Hub metadata checks, Trivy CVE scan (skips if no image) |
+| `incident_response` | LLM (cached) | OpenRouter action plan + RAG context; deterministic fallback if LLM fails |
+| `policy_checker` | Rule-based + RAG | Map anomalies + code/docker findings to NIST / SOC 2 / ISO 27001 gaps |
+| `slack_notifier` | External webhook | Post summary alert to Slack; skips silently when no webhook configured |
 
 Agents do not call each other directly. They read and write a single **`SecurityState`** object passed through the graph.
 
@@ -126,7 +128,7 @@ Agents stay thin; tools are unit-tested independently (e.g. `log_parser.py`, `gi
 
 ### Strategy-like input modes
 
-`main.py` loads data differently per source (`synthetic`, `system`, `upload`, `github`) but always feeds the same pipeline. The strategy varies at the API boundary; downstream agents remain unchanged.
+`main.py` loads data differently per source (`synthetic`, `system`, `upload`, `github`, `docker`) but always feeds the same pipeline. The strategy varies at the API boundary; downstream agents remain unchanged.
 
 ### Adapter + cache-aside (LLM layer)
 
@@ -193,15 +195,20 @@ backend/
 │   ├── log_monitor.py
 │   ├── threat_intel.py
 │   ├── vuln_scanner.py
+│   ├── docker_scanner.py
 │   ├── incident_response.py
-│   └── policy_checker.py
+│   ├── policy_checker.py
+│   └── slack_notifier.py
 ├── tools/
 │   ├── log_parser.py
 │   ├── github_scanner.py
 │   ├── nvd_api.py
-│   └── abuseipdb.py
+│   ├── abuseipdb.py
+│   ├── docker_scanner.py
+│   └── rag.py
 ├── data/
-│   └── synthetic_logs.json
+│   ├── synthetic_logs.json
+│   └── knowledge/chunks.json
 └── tests/
 ```
 
@@ -272,7 +279,7 @@ Identical synthetic demo runs typically achieve **100% cache hits** on the secon
 
 ## Testing
 
-39 tests covering agents, tools, API, cache, orchestrator, and GitHub scanner (including Terraform patterns and false-positive skips).
+65 tests covering agents, tools, API, RAG, Docker, cache, orchestrator, and GitHub scanner (including Terraform patterns and false-positive skips).
 
 ```bash
 .venv/bin/python -m pytest tests/ -q
