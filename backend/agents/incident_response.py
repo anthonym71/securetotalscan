@@ -7,6 +7,7 @@ from llm_cache import get_default_cache
 from llm_client import CachingLLMClient
 from session_evals import record_llm_call
 from state import SecurityState
+from tools.rag import format_retrieved_context, retrieve_context
 
 _llm: CachingLLMClient | None = None
 
@@ -84,6 +85,12 @@ def build_prompt(state: SecurityState) -> str:
         f"- {f.get('name')} in {f.get('file')}:{f.get('line')} [{f.get('language')}]"
         for f in state.get("code_findings", [])[:10]
     )
+    docker_lines = "\n".join(
+        f"- {f.get('name')} ({f.get('severity')}) — {f.get('recommendation', '')}"
+        for f in state.get("docker_findings", [])[:10]
+    )
+    retrieved = retrieve_context(state)
+    rag_context = format_retrieved_context(retrieved)
     lang_lines = ", ".join(
         f"{lang} ({pct}%)" for lang, pct in state.get("repo_languages", {}).items()
     )
@@ -106,9 +113,16 @@ FILES SCANNED: {state.get('files_scanned', 0)}
 CODE FINDINGS:
 {code_lines or 'None'}
 
+DOCKER IMAGE: {state.get('docker_image') or 'None'}
+DOCKER FINDINGS:
+{docker_lines or 'None'}
+
+RETRIEVED SECURITY KNOWLEDGE (RAG):
+{rag_context}
+
 THREAT SCORE: {state['threat_score']}/100
 
-Provide a numbered action plan (5-7 steps) to remediate these issues immediately. Be specific and actionable."""
+Provide a numbered action plan (5-7 steps) to remediate these issues immediately. Be specific and actionable. Ground recommendations in the retrieved security knowledge where relevant."""
 
 
 def _fallback_action_plan(state: SecurityState) -> list[str]:
@@ -142,17 +156,29 @@ def _fallback_action_plan(state: SecurityState) -> list[str]:
         if len(steps) >= 7:
             break
 
-    for finding in state.get("code_findings", []):
-        key = f"{finding.get('file')}:{finding.get('name')}"
+    for finding in state.get("docker_findings", []):
+        key = f"docker:{finding.get('name')}"
         if key in seen:
             continue
         seen.add(key)
         steps.append(
-            f"Fix {finding['name']} in {finding['file']}:{finding['line']} — "
-            f"{finding['recommendation']}"
+            f"Container: {finding['name']} — {finding.get('recommendation', 'Review image security')}"
         )
         if len(steps) >= 7:
             break
+
+    if len(steps) < 7:
+        for finding in state.get("code_findings", []):
+            key = f"{finding.get('file')}:{finding.get('name')}"
+            if key in seen:
+                continue
+            seen.add(key)
+            steps.append(
+                f"Fix {finding['name']} in {finding['file']}:{finding['line']} — "
+                f"{finding['recommendation']}"
+            )
+            if len(steps) >= 7:
+                break
 
     if len(steps) < 7:
         for vuln in state.get("vulnerabilities", []):
@@ -217,8 +243,12 @@ def run_incident_response(state: SecurityState) -> SecurityState:
 
     if not action_plan:
         action_plan = _fallback_action_plan(state)
+    retrieved = retrieve_context(state)
     runbook_md = (
-        "# Incident Response Runbook\n\n## Action Plan\n\n"
+        "# Incident Response Runbook\n\n"
+        "## Retrieved Knowledge (RAG)\n\n"
+        + format_retrieved_context(retrieved)
+        + "\n\n## Action Plan\n\n"
         + "\n".join(f"{i + 1}. {step}" for i, step in enumerate(action_plan))
     )
-    return {**state, "action_plan": action_plan, "runbook_md": runbook_md}
+    return {**state, "action_plan": action_plan, "runbook_md": runbook_md, "retrieved_sources": retrieved}

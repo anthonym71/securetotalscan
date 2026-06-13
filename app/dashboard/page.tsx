@@ -6,6 +6,7 @@ import {
   AgentEvent,
   SecurityReport,
   SessionEvals,
+  analyzeDocker,
   analyzeGithub,
   analyzeLogs,
   analyzeUpload,
@@ -14,11 +15,12 @@ import {
   streamUrl,
 } from "@/lib/api";
 
-type Mode = "github" | "synthetic" | "system" | "upload";
+type Mode = "github" | "docker" | "synthetic" | "system" | "upload";
 type Tab = "analysis" | "evals";
 
 const MODES: { id: Mode; label: string }[] = [
   { id: "github", label: "GitHub repo" },
+  { id: "docker", label: "Docker Hub image" },
   { id: "synthetic", label: "Synthetic logs" },
   { id: "system", label: "System logs" },
   { id: "upload", label: "Upload logs" },
@@ -42,6 +44,7 @@ const CORE_AGENTS = [
   "log_monitor",
   "threat_intel",
   "vuln_scanner",
+  "docker_scanner",
   "incident_response",
   "policy_checker",
 ];
@@ -49,6 +52,8 @@ const CORE_AGENTS = [
 export default function Dashboard() {
   const [mode, setMode] = useState<Mode>("github");
   const [repo, setRepo] = useState("");
+  const [dockerImage, setDockerImage] = useState("");
+  const [targetUrl, setTargetUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [slackUrl, setSlackUrl] = useState("");
   const [tab, setTab] = useState<Tab>("analysis");
@@ -69,6 +74,7 @@ export default function Dashboard() {
   function canRun() {
     if (running) return false;
     if (mode === "github") return repo.trim().length > 0;
+    if (mode === "docker") return dockerImage.trim().length > 0;
     if (mode === "upload") return file !== null;
     return true;
   }
@@ -87,13 +93,16 @@ export default function Dashboard() {
 
     try {
       const slack = slackUrl.trim();
+      const url = targetUrl.trim();
       let session_id: string;
       if (mode === "github") {
-        ({ session_id } = await analyzeGithub(repo.trim(), false, slack));
+        ({ session_id } = await analyzeGithub(repo.trim(), false, slack, url));
+      } else if (mode === "docker") {
+        ({ session_id } = await analyzeDocker(dockerImage.trim(), false, slack, url));
       } else if (mode === "upload") {
         ({ session_id } = await analyzeUpload(file as File, slack));
       } else {
-        ({ session_id } = await analyzeLogs(mode, slack));
+        ({ session_id } = await analyzeLogs(mode, slack, url));
       }
 
       const es = new EventSource(streamUrl(session_id));
@@ -143,8 +152,8 @@ export default function Dashboard() {
       </a>
       <h1 className="mt-4 text-3xl font-bold">Agent dashboard</h1>
       <p className="mt-2 text-white/60">
-        Run the five-agent deep analysis on a repo, your logs, or an uploaded
-        file. Each agent reports live as it finishes.
+        Run the deep analysis on a GitHub repo, Docker Hub image, your logs, or
+        an uploaded file. Each agent reports live as it finishes.
       </p>
 
       {/* Mode selector */}
@@ -177,6 +186,22 @@ export default function Dashboard() {
             disabled={running}
           />
         )}
+        {mode === "docker" && (
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={dockerImage}
+              onChange={(e) => setDockerImage(e.target.value)}
+              placeholder="nginx:latest or hub.docker.com/r/library/nginx"
+              className="w-full rounded-xl bg-black/40 px-4 py-3.5 text-white placeholder-white/30 outline-none ring-brand/50 transition focus:ring-2"
+              disabled={running}
+            />
+            <p className="px-1 text-xs text-white/40">
+              Paste a Docker Hub image name or URL. Trivy scans the image for CVEs
+              when installed on the backend server.
+            </p>
+          </div>
+        )}
         {mode === "upload" && (
           <input
             type="file"
@@ -193,6 +218,18 @@ export default function Dashboard() {
               : "Reads recent OS log files on the server (auth.log, syslog). Falls back to synthetic logs if none are readable."}
           </p>
         )}
+
+        {/* Optional target URL for HTTP header checks (all modes) */}
+        <div>
+          <input
+            type="url"
+            value={targetUrl}
+            onChange={(e) => setTargetUrl(e.target.value)}
+            placeholder="Optional: https://your-site.com for HTTP header checks"
+            className="w-full rounded-xl bg-black/40 px-4 py-3 text-sm text-white placeholder-white/30 outline-none ring-brand/50 transition focus:ring-2"
+            disabled={running}
+          />
+        </div>
 
         {/* Slack webhook (optional, all modes) */}
         <div>
@@ -278,10 +315,20 @@ export default function Dashboard() {
 
               <SlackStatus report={report} slackConfigured={!!slackUrl.trim()} />
 
+              <TrivyStatus report={report} />
+
+              <FindingList title="Docker findings" items={report.docker_findings} />
               <FindingList title="Code findings" items={report.code_findings} />
               <FindingList title="Vulnerabilities" items={report.vulnerabilities} />
               <FindingList title="Log anomalies" items={report.anomalies} />
               <FindingList title="Compliance gaps" items={report.compliance_gaps} />
+              <RagSources sources={report.retrieved_sources} />
+
+              {typeof report.docker_scan_error === "string" && report.docker_scan_error && (
+                <div className="rounded-xl border border-grade-d/30 bg-grade-d/10 px-4 py-3 text-sm text-grade-d">
+                  Docker scan: {report.docker_scan_error}
+                </div>
+              )}
 
               {report.action_plan && report.action_plan.length > 0 && (
                 <div className="rounded-2xl border border-white/10 bg-card-gradient p-5">
@@ -294,7 +341,7 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {report.scan_error && (
+              {typeof report.scan_error === "string" && report.scan_error && (
                 <div className="rounded-xl border border-grade-d/30 bg-grade-d/10 px-4 py-3 text-sm text-grade-d">
                   {report.scan_error}
                 </div>
@@ -388,9 +435,94 @@ function FindingList({
               {where && (
                 <span className="ml-2 font-mono text-xs text-white/40">{where}</span>
               )}
+              {typeof item.fix_prompt === "string" && item.fix_prompt && (
+                <CopyFixPrompt prompt={item.fix_prompt} />
+              )}
             </li>
           );
         })}
+      </ul>
+    </div>
+  );
+}
+
+function TrivyStatus({ report }: { report: SecurityReport }) {
+  if (report.docker_skipped) return null;
+  const available = report.docker_trivy_available;
+  const ran = report.docker_trivy_ran;
+  const count = report.docker_trivy_cve_count ?? 0;
+  const err = report.docker_trivy_error;
+
+  if (!available) {
+    return (
+      <div className="rounded-xl border border-grade-c/30 bg-grade-c/10 px-4 py-3 text-sm text-grade-c">
+        Trivy is not installed on the backend — only Docker Hub metadata checks ran.
+        Run <code className="text-xs">backend/scripts/install-trivy.sh</code> to enable CVE scanning.
+      </div>
+    );
+  }
+  if (err) {
+    return (
+      <div className="rounded-xl border border-grade-f/30 bg-grade-f/10 px-4 py-3 text-sm text-grade-f">
+        Trivy CVE scan failed: {err}
+      </div>
+    );
+  }
+  if (ran) {
+    return (
+      <div className="rounded-xl border border-grade-a/30 bg-grade-a/10 px-4 py-3 text-sm text-grade-a">
+        Trivy CVE scan complete — {count} vulnerabilit{count === 1 ? "y" : "ies"} found in{" "}
+        {String(report.docker_image ?? "image")}.
+      </div>
+    );
+  }
+  return null;
+}
+
+function CopyFixPrompt({ prompt }: { prompt: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard.writeText(prompt).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        });
+      }}
+      className="mt-2 block text-xs text-brand-light hover:text-white"
+    >
+      {copied ? "Copied fix prompt" : "Copy fix prompt"}
+    </button>
+  );
+}
+
+function RagSources({
+  sources,
+}: {
+  sources?: Record<string, unknown>[];
+}) {
+  if (!sources || sources.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-brand/20 bg-brand/5 p-5">
+      <h3 className="font-semibold">
+        Retrieved knowledge (RAG){" "}
+        <span className="text-white/40">({sources.length})</span>
+      </h3>
+      <ul className="mt-3 space-y-2">
+        {sources.map((s, i) => (
+          <li
+            key={i}
+            className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white/75"
+          >
+            <span className="font-medium text-brand-light">
+              [{String(s.framework ?? "KB")}] {String(s.title ?? s.id ?? "Source")}
+            </span>
+            {typeof s.content === "string" && s.content && (
+              <p className="mt-1 text-xs text-white/50">{s.content}</p>
+            )}
+          </li>
+        ))}
       </ul>
     </div>
   );

@@ -19,6 +19,19 @@ def test_check_api_headers_missing():
     assert any(f["header"] == "Content-Security-Policy" for f in findings)
 
 
+def test_run_vuln_scanner_no_fake_headers_without_url():
+    state = make_initial_state(raw_logs=[], log_source="synthetic", session_id="v2")
+    state = {
+        **state,
+        "anomalies": [
+            {"type": "path_traversal", "detail": "/etc/passwd", "severity": "HIGH"},
+        ],
+    }
+    result = run_vuln_scanner(state)
+    header_findings = [v for v in result["vulnerabilities"] if "header" in v]
+    assert header_findings == []
+
+
 def test_run_vuln_scanner_populates_state():
     state = make_initial_state(raw_logs=[], log_source="synthetic", session_id="v1")
     state = {

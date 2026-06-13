@@ -27,6 +27,30 @@ MOCK_STATE = {
 }
 
 
+def test_trivy_health_endpoint():
+    with patch("tools.docker_scanner.resolve_trivy_binary", return_value=None):
+        response = client.get("/health/trivy")
+    assert response.status_code == 200
+    assert response.json()["available"] is False
+
+
+def test_analyze_docker_returns_session_id():
+    with patch("main._run_analysis_background") as mock_bg:
+        response = client.post(
+            "/analyze/docker",
+            json={"image_url": "nginx:latest"},
+        )
+    assert response.status_code == 200
+    assert "session_id" in response.json()
+    assert response.json().get("docker_image")
+    mock_bg.assert_called_once()
+
+
+def test_analyze_docker_rejects_empty_url():
+    response = client.post("/analyze/docker", json={"image_url": ""})
+    assert response.status_code == 400
+
+
 def test_analyze_returns_session_id_without_blocking():
     with patch("main._run_analysis_background") as mock_bg:
         response = client.post("/analyze", json={"source": "synthetic"})

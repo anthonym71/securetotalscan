@@ -28,8 +28,13 @@ async function postJson(path: string, body: unknown): Promise<StartResponse> {
 export function analyzeLogs(
   source: "synthetic" | "system",
   slackWebhookUrl = "",
+  targetUrl = "",
 ): Promise<StartResponse> {
-  return postJson("/analyze", { source, slack_webhook_url: slackWebhookUrl });
+  return postJson("/analyze", {
+    source,
+    slack_webhook_url: slackWebhookUrl,
+    target_url: targetUrl,
+  });
 }
 
 /** Analyze a GitHub repository (optionally combined with logs). */
@@ -37,11 +42,28 @@ export function analyzeGithub(
   repoUrl: string,
   includeLogs = false,
   slackWebhookUrl = "",
+  targetUrl = "",
 ): Promise<StartResponse> {
   return postJson("/analyze/github", {
     repo_url: repoUrl,
     include_logs: includeLogs,
     slack_webhook_url: slackWebhookUrl,
+    target_url: targetUrl,
+  });
+}
+
+/** Analyze a Docker Hub image (optionally combined with logs). */
+export function analyzeDocker(
+  imageUrl: string,
+  includeLogs = false,
+  slackWebhookUrl = "",
+  targetUrl = "",
+): Promise<StartResponse> {
+  return postJson("/analyze/docker", {
+    image_url: imageUrl,
+    include_logs: includeLogs,
+    slack_webhook_url: slackWebhookUrl,
+    target_url: targetUrl,
   });
 }
 
@@ -90,7 +112,16 @@ export interface SecurityReport {
   compliance_gaps?: Record<string, unknown>[];
   action_plan?: string[];
   runbook_md?: string;
-  scan_error?: string;
+  docker_findings?: Record<string, unknown>[];
+  docker_image?: string;
+  docker_skipped?: boolean;
+  docker_scan_error?: string;
+  docker_trivy_available?: boolean;
+  docker_trivy_ran?: boolean;
+  docker_trivy_cve_count?: number;
+  docker_trivy_error?: string;
+  retrieved_sources?: Record<string, unknown>[];
+  target_url?: string;
   slack_sent?: boolean;
   slack_error?: string;
   slack_skipped?: boolean;
@@ -147,6 +178,7 @@ export const AGENT_LABELS: Record<string, string> = {
   log_monitor: "Log monitor",
   threat_intel: "Threat intel",
   vuln_scanner: "Vulnerability scanner",
+  docker_scanner: "Docker scanner",
   incident_response: "Incident response",
   policy_checker: "Compliance",
   slack_notifier: "Slack notifier",

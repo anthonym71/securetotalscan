@@ -1,0 +1,24 @@
+# Nixpacks / Railpack build for FastAPI backend + Trivy CVE scanning.
+# Requires Railway service Root Directory = backend (monorepo).
+
+providers = ["python"]
+
+[variables]
+NIXPACKS_PYTHON_VERSION = "3.11"
+TRIVY_CACHE_DIR = "/tmp/trivy-cache"
+TRIVY_WARMUP = "true"
+TRIVY_SEVERITIES = "CRITICAL,HIGH,MEDIUM"
+TRIVY_MAX_CVES = "25"
+TRIVY_TIMEOUT_SEC = "180"
+
+[phases.setup]
+aptPkgs = ["curl", "ca-certificates", "tar"]
+
+[phases.build]
+cmds = [
+  "chmod +x scripts/install-trivy.sh",
+  "TRIVY_INSTALL_DIR=/usr/local/bin ./scripts/install-trivy.sh",
+]
+
+[start]
+cmd = "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"

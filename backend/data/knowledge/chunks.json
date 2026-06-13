@@ -1,0 +1,100 @@
+[
+  {
+    "id": "nist-brute-force",
+    "title": "NIST PR.AC-1 — Identity and credential management",
+    "framework": "NIST CSF 2.0",
+    "tags": ["brute_force", "ssh", "authentication", "credentials"],
+    "content": "Implement account lockout after repeated failed logins, disable direct root SSH, enforce MFA for administrative access, and block attacking IPs at the network perimeter. Monitor authentication logs continuously and alert on threshold breaches."
+  },
+  {
+    "id": "nist-port-scan",
+    "title": "NIST DE.CM-1 — Network monitoring",
+    "framework": "NIST CSF 2.0",
+    "tags": ["port_scan", "reconnaissance", "network", "monitoring"],
+    "content": "Detect and alert on port scanning and reconnaissance activity. Rate-limit or block scanner IPs, tighten firewall rules to expose only required services, and correlate scan events with threat intelligence feeds."
+  },
+  {
+    "id": "nist-path-traversal",
+    "title": "NIST PR.AC-4 — Access permissions",
+    "framework": "NIST CSF 2.0",
+    "tags": ["path_traversal", "access_control", "web"],
+    "content": "Validate and sanitize all file path inputs. Deny web server access to sensitive directories (/etc, /proc). Deploy WAF rules for directory traversal patterns and apply least-privilege file permissions."
+  },
+  {
+    "id": "soc2-access",
+    "title": "SOC 2 CC6.1 — Logical access security",
+    "framework": "SOC 2 Type II",
+    "tags": ["brute_force", "sudo_failure", "access", "authentication"],
+    "content": "Logical access security controls must restrict access to authorized users. Review sudoers configuration, remove unnecessary privileges, enforce strong authentication, and investigate privilege escalation attempts immediately."
+  },
+  {
+    "id": "iso-auth",
+    "title": "ISO 27001 A.8.5 — Secure authentication",
+    "framework": "ISO 27001",
+    "tags": ["brute_force", "authentication", "ssh", "mfa"],
+    "content": "Secure authentication mechanisms shall be implemented based on information access restrictions. Use strong passwords or keys, MFA for privileged accounts, and automated blocking of repeated failed authentication attempts."
+  },
+  {
+    "id": "iso-monitoring",
+    "title": "ISO 27001 A.8.16 — Monitoring activities",
+    "framework": "ISO 27001",
+    "tags": ["port_scan", "monitoring", "logs", "detection"],
+    "content": "Networks, systems, and applications shall be monitored for anomalous behaviour. Configure SIEM rules for port scans, failed logins, and privilege escalation. Retain logs per your retention policy."
+  },
+  {
+    "id": "owasp-secrets",
+    "title": "OWASP A02 — Cryptographic failures and secrets",
+    "framework": "OWASP Top 10",
+    "tags": ["secrets", "hardcoded", "credentials", "github"],
+    "content": "Never store secrets, API keys, or passwords in source code. Use environment variables or a secrets manager (AWS Secrets Manager, HashiCorp Vault). Rotate any exposed credentials immediately and add pre-commit secret scanning."
+  },
+  {
+    "id": "owasp-injection",
+    "title": "OWASP A03 — Injection prevention",
+    "framework": "OWASP Top 10",
+    "tags": ["sql", "injection", "code", "github"],
+    "content": "Use parameterized queries or ORMs for all database access. Avoid string concatenation in SQL. Validate and sanitize all user inputs. Apply static analysis in CI to catch injection patterns early."
+  },
+  {
+    "id": "docker-latest-tag",
+    "title": "Container security — avoid latest tag",
+    "framework": "CIS Docker Benchmark",
+    "tags": ["docker", "container", "image", "latest"],
+    "content": "Do not deploy containers using the :latest tag in production. Pin images to immutable digests or specific version tags. Rebuild and redeploy when security patches are published for base images."
+  },
+  {
+    "id": "docker-base-image",
+    "title": "Container security — minimal base images",
+    "framework": "CIS Docker Benchmark",
+    "tags": ["docker", "container", "image", "base"],
+    "content": "Use minimal base images (distroless, alpine slim) to reduce attack surface. Scan images in CI with Trivy or Grype before deployment. Keep base images updated and rebuild on CVE disclosure."
+  },
+  {
+    "id": "docker-root",
+    "title": "Container security — non-root user",
+    "framework": "CIS Docker Benchmark",
+    "tags": ["docker", "container", "root", "privilege"],
+    "content": "Run containers as a non-root user. Add USER directive in Dockerfile. Drop unnecessary Linux capabilities and use read-only root filesystem where possible."
+  },
+  {
+    "id": "incident-contain",
+    "title": "Incident response — containment first",
+    "framework": "NIST SP 800-61",
+    "tags": ["incident", "response", "containment", "remediation"],
+    "content": "First containment steps: isolate affected systems, block malicious IPs, preserve logs for forensics, rotate compromised credentials, and notify stakeholders per your incident response plan."
+  },
+  {
+    "id": "cve-remediation",
+    "title": "CVE remediation workflow",
+    "framework": "NIST CSF 2.0",
+    "tags": ["cve", "vulnerability", "patch", "threat"],
+    "content": "Prioritize CVEs by CVSS score and exploit availability. Patch or mitigate within SLA (Critical: 72h, High: 7d). Verify fixes with rescan. Document exceptions with compensating controls."
+  },
+  {
+    "id": "headers-hardening",
+    "title": "HTTP security headers",
+    "framework": "OWASP Secure Headers",
+    "tags": ["headers", "csp", "hsts", "web"],
+    "content": "Deploy Content-Security-Policy, Strict-Transport-Security, X-Frame-Options, and X-Content-Type-Options on all responses. Configure at reverse proxy or application framework level."
+  }
+]
