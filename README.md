@@ -61,9 +61,19 @@ npm run verify:scanner          # offline check of the surface scanner logic
 
 ## Deploy
 
-- Web → Vercel (zero config). Set `NEXT_PUBLIC_API_URL` to the Railway URL.
-- Backend → Railway. Add `OPENROUTER_API_KEY`, `GITHUB_TOKEN`, and CORS for the web origin.
-- Marketing funnel + payments → GoHighLevel + Stripe (commercial tier).
+Production is split across Vercel (web) and Railway (agent backend). See [docs/DEPLOY.md](docs/DEPLOY.md) for full setup.
+
+| Service | URL |
+|---------|-----|
+| Frontend | https://frontend-pearl-five-55.vercel.app |
+| Dashboard | https://frontend-pearl-five-55.vercel.app/dashboard |
+| Backend API | https://cybersentinel-api-production.up.railway.app |
+
+- **Web → Vercel:** set `NEXT_PUBLIC_API_URL` to the Railway URL above.
+- **Backend → Railway:** root directory `backend/`. Add `OPENROUTER_API_KEY`, `GITHUB_TOKEN`, etc.
+- **RAG index:** run `python -m scripts.index_knowledge` before deploy, or re-index from the dashboard.
+
+Marketing funnel + payments → GoHighLevel + Stripe (commercial tier).
 
 ## Data promise
 
