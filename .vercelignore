@@ -1,0 +1,7 @@
+# The Python agent backend deploys to Railway, not Vercel.
+# Excluding it so Vercel's build doesn't try to treat it as Python functions.
+backend
+
+# local-only
+.verify
+.playwright-mcp
