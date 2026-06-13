@@ -1,6 +1,6 @@
 # Secure Total Scan
 
-[![CI](https://github.com/anthonym71/securetotalscan/actions/workflows/ci.yml/badge.svg)](https://github.com/anthonym71/securetotalscan/actions/workflows/ci.yml)
+[![CI](https://github.com/dheerajrvanteru/securetotalscan/actions/workflows/ci.yml/badge.svg)](https://github.com/dheerajrvanteru/securetotalscan/actions/workflows/ci.yml)
 
 > If it's online, it can leak. Find out before someone else does.
 
