@@ -40,40 +40,29 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 2
 
-      - uses: dorny/paths-filter@v3
-        if: github.event_name == 'workflow_run'
-        id: filter
-        with:
-          base: ${{ github.event.workflow_run.head_sha }}~1
-          ref: ${{ github.event.workflow_run.head_sha }}
-          filters: |
-            backend:
-              - 'backend/**'
-            frontend:
-              - 'app/**'
-              - 'components/**'
-              - 'lib/**'
-              - 'public/**'
-              - 'package.json'
-              - 'package-lock.json'
-              - 'next.config.*'
-              - 'tailwind.config.*'
-              - 'postcss.config.*'
-              - 'tsconfig*.json'
-              - 'middleware.*'
-              - 'eslint.config.*'
-              - 'vercel.json'
-              - 'scripts/vercel-ignore.sh'
-
-      - name: Set deploy targets
+      - name: Detect deploy targets
         id: targets
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "backend=true" >> "$GITHUB_OUTPUT"
             echo "frontend=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          files="$(git diff --name-only HEAD^ HEAD)"
+          echo "Changed files:"
+          echo "$files"
+
+          if echo "$files" | grep -qE '^backend/'; then
+            echo "backend=true" >> "$GITHUB_OUTPUT"
           else
-            echo "backend=${{ steps.filter.outputs.backend }}" >> "$GITHUB_OUTPUT"
-            echo "frontend=${{ steps.filter.outputs.frontend }}" >> "$GITHUB_OUTPUT"
+            echo "backend=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if echo "$files" | grep -qE '^(app/|components/|lib/|public/|package\.json|package-lock\.json|next\.config|tailwind\.config|postcss\.config|tsconfig|middleware\.|eslint\.config|vercel\.json|scripts/vercel-ignore\.sh)'; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend=false" >> "$GITHUB_OUTPUT"
           fi
 
   deploy-backend:
