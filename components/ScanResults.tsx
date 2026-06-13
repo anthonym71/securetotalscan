@@ -1,4 +1,5 @@
 import type { Finding, Grade, ScanReport, Severity } from "@/lib/scanner/types";
+import { LeadCapture } from "./LeadCapture";
 
 const GRADE_COLOR: Record<Grade, string> = {
   A: "text-grade-a border-grade-a",
@@ -44,6 +45,9 @@ export function ScanResults({ report }: { report: ScanReport }) {
           </p>
         </div>
       </div>
+
+      {/* Lead capture: email the full report (feeds GoHighLevel CRM) */}
+      <LeadCapture url={report.url} grade={report.grade} score={report.score} />
 
       {/* Severity summary */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
