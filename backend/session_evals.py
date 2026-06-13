@@ -22,10 +22,10 @@ AGENT_LABELS = {
 
 AGENT_TYPES = {
     "log_monitor": "deterministic",
-    "threat_intel": "external_api",
+    "threat_intel": "rag + external_api",
     "vuln_scanner": "deterministic",
     "incident_response": "llm",
-    "policy_checker": "deterministic",
+    "policy_checker": "rag + deterministic",
     "slack_notifier": "external_api",
 }
 
@@ -35,8 +35,8 @@ AGENT_CACHE_INFO = {
         "reason": "Regex-based log parsing — no LLM calls",
     },
     "threat_intel": {
-        "strategy": "none",
-        "reason": "NVD + AbuseIPDB HTTP calls (future: TTL response cache)",
+        "strategy": "vector_retrieval",
+        "reason": "Chroma RAG over runbooks/threat patterns + NVD + AbuseIPDB",
     },
     "vuln_scanner": {
         "strategy": "none",
@@ -47,8 +47,8 @@ AGENT_CACHE_INFO = {
         "reason": "In-memory LRU cache keyed on SHA-256(model + messages)",
     },
     "policy_checker": {
-        "strategy": "none",
-        "reason": "NIST/SOC2 rule mapping — no LLM calls",
+        "strategy": "vector_retrieval",
+        "reason": "Chroma RAG over NIST/SOC2 knowledge + rule-based gap mapping",
     },
     "slack_notifier": {
         "strategy": "none",

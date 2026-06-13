@@ -1,21 +1,25 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AGENT_LABELS,
   AgentEvent,
+  RagStatus,
   SecurityReport,
   SessionEvals,
   analyzeGithub,
   analyzeLogs,
   analyzeUpload,
   getEvals,
+  getRagStatus,
   getReport,
+  indexKnowledge,
   streamUrl,
 } from "@/lib/api";
+import { PolicyPanel } from "@/components/PolicyPanel";
 
 type Mode = "github" | "synthetic" | "system" | "upload";
-type Tab = "analysis" | "evals";
+type Tab = "analysis" | "policies" | "evals";
 
 const MODES: { id: Mode; label: string }[] = [
   { id: "github", label: "GitHub repo" },
@@ -58,9 +62,44 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<SecurityReport | null>(null);
   const [evals, setEvals] = useState<SessionEvals | null>(null);
+  const [ragStatus, setRagStatus] = useState<RagStatus | null>(null);
+  const [indexing, setIndexing] = useState(false);
+  const [indexMsg, setIndexMsg] = useState<string | null>(null);
 
   const esRef = useRef<EventSource | null>(null);
   const doneRef = useRef(false);
+
+  useEffect(() => {
+    getRagStatus()
+      .then(setRagStatus)
+      .catch(() =>
+        setRagStatus({
+          enabled: false,
+          ready: false,
+          document_count: 0,
+          persist_dir: "",
+          message: "Could not reach backend RAG status",
+        }),
+      );
+  }, []);
+
+  async function rebuildIndex() {
+    setIndexing(true);
+    setIndexMsg(null);
+    try {
+      const result = await indexKnowledge(true);
+      setRagStatus(result.status);
+      setIndexMsg(
+        `Indexed ${result.summary.chunks_indexed} chunks from ${result.summary.files_indexed} files.`,
+      );
+    } catch (err) {
+      setIndexMsg(
+        err instanceof Error ? err.message : "Failed to rebuild knowledge index",
+      );
+    } finally {
+      setIndexing(false);
+    }
+  }
 
   const pipeline = slackUrl.trim()
     ? [...CORE_AGENTS, "slack_notifier"]
@@ -146,6 +185,46 @@ export default function Dashboard() {
         Run the five-agent deep analysis on a repo, your logs, or an uploaded
         file. Each agent reports live as it finishes.
       </p>
+
+      {/* RAG knowledge base — index before deploy; re-index on demand here */}
+      <div className="mt-6 rounded-xl border border-white/10 bg-black/20 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-white">Knowledge base (RAG)</h2>
+            <p className="mt-1 text-xs text-white/50">
+              Threat Intel and Compliance agents retrieve NIST/SOC2 controls and
+              runbooks from the vector index. Index before Railway deploy; re-index
+              here after updating knowledge files.
+            </p>
+            {ragStatus && (
+              <p
+                className={`mt-2 text-sm ${
+                  ragStatus.ready ? "text-grade-a" : "text-grade-c"
+                }`}
+              >
+                {ragStatus.message}
+                {ragStatus.ready && (
+                  <span className="text-white/40">
+                    {" "}
+                    · {ragStatus.document_count} chunks
+                  </span>
+                )}
+              </p>
+            )}
+            {indexMsg && (
+              <p className="mt-2 text-xs text-white/60">{indexMsg}</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={rebuildIndex}
+            disabled={indexing || running}
+            className="shrink-0 rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {indexing ? "Indexing…" : "Re-index knowledge base"}
+          </button>
+        </div>
+      </div>
 
       {/* Mode selector */}
       <div className="mt-6 flex flex-wrap gap-2">
@@ -252,7 +331,7 @@ export default function Dashboard() {
       {(report || evals) && (
         <div className="mt-8">
           <div className="mb-4 flex gap-2 border-b border-white/10">
-            {(["analysis", "evals"] as Tab[]).map((t) => (
+            {(["analysis", "policies", "evals"] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -262,7 +341,7 @@ export default function Dashboard() {
                     : "border-transparent text-white/50 hover:text-white"
                 }`}
               >
-                {t}
+                {t === "policies" ? "Policies" : t}
               </button>
             ))}
           </div>
@@ -281,7 +360,29 @@ export default function Dashboard() {
               <FindingList title="Code findings" items={report.code_findings} />
               <FindingList title="Vulnerabilities" items={report.vulnerabilities} />
               <FindingList title="Log anomalies" items={report.anomalies} />
-              <FindingList title="Compliance gaps" items={report.compliance_gaps} />
+              <ThreatIntelPanel report={report} />
+
+              {(report.compliance_gaps?.length ?? 0) > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-card-gradient p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-semibold">Policy gaps detected</h3>
+                      <p className="mt-1 text-sm text-white/50">
+                        {report.compliance_gaps?.length} control
+                        {(report.compliance_gaps?.length ?? 0) === 1 ? "" : "s"} flagged
+                        across NIST and SOC 2 frameworks.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTab("policies")}
+                      className="rounded-lg border border-brand/40 px-4 py-2 text-sm font-medium text-brand-light transition hover:bg-brand/10"
+                    >
+                      View policies →
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {report.action_plan && report.action_plan.length > 0 && (
                 <div className="rounded-2xl border border-white/10 bg-card-gradient p-5">
@@ -299,6 +400,17 @@ export default function Dashboard() {
                   {report.scan_error}
                 </div>
               )}
+            </div>
+          )}
+
+          {tab === "policies" && report && (
+            <div className="animate-fade-in">
+              <PolicyPanel
+                gaps={report.compliance_gaps}
+                complianceContext={report.compliance_context}
+                complianceScore={report.compliance_score}
+                ragReady={ragStatus?.ready}
+              />
             </div>
           )}
 
@@ -349,6 +461,84 @@ function SlackStatus({
     );
   }
   return null;
+}
+
+function ThreatIntelPanel({ report }: { report: SecurityReport }) {
+  const cves = (report.cve_matches ?? []) as Array<{
+    id?: string;
+    description?: string;
+    cvss_score?: number;
+    linked_anomaly?: string;
+    rag_context?: string[];
+  }>;
+  const context = report.threat_intel_context ?? [];
+
+  if (!cves.length && !context.length) return null;
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-card-gradient p-5">
+      <h3 className="font-semibold">
+        Threat intelligence{" "}
+        <span className="text-white/40">
+          (score {report.threat_score ?? 0})
+        </span>
+      </h3>
+
+      {cves.length > 0 && (
+        <ul className="mt-3 space-y-2">
+          {cves.slice(0, 10).map((cve, i) => (
+            <li
+              key={`${cve.id}-${i}`}
+              className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm"
+            >
+              <div className="font-mono text-brand-light">{cve.id ?? "CVE"}</div>
+              <p className="mt-1 text-white/75">{cve.description ?? "—"}</p>
+              {cve.linked_anomaly && (
+                <p className="mt-1 text-xs text-white/40">
+                  Linked anomaly: {cve.linked_anomaly}
+                  {cve.cvss_score != null && ` · CVSS ${cve.cvss_score}`}
+                </p>
+              )}
+              {cve.rag_context && cve.rag_context.length > 0 && (
+                <div className="mt-2 rounded border border-brand/20 bg-brand/5 p-2">
+                  <p className="text-xs font-semibold uppercase text-brand-light">
+                    RAG runbook
+                  </p>
+                  {cve.rag_context.map((snippet, j) => (
+                    <p key={j} className="mt-1 text-xs text-white/70 line-clamp-3">
+                      {snippet}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {context.length > 0 && (
+        <div className="mt-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/40">
+            Retrieved threat knowledge
+          </p>
+          <ul className="mt-2 space-y-2">
+            {context.slice(0, 5).map((item, i) => (
+              <li
+                key={i}
+                className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm"
+              >
+                <div className="text-xs text-white/40">
+                  <span className="font-mono">{item.source}</span>
+                  {item.linked_to && ` · ${item.linked_to}`}
+                </div>
+                <p className="mt-1 text-white/70 line-clamp-4">{item.text}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function FindingList({

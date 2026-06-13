@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from orchestrator import run_analysis
+from rag import index_knowledge, status as rag_status
 from session_events import close_session, create_session, emit_sync, get_agent_status, get_queue
 from session_evals import begin_session, finish_session, list_all_evals, session_to_dict
 
@@ -307,3 +308,31 @@ async def get_session_evals(session_id: str):
     if not detail:
         raise HTTPException(status_code=404, detail="Eval data not found for session")
     return detail
+
+
+class RagIndexRequest(BaseModel):
+    """Optional body for ``POST /rag/index``."""
+
+    rebuild: bool = True
+
+
+@app.get("/rag/status")
+async def get_rag_status():
+    """Return vector index health (no indexing on startup)."""
+    return rag_status()
+
+
+@app.post("/rag/index")
+async def rebuild_rag_index(request: RagIndexRequest | None = None):
+    """Re-index bundled knowledge into Chroma on demand (dashboard or deploy hook)."""
+    rebuild = request.rebuild if request else True
+    try:
+        summary = await asyncio.to_thread(index_knowledge, rebuild=rebuild)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return {"ok": True, "summary": summary, "status": rag_status()}

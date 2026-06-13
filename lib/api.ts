@@ -87,7 +87,11 @@ export interface SecurityReport {
   anomalies?: Record<string, unknown>[];
   vulnerabilities?: Record<string, unknown>[];
   code_findings?: Record<string, unknown>[];
-  compliance_gaps?: Record<string, unknown>[];
+  compliance_gaps?: ComplianceGap[];
+  cve_matches?: Record<string, unknown>[];
+  threat_intel_context?: RagContextItem[];
+  compliance_context?: RagContextItem[];
+  rag_queries?: Record<string, unknown>[];
   action_plan?: string[];
   runbook_md?: string;
   scan_error?: string;
@@ -95,6 +99,44 @@ export interface SecurityReport {
   slack_error?: string;
   slack_skipped?: boolean;
   [key: string]: unknown;
+}
+
+export interface ComplianceGap {
+  framework: string;
+  control_id: string;
+  description: string;
+  severity?: string;
+  rag_remediation?: string;
+  rag_sources?: string[];
+}
+
+export interface RagContextItem {
+  text: string;
+  source: string;
+  doc_type: string;
+  score: number;
+  linked_to?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface RagStatus {
+  enabled: boolean;
+  ready: boolean;
+  document_count: number;
+  persist_dir: string;
+  collection?: string;
+  message: string;
+}
+
+export interface RagIndexResult {
+  ok: boolean;
+  summary: {
+    files_indexed: number;
+    chunks_indexed: number;
+    persist_dir: string;
+    sources: string[];
+  };
+  status: RagStatus;
 }
 
 export async function getReport(sessionId: string): Promise<SecurityReport> {
@@ -140,6 +182,26 @@ export interface SessionEvals {
 export async function getEvals(sessionId: string): Promise<SessionEvals> {
   const res = await fetch(`${API_BASE}/evals/${sessionId}`);
   if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+  return res.json();
+}
+
+export async function getRagStatus(): Promise<RagStatus> {
+  const res = await fetch(`${API_BASE}/rag/status`);
+  if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+  return res.json();
+}
+
+/** Re-index bundled knowledge into Chroma on demand (dashboard control). */
+export async function indexKnowledge(rebuild = true): Promise<RagIndexResult> {
+  const res = await fetch(`${API_BASE}/rag/index`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rebuild }),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    throw new Error(detail?.detail ?? `Backend returned ${res.status}`);
+  }
   return res.json();
 }
 

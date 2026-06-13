@@ -1,5 +1,7 @@
 """Tests for NIST/SOC2 compliance mapping and Policy Checker agent."""
 
+from unittest.mock import patch
+
 from agents.policy_checker import map_to_nist, map_to_soc2, run_policy_checker
 from state import make_initial_state
 
@@ -36,7 +38,8 @@ def test_run_policy_checker_maps_code_findings():
             }
         ],
     }
-    result = run_policy_checker(state)
+    with patch("agents.policy_checker.retrieve", return_value=[]):
+        result = run_policy_checker(state)
     assert any("main.tf" in g["description"] for g in result["compliance_gaps"])
 
 
@@ -50,7 +53,8 @@ def test_run_policy_checker_produces_score():
         "risk_level": "critical",
         "action_plan": ["Block IP", "Rotate keys"],
     }
-    result = run_policy_checker(state)
+    with patch("agents.policy_checker.retrieve", return_value=[]):
+        result = run_policy_checker(state)
     assert 0 <= result["compliance_score"] <= 100
     assert len(result["compliance_gaps"]) > 0
     assert all("framework" in g for g in result["compliance_gaps"])
