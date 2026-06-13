@@ -87,7 +87,8 @@ export interface SecurityReport {
   anomalies?: Record<string, unknown>[];
   vulnerabilities?: Record<string, unknown>[];
   code_findings?: Record<string, unknown>[];
-  compliance_gaps?: Record<string, unknown>[];
+  compliance_gaps?: ComplianceGap[];
+  cve_matches?: Record<string, unknown>[];
   threat_intel_context?: RagContextItem[];
   compliance_context?: RagContextItem[];
   rag_queries?: Record<string, unknown>[];
@@ -98,6 +99,15 @@ export interface SecurityReport {
   slack_error?: string;
   slack_skipped?: boolean;
   [key: string]: unknown;
+}
+
+export interface ComplianceGap {
+  framework: string;
+  control_id: string;
+  description: string;
+  severity?: string;
+  rag_remediation?: string;
+  rag_sources?: string[];
 }
 
 export interface RagContextItem {
