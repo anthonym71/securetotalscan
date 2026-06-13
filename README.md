@@ -11,6 +11,84 @@ This repo is the integrated Rev 2 build (web + agent backend).
 
 ---
 
+## Architecture
+
+```mermaid
+flowchart TB
+  subgraph Users["Users"]
+    Browser["Browser"]
+  end
+
+  subgraph Vercel["Vercel — Next.js 15"]
+    Landing["/ Landing + ScanForm"]
+    ScanAPI["/api/scan Surface scanner"]
+    Dashboard["/dashboard Agent UI"]
+    ApiClient["lib/api.ts"]
+  end
+
+  subgraph Railway["Railway — FastAPI + LangGraph"]
+    FastAPI["main.py REST + SSE"]
+    Orch["orchestrator.py LangGraph pipeline"]
+    State["SecurityState blackboard"]
+    RAG["rag/ Chroma retriever"]
+    Chroma[("data/chroma Vector index")]
+    KB["data/knowledge NIST · SOC2 · runbooks"]
+
+    subgraph Agents["Agent pipeline"]
+      LM["Log Monitor"]
+      TI["Threat Intel + RAG"]
+      VS["Vuln Scanner"]
+      IR["Incident Response LLM"]
+      PC["Policy Checker + RAG"]
+      SN["Slack Notifier"]
+    end
+  end
+
+  subgraph External["External services"]
+    NVD["NVD CVE API"]
+    Abuse["AbuseIPDB"]
+    GitHub["GitHub API"]
+    OpenRouter["OpenRouter GPT-4o"]
+    Slack["Slack webhook"]
+  end
+
+  Browser --> Landing
+  Browser --> Dashboard
+  Landing --> ScanAPI
+  Dashboard --> ApiClient
+  ApiClient -->|"POST /analyze · /upload · /github"| FastAPI
+  ApiClient -->|"GET /stream SSE"| FastAPI
+  ApiClient -->|"GET /report · /rag/status"| FastAPI
+  ApiClient -->|"POST /rag/index"| FastAPI
+
+  FastAPI --> Orch
+  Orch --> LM --> TI --> VS --> IR --> PC --> SN
+  LM & TI & VS & IR & PC & SN --> State
+  TI & PC --> RAG
+  RAG --> Chroma
+  KB -.->|"index before deploy"| Chroma
+
+  TI --> NVD
+  TI --> Abuse
+  VS --> GitHub
+  IR --> OpenRouter
+  SN --> Slack
+
+  ScanAPI -.->|"passive URL scan no LLM"| Browser
+```
+
+### How the layers connect
+
+| Layer | Entry point | Runtime | Output |
+|-------|-------------|---------|--------|
+| **Surface scan** | `/` → ScanForm | Next.js `/api/scan` | A–F grade, fix prompts |
+| **Deep analysis** | `/dashboard` | Railway LangGraph agents | Threat report, policies, runbook |
+| **RAG knowledge** | Pre-indexed Chroma | Threat Intel + Policy Checker | NIST/SOC2 controls, runbooks |
+
+**Deploy split:** frontend on [Vercel](https://frontend-pearl-five-55.vercel.app), backend on [Railway](https://cybersentinel-api-production.up.railway.app). The dashboard reaches the backend via `NEXT_PUBLIC_API_URL`. See [docs/DEPLOY.md](docs/DEPLOY.md).
+
+---
+
 ## Structure
 
 ```
