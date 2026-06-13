@@ -49,3 +49,6 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
+          # Upload requires code scanning enabled under Settings → Code security.
+          # Analysis still runs locally so CI passes until a repo admin enables it.
+          upload: never
