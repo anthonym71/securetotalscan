@@ -5,18 +5,23 @@ import {
   AGENT_LABELS,
   AgentEvent,
   SecurityReport,
+  SessionEvals,
   analyzeGithub,
+  analyzeLogs,
+  analyzeUpload,
   getEvals,
   getReport,
   streamUrl,
 } from "@/lib/api";
 
-const PIPELINE = [
-  "log_monitor",
-  "threat_intel",
-  "vuln_scanner",
-  "incident_response",
-  "policy_checker",
+type Mode = "github" | "synthetic" | "system" | "upload";
+type Tab = "analysis" | "evals";
+
+const MODES: { id: Mode; label: string }[] = [
+  { id: "github", label: "GitHub repo" },
+  { id: "synthetic", label: "Synthetic logs" },
+  { id: "system", label: "System logs" },
+  { id: "upload", label: "Upload logs" },
 ];
 
 const STATUS_STYLE: Record<string, string> = {
@@ -33,32 +38,66 @@ const RISK_STYLE: Record<string, string> = {
   critical: "text-grade-f",
 };
 
+const CORE_AGENTS = [
+  "log_monitor",
+  "threat_intel",
+  "vuln_scanner",
+  "incident_response",
+  "policy_checker",
+];
+
 export default function Dashboard() {
+  const [mode, setMode] = useState<Mode>("github");
   const [repo, setRepo] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [slackUrl, setSlackUrl] = useState("");
+  const [tab, setTab] = useState<Tab>("analysis");
+
   const [status, setStatus] = useState<Record<string, string>>({});
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<SecurityReport | null>(null);
-  const [evals, setEvals] = useState<Record<string, unknown> | null>(null);
+  const [evals, setEvals] = useState<SessionEvals | null>(null);
+
   const esRef = useRef<EventSource | null>(null);
   const doneRef = useRef(false);
 
+  const pipeline = slackUrl.trim()
+    ? [...CORE_AGENTS, "slack_notifier"]
+    : CORE_AGENTS;
+
+  function canRun() {
+    if (running) return false;
+    if (mode === "github") return repo.trim().length > 0;
+    if (mode === "upload") return file !== null;
+    return true;
+  }
+
   async function run(e: React.FormEvent) {
     e.preventDefault();
-    if (!repo.trim() || running) return;
+    if (!canRun()) return;
     setRunning(true);
     setError(null);
     setReport(null);
     setEvals(null);
-    setStatus(Object.fromEntries(PIPELINE.map((a) => [a, "pending"])));
+    setTab("analysis");
+    setStatus(Object.fromEntries(pipeline.map((a) => [a, "pending"])));
     doneRef.current = false;
     esRef.current?.close();
 
     try {
-      const { session_id } = await analyzeGithub(repo.trim());
+      const slack = slackUrl.trim();
+      let session_id: string;
+      if (mode === "github") {
+        ({ session_id } = await analyzeGithub(repo.trim(), false, slack));
+      } else if (mode === "upload") {
+        ({ session_id } = await analyzeUpload(file as File, slack));
+      } else {
+        ({ session_id } = await analyzeLogs(mode, slack));
+      }
+
       const es = new EventSource(streamUrl(session_id));
       esRef.current = es;
-
       es.onmessage = (msg) => {
         let ev: AgentEvent;
         try {
@@ -76,13 +115,12 @@ export default function Dashboard() {
         }
         setStatus((prev) => ({ ...prev, [ev.agent]: ev.status }));
       };
-
       es.onerror = () => {
         es.close();
         if (!doneRef.current) {
           setRunning(false);
           setError(
-            "Lost connection to the agent backend. Confirm it's running and NEXT_PUBLIC_API_URL points to it.",
+            "Lost connection to the agent backend. Confirm it's running and reachable.",
           );
         }
       };
@@ -105,26 +143,77 @@ export default function Dashboard() {
       </a>
       <h1 className="mt-4 text-3xl font-bold">Agent dashboard</h1>
       <p className="mt-2 text-white/60">
-        Run the five-agent deep analysis on a public GitHub repository. Each
-        agent reports live as it finishes.
+        Run the five-agent deep analysis on a repo, your logs, or an uploaded
+        file. Each agent reports live as it finishes.
       </p>
 
-      <form
-        onSubmit={run}
-        className="mt-6 flex flex-col gap-3 rounded-2xl border border-white/10 bg-card-gradient p-3 sm:flex-row"
-      >
-        <input
-          type="text"
-          value={repo}
-          onChange={(e) => setRepo(e.target.value)}
-          placeholder="github.com/you/your-repo"
-          className="flex-1 rounded-xl bg-black/40 px-4 py-3.5 text-white placeholder-white/30 outline-none ring-brand/50 transition focus:ring-2"
-          disabled={running}
-        />
+      {/* Mode selector */}
+      <div className="mt-6 flex flex-wrap gap-2">
+        {MODES.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => setMode(m.id)}
+            className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
+              mode === m.id
+                ? "border-brand bg-brand/15 text-white"
+                : "border-white/15 text-white/60 hover:bg-white/5"
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      <form onSubmit={run} className="mt-4 space-y-3">
+        {/* Per-mode input */}
+        {mode === "github" && (
+          <input
+            type="text"
+            value={repo}
+            onChange={(e) => setRepo(e.target.value)}
+            placeholder="github.com/you/your-repo"
+            className="w-full rounded-xl bg-black/40 px-4 py-3.5 text-white placeholder-white/30 outline-none ring-brand/50 transition focus:ring-2"
+            disabled={running}
+          />
+        )}
+        {mode === "upload" && (
+          <input
+            type="file"
+            accept=".log,.txt"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="w-full rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white/70 file:mr-4 file:rounded-md file:border-0 file:bg-brand file:px-4 file:py-2 file:text-white"
+            disabled={running}
+          />
+        )}
+        {(mode === "synthetic" || mode === "system") && (
+          <p className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/60">
+            {mode === "synthetic"
+              ? "Runs the agents over bundled synthetic logs (SSH brute force, port scans, path traversal). No input needed."
+              : "Reads recent OS log files on the server (auth.log, syslog). Falls back to synthetic logs if none are readable."}
+          </p>
+        )}
+
+        {/* Slack webhook (optional, all modes) */}
+        <div>
+          <input
+            type="url"
+            value={slackUrl}
+            onChange={(e) => setSlackUrl(e.target.value)}
+            placeholder="Optional: Slack incoming webhook URL"
+            className="w-full rounded-xl bg-black/40 px-4 py-3 text-sm text-white placeholder-white/30 outline-none ring-brand/50 transition focus:ring-2"
+            disabled={running}
+          />
+          <p className="mt-1 px-1 text-xs text-white/40">
+            Provide a webhook and the incident-response suggestions get posted to
+            your Slack channel automatically.
+          </p>
+        </div>
+
         <button
           type="submit"
-          disabled={running}
-          className="rounded-xl bg-brand-gradient px-7 py-3.5 font-semibold shadow-glow transition hover:opacity-90 disabled:opacity-60"
+          disabled={!canRun()}
+          className="rounded-xl bg-brand-gradient px-7 py-3.5 font-semibold shadow-glow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {running ? "Analyzing…" : "Run analysis"}
         </button>
@@ -136,11 +225,12 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Pipeline */}
       {Object.keys(status).length > 0 && (
         <div className="mt-8">
           <h2 className="mb-3 text-lg font-semibold">Agent pipeline</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {PIPELINE.map((agent) => {
+            {pipeline.map((agent) => {
               const s = status[agent] ?? "pending";
               return (
                 <div
@@ -158,45 +248,61 @@ export default function Dashboard() {
         </div>
       )}
 
-      {report && (
-        <div className="mt-8 space-y-6 animate-fade-in">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Metric label="Risk level" value={report.risk_level ?? "—"} className={RISK_STYLE[risk]} />
-            <Metric label="Files scanned" value={report.files_scanned ?? 0} />
-            <Metric label="Primary language" value={report.primary_language || "—"} />
-            <Metric label="Compliance" value={`${report.compliance_score ?? 0}%`} />
+      {/* Tabs */}
+      {(report || evals) && (
+        <div className="mt-8">
+          <div className="mb-4 flex gap-2 border-b border-white/10">
+            {(["analysis", "evals"] as Tab[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium capitalize transition ${
+                  tab === t
+                    ? "border-brand text-white"
+                    : "border-transparent text-white/50 hover:text-white"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
           </div>
 
-          <FindingList title="Code findings" items={report.code_findings} />
-          <FindingList title="Vulnerabilities" items={report.vulnerabilities} />
-          <FindingList title="Log anomalies" items={report.anomalies} />
-          <FindingList title="Compliance gaps" items={report.compliance_gaps} />
+          {tab === "analysis" && report && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Metric label="Risk level" value={report.risk_level ?? "—"} className={RISK_STYLE[risk]} />
+                <Metric label="Files scanned" value={report.files_scanned ?? 0} />
+                <Metric label="Primary language" value={report.primary_language || "—"} />
+                <Metric label="Compliance" value={`${report.compliance_score ?? 0}%`} />
+              </div>
 
-          {report.action_plan && report.action_plan.length > 0 && (
-            <div className="rounded-2xl border border-white/10 bg-card-gradient p-5">
-              <h3 className="font-semibold">Recommended actions</h3>
-              <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-white/70">
-                {report.action_plan.map((a, i) => (
-                  <li key={i}>{a}</li>
-                ))}
-              </ul>
+              <SlackStatus report={report} slackConfigured={!!slackUrl.trim()} />
+
+              <FindingList title="Code findings" items={report.code_findings} />
+              <FindingList title="Vulnerabilities" items={report.vulnerabilities} />
+              <FindingList title="Log anomalies" items={report.anomalies} />
+              <FindingList title="Compliance gaps" items={report.compliance_gaps} />
+
+              {report.action_plan && report.action_plan.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-card-gradient p-5">
+                  <h3 className="font-semibold">Recommended actions</h3>
+                  <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-white/70">
+                    {report.action_plan.map((a, i) => (
+                      <li key={i}>{a}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {report.scan_error && (
+                <div className="rounded-xl border border-grade-d/30 bg-grade-d/10 px-4 py-3 text-sm text-grade-d">
+                  {report.scan_error}
+                </div>
+              )}
             </div>
           )}
 
-          {report.scan_error && (
-            <div className="rounded-xl border border-grade-d/30 bg-grade-d/10 px-4 py-3 text-sm text-grade-d">
-              {report.scan_error}
-            </div>
-          )}
-        </div>
-      )}
-
-      {evals && (
-        <div className="mt-6 rounded-2xl border border-white/10 bg-card-gradient p-5">
-          <h2 className="text-lg font-semibold">Cost &amp; evals</h2>
-          <pre className="mt-2 overflow-x-auto text-xs text-white/60">
-            {JSON.stringify(evals, null, 2)}
-          </pre>
+          {tab === "evals" && <EvalsView evals={evals} />}
         </div>
       )}
     </main>
@@ -218,6 +324,31 @@ function Metric({
       <div className={`mt-1 text-xl font-bold ${className}`}>{value}</div>
     </div>
   );
+}
+
+function SlackStatus({
+  report,
+  slackConfigured,
+}: {
+  report: SecurityReport;
+  slackConfigured: boolean;
+}) {
+  if (!slackConfigured) return null;
+  if (report.slack_sent) {
+    return (
+      <div className="rounded-xl border border-grade-a/30 bg-grade-a/10 px-4 py-3 text-sm text-grade-a">
+        Suggestions posted to your Slack channel.
+      </div>
+    );
+  }
+  if (report.slack_error) {
+    return (
+      <div className="rounded-xl border border-grade-f/30 bg-grade-f/10 px-4 py-3 text-sm text-grade-f">
+        Slack post failed: {report.slack_error}
+      </div>
+    );
+  }
+  return null;
 }
 
 function FindingList({
@@ -261,6 +392,56 @@ function FindingList({
           );
         })}
       </ul>
+    </div>
+  );
+}
+
+function EvalsView({ evals }: { evals: SessionEvals | null }) {
+  if (!evals) {
+    return <p className="text-white/50">No eval data yet. Run an analysis first.</p>;
+  }
+  const s = evals.summary;
+  const hitRate = `${Math.round((s.llm_cache_hit_rate ?? 0) * 100)}%`;
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Metric label="Cost" value={`$${(s.total_cost_usd ?? 0).toFixed(4)}`} />
+        <Metric label="Saved by cache" value={`$${(s.cost_saved_usd ?? 0).toFixed(4)}`} className="text-grade-a" />
+        <Metric label="Total tokens" value={(s.total_tokens ?? 0).toLocaleString()} />
+        <Metric label="Cache hit rate" value={hitRate} />
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-card-gradient p-5">
+        <h3 className="font-semibold">Per-agent</h3>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="text-white/40">
+              <tr>
+                <th className="py-2 pr-4 font-medium">Agent</th>
+                <th className="py-2 pr-4 font-medium">Type</th>
+                <th className="py-2 pr-4 font-medium">Tokens</th>
+                <th className="py-2 pr-4 font-medium">Cost</th>
+                <th className="py-2 font-medium">Latency</th>
+              </tr>
+            </thead>
+            <tbody className="text-white/75">
+              {evals.agents.map((a) => (
+                <tr key={a.agent} className="border-t border-white/10">
+                  <td className="py-2 pr-4">{a.label}</td>
+                  <td className="py-2 pr-4 text-white/50">{a.type}</td>
+                  <td className="py-2 pr-4">{(a.tokens?.total ?? 0).toLocaleString()}</td>
+                  <td className="py-2 pr-4">${(a.cost_usd ?? 0).toFixed(4)}</td>
+                  <td className="py-2">{Math.round(a.latency_ms ?? 0)} ms</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-3 text-xs text-white/40">
+          Source: {evals.log_source} · {evals.line_count} lines · cache hits{" "}
+          {s.llm_cache_hits}/{s.llm_cache_hits + s.llm_cache_misses}
+        </p>
+      </div>
     </div>
   );
 }
