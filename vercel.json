@@ -11,5 +11,5 @@
   "github": {
     "silent": true
   },
-  "ignoreCommand": "bash -c 'if [ -n \"$VERCEL_GIT_PULL_REQUEST_ID\" ]; then exit 0; fi; if [ \"$VERCEL_ENV\" = \"production\" ]; then git diff --name-only HEAD^ HEAD 2>/dev/null | grep -qE \"^(app/|components/|lib/|public/|package\\.json|package-lock\\.json|next\\.config|tailwind\\.config|postcss\\.config|tsconfig|middleware\\.|eslint\\.config)\" && exit 1 || exit 0; fi; exit 0'"
+  "ignoreCommand": "bash scripts/vercel-ignore.sh"
 }
