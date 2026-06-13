@@ -53,11 +53,13 @@ We support good-faith security research. Do not access data that is not yours, a
 This repository runs GitHub security checks on pull requests and the default branch, including:
 
 - **CodeQL** static analysis (JavaScript/TypeScript and Python)
-- **Dependency Review** on pull requests
+- **Dependency Review** on pull requests (public repos, or private repos with GitHub Advanced Security)
 - **npm audit** and **pip-audit** for known CVEs in dependencies
 - **Dependabot** alerts and security update pull requests
 
 See [`.github/workflows/`](workflows/) for workflow definitions.
+
+Repository maintainers should also confirm under **Settings → Code security and analysis** that Dependabot alerts and dependency graph are enabled.
 
 ## Disclosure
 
