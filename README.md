@@ -13,6 +13,75 @@ Security for anything exposed to the internet: websites, apps, GitHub repos, Doc
 
 ---
 
+## Hackathon concepts used
+
+Quick map for judges — **GenAI + accelerator concepts** implemented in this repo:
+
+| Concept | What we built | Where to look |
+| --- | --- | --- |
+| **Multi-agent orchestration** | Seven-agent linear pipeline with shared state | `backend/orchestrator.py`, `backend/agents/` |
+| **GenAI / LLM** | GPT-4o incident runbooks and action plans from real findings | `backend/agents/incident_response.py`, `backend/llm_client.py` |
+| **RAG** | Ground LLM + compliance output in NIST, SOC 2, ISO, OWASP, Docker playbooks | `backend/tools/rag.py`, `backend/data/knowledge/chunks.json` |
+| **Tool-using agents** | GitHub static scan, Trivy CVE scan, NVD, AbuseIPDB, Slack alerts | `backend/tools/`, `backend/agents/` |
+| **Streaming UX** | Live agent progress over SSE in the dashboard | `backend/session_events.py`, `app/dashboard/page.tsx` |
+| **LLM cost control** | LRU cache-aside keyed on model + prompt hash | `backend/llm_cache.py`, `backend/session_evals.py` |
+| **Observability / evals** | Per-agent latency, token cost, cache hit rate API | `GET /evals/{session_id}`, `backend/session_evals.py` |
+| **Hybrid AI design** | Deterministic agents for detection; LLM only where reasoning adds value | Log/vuln/policy agents vs incident response |
+| **Security automation** | Passive surface scan (A–F) + deep analysis for logs, repos, Docker, URLs | `lib/scanner/`, `app/api/scan/route.ts` |
+| **CI/CD & security gates** | Typecheck, build, 65 pytest tests, CodeQL, dependency review | `.github/workflows/` |
+| **Production deploy** | Split frontend/backend on Vercel + Railway with health checks | `vercel.json`, `backend/railway.toml` |
+
+**Why this is hard:** coordinates Next.js, FastAPI, LangGraph, multiple external APIs, Docker/Trivy CVE scanning, RAG grounding, SSE streaming, and graceful fallbacks when LLM or API calls fail.
+
+**Code quality signals:** typed shared state (`SecurityState`), agents vs tools separation, cross-cutting agent wrapper, 65 backend tests, CI on every PR.
+
+---
+
+## Demo flow (for judges)
+
+**Live app:** [securetotalscan.vercel.app/dashboard](https://securetotalscan.vercel.app/dashboard) · **Fastest path:** choose **Synthetic logs** → **Run analysis** → watch agents finish → open **evals** tab.
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant Dashboard as Dashboard (Vercel)
+  participant API as FastAPI (Railway)
+  participant Graph as LangGraph pipeline
+
+  User->>Dashboard: Select scan mode + Run analysis
+  Dashboard->>API: POST /analyze (or /github, /docker, /upload)
+  API-->>Dashboard: session_id
+  Dashboard->>API: GET /stream/{session_id} (SSE)
+  loop Each agent
+    Graph->>API: running → done events
+    API-->>Dashboard: Live pipeline cards update
+  end
+  Dashboard->>API: GET /report/{session_id}
+  Dashboard->>API: GET /evals/{session_id}
+  API-->>Dashboard: Findings, RAG sources, action plan, metrics
+```
+
+| Step | What you see | Screenshot |
+| --- | --- | --- |
+| **1. Scan input** | Pick GitHub, Docker, synthetic/system logs, or upload; optional target URL + Slack webhook | ![Scan input](docs/screenshots/01-scan-input.png) |
+| **2. Live agents** | Seven pipeline cards update over SSE: pending → running → done | ![Live agents](docs/screenshots/02-live-agents.png) |
+| **3. RAG output** | Analysis tab: anomalies, compliance score, **Retrieved knowledge (RAG)** from NIST/SOC 2/ISO, LLM action plan | ![RAG output](docs/screenshots/03-rag-output.png) |
+| **4. Eval metrics** | Evals tab: token cost, cache savings, hit rate, per-agent latency table | ![Eval metrics](docs/screenshots/04-eval-metrics.png) |
+
+### Try it yourself (~60 seconds)
+
+1. Open [/dashboard](https://securetotalscan.vercel.app/dashboard).
+2. Click **Synthetic logs** (no file needed) and **Run analysis**.
+3. Watch **Agent pipeline** cards turn green as each agent completes.
+4. On the **analysis** tab, scroll to **Retrieved knowledge (RAG)** and **Recommended actions**.
+5. Switch to the **evals** tab for cost, cache hit rate, and per-agent latency.
+
+**Other scan modes:** GitHub repo (`owner/repo`), Docker Hub image (`nginx:latest`), or upload a `.log` file.
+
+**Regenerate screenshots:** `bash scripts/capture-demo-screenshots.sh` (uses static HTML mockups in `docs/screenshots/demo-pages/`).
+
+---
+
 ## System architecture
 
 ```mermaid

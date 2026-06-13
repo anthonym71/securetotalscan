@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Secure Total Scan — Scan input</title>
+  <link rel="stylesheet" href="_demo.css" />
+</head>
+<body>
+  <div class="wrap">
+    <span class="back">← Back to home</span>
+    <h1>Agent dashboard</h1>
+    <p class="sub">Run the deep analysis on a GitHub repo, Docker Hub image, your logs, or an uploaded file. Each agent reports live as it finishes.</p>
+
+    <div class="modes">
+      <span class="mode">GitHub repo</span>
+      <span class="mode">Docker Hub image</span>
+      <span class="mode active">Synthetic logs</span>
+      <span class="mode">System logs</span>
+      <span class="mode">Upload logs</span>
+    </div>
+
+    <p class="input" style="color: rgba(255,255,255,.6); font-size: 14px; line-height: 1.5;">
+      Runs the agents over bundled synthetic logs (SSH brute force, port scans, path traversal). No input needed.
+    </p>
+
+    <input class="input" type="url" placeholder="Optional: https://your-site.com for HTTP header checks" value="" readonly />
+    <input class="input" type="url" placeholder="Optional: Slack incoming webhook URL" value="" readonly />
+
+    <button class="btn" type="button">Run analysis</button>
+    <span class="badge">Step 1 — Choose scan mode &amp; run</span>
+  </div>
+</body>
+</html>
