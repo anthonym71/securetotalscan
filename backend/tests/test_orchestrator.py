@@ -17,10 +17,12 @@ def test_run_analysis_populates_all_state_fields():
             "agents.threat_intel.check_ip_reputation",
             return_value={"score": 0, "flagged": False},
         ):
-            with patch("agents.incident_response.call_openai", return_value=MOCK_PLAN):
-                state = run_analysis(
-                    logs=logs, log_source="synthetic", session_id="orch-test"
-                )
+            with patch("agents.threat_intel.retrieve", return_value=[]):
+                with patch("agents.policy_checker.retrieve", return_value=[]):
+                    with patch("agents.incident_response.call_openai", return_value=MOCK_PLAN):
+                        state = run_analysis(
+                            logs=logs, log_source="synthetic", session_id="orch-test"
+                        )
 
     assert len(state["anomalies"]) > 0
     assert len(state["compliance_gaps"]) > 0

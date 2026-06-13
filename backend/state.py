@@ -33,6 +33,9 @@ class SecurityState(TypedDict):
     slack_sent: bool
     slack_error: str
     slack_skipped: bool
+    threat_intel_context: list[dict]
+    compliance_context: list[dict]
+    rag_queries: list[dict]
 
 
 def make_initial_state(
@@ -78,4 +81,7 @@ def make_initial_state(
         slack_sent=False,
         slack_error="",
         slack_skipped=True,
+        threat_intel_context=[],
+        compliance_context=[],
+        rag_queries=[],
     )

@@ -1,16 +1,19 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AGENT_LABELS,
   AgentEvent,
+  RagStatus,
   SecurityReport,
   SessionEvals,
   analyzeGithub,
   analyzeLogs,
   analyzeUpload,
   getEvals,
+  getRagStatus,
   getReport,
+  indexKnowledge,
   streamUrl,
 } from "@/lib/api";
 
@@ -58,9 +61,44 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<SecurityReport | null>(null);
   const [evals, setEvals] = useState<SessionEvals | null>(null);
+  const [ragStatus, setRagStatus] = useState<RagStatus | null>(null);
+  const [indexing, setIndexing] = useState(false);
+  const [indexMsg, setIndexMsg] = useState<string | null>(null);
 
   const esRef = useRef<EventSource | null>(null);
   const doneRef = useRef(false);
+
+  useEffect(() => {
+    getRagStatus()
+      .then(setRagStatus)
+      .catch(() =>
+        setRagStatus({
+          enabled: false,
+          ready: false,
+          document_count: 0,
+          persist_dir: "",
+          message: "Could not reach backend RAG status",
+        }),
+      );
+  }, []);
+
+  async function rebuildIndex() {
+    setIndexing(true);
+    setIndexMsg(null);
+    try {
+      const result = await indexKnowledge(true);
+      setRagStatus(result.status);
+      setIndexMsg(
+        `Indexed ${result.summary.chunks_indexed} chunks from ${result.summary.files_indexed} files.`,
+      );
+    } catch (err) {
+      setIndexMsg(
+        err instanceof Error ? err.message : "Failed to rebuild knowledge index",
+      );
+    } finally {
+      setIndexing(false);
+    }
+  }
 
   const pipeline = slackUrl.trim()
     ? [...CORE_AGENTS, "slack_notifier"]
@@ -146,6 +184,46 @@ export default function Dashboard() {
         Run the five-agent deep analysis on a repo, your logs, or an uploaded
         file. Each agent reports live as it finishes.
       </p>
+
+      {/* RAG knowledge base — index before deploy; re-index on demand here */}
+      <div className="mt-6 rounded-xl border border-white/10 bg-black/20 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-white">Knowledge base (RAG)</h2>
+            <p className="mt-1 text-xs text-white/50">
+              Threat Intel and Compliance agents retrieve NIST/SOC2 controls and
+              runbooks from the vector index. Index before Railway deploy; re-index
+              here after updating knowledge files.
+            </p>
+            {ragStatus && (
+              <p
+                className={`mt-2 text-sm ${
+                  ragStatus.ready ? "text-grade-a" : "text-grade-c"
+                }`}
+              >
+                {ragStatus.message}
+                {ragStatus.ready && (
+                  <span className="text-white/40">
+                    {" "}
+                    · {ragStatus.document_count} chunks
+                  </span>
+                )}
+              </p>
+            )}
+            {indexMsg && (
+              <p className="mt-2 text-xs text-white/60">{indexMsg}</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={rebuildIndex}
+            disabled={indexing || running}
+            className="shrink-0 rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {indexing ? "Indexing…" : "Re-index knowledge base"}
+          </button>
+        </div>
+      </div>
 
       {/* Mode selector */}
       <div className="mt-6 flex flex-wrap gap-2">
@@ -282,6 +360,14 @@ export default function Dashboard() {
               <FindingList title="Vulnerabilities" items={report.vulnerabilities} />
               <FindingList title="Log anomalies" items={report.anomalies} />
               <FindingList title="Compliance gaps" items={report.compliance_gaps} />
+              <RagContextList
+                title="Threat intel — retrieved knowledge"
+                items={report.threat_intel_context}
+              />
+              <RagContextList
+                title="Compliance — retrieved knowledge"
+                items={report.compliance_context}
+              />
 
               {report.action_plan && report.action_plan.length > 0 && (
                 <div className="rounded-2xl border border-white/10 bg-card-gradient p-5">
@@ -349,6 +435,39 @@ function SlackStatus({
     );
   }
   return null;
+}
+
+function RagContextList({
+  title,
+  items,
+}: {
+  title: string;
+  items?: { text: string; source: string; score?: number; linked_to?: string }[];
+}) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-brand/20 bg-card-gradient p-5">
+      <h3 className="font-semibold">
+        {title} <span className="text-white/40">({items.length})</span>
+      </h3>
+      <ul className="mt-3 space-y-2">
+        {items.slice(0, 10).map((item, i) => (
+          <li
+            key={i}
+            className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm"
+          >
+            <div className="flex flex-wrap items-center gap-2 text-xs text-white/40">
+              <span className="rounded bg-brand/20 px-1.5 py-0.5 text-brand-light">RAG</span>
+              <span className="font-mono">{item.source}</span>
+              {item.linked_to && <span>· {item.linked_to}</span>}
+              {item.score != null && <span>· score {item.score.toFixed(2)}</span>}
+            </div>
+            <p className="mt-1 text-white/75 line-clamp-4">{item.text}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function FindingList({

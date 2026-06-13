@@ -61,10 +61,10 @@ Run tests:
 | Agent | Type | Role |
 |-------|------|------|
 | `log_monitor` | Deterministic | Parse logs, detect anomalies, attach remediation hints |
-| `threat_intel` | External API | NVD CVE lookup, AbuseIPDB reputation → `threat_score` |
+| `threat_intel` | RAG + external API | NVD CVE lookup, AbuseIPDB reputation, runbook/threat-pattern retrieval |
 | `vuln_scanner` | Deterministic + HTTP | OWASP mapping, optional header checks, GitHub static scan |
 | `incident_response` | LLM (cached) | OpenRouter action plan; deterministic fallback if LLM fails |
-| `policy_checker` | Rule-based | Map anomalies + code findings to NIST / SOC 2 gaps |
+| `policy_checker` | RAG + rule-based | Map anomalies + code findings to NIST / SOC 2 gaps with retrieved control text |
 
 Agents do not call each other directly. They read and write a single **`SecurityState`** object passed through the graph.
 
@@ -128,7 +128,29 @@ Agents stay thin; tools are unit-tested independently (e.g. `log_parser.py`, `gi
 2. On hit → return cached response (~1 ms, $0)
 3. On miss → call API, store result, record metrics
 
-Only **Incident Response** uses the LLM. Other agents are deterministic or call external APIs directly.
+Only **Incident Response** uses the LLM directly. **Threat Intel** and **Policy Checker** use RAG (Chroma vector retrieval). Other agents are deterministic or call external APIs.
+
+## RAG knowledge base
+
+Bundled markdown under `data/knowledge/` (NIST, SOC2, runbooks, threat patterns) is indexed into Chroma at **`data/chroma/`**.
+
+**Important:** The app does **not** index on startup. Build the vector index before deploying to Railway:
+
+```bash
+cd backend
+pip install -r requirements.txt
+python -m scripts.index_knowledge
+git add data/chroma/
+```
+
+On the **dashboard** (`/dashboard`), use **Re-index knowledge base** to rebuild after editing knowledge files. API endpoints:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/rag/status` | Index health (`ready`, `document_count`) |
+| POST | `/rag/index` | Re-index bundled knowledge (`{"rebuild": true}`) |
+
+Environment: `RAG_ENABLED=true` (default), `CHROMA_PERSIST_DIR=./data/chroma`.
 
 ```python
 # llm_cache.py — LRU cache-aside with hit/miss counters

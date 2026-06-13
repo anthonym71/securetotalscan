@@ -21,3 +21,6 @@ def test_make_initial_state_sets_required_fields():
     assert state["code_findings"] == []
     assert state["slack_webhook_url"] == ""
     assert state["slack_skipped"] is True
+    assert state["threat_intel_context"] == []
+    assert state["compliance_context"] == []
+    assert state["rag_queries"] == []

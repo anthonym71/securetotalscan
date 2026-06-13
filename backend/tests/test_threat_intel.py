@@ -30,7 +30,9 @@ def test_run_threat_intel_populates_cve_matches():
             "agents.threat_intel.check_ip_reputation",
             return_value={"score": 90, "flagged": True},
         ):
-            result = run_threat_intel(state)
+            with patch("agents.threat_intel.retrieve") as mock_retrieve:
+                mock_retrieve.return_value = []
+                result = run_threat_intel(state)
 
     assert len(result["cve_matches"]) > 0
     assert result["threat_score"] > 0
