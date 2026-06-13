@@ -1,8 +1,9 @@
-"""LangGraph orchestration for the six-agent security analysis pipeline."""
+"""LangGraph orchestration for the security analysis pipeline."""
 
 from langgraph.graph import END, StateGraph
 import time
 
+from agents.docker_scanner import run_docker_scanner
 from agents.incident_response import run_incident_response
 from agents.log_monitor import run_log_monitor
 from agents.policy_checker import run_policy_checker
@@ -17,6 +18,7 @@ AGENTS = [
     ("log_monitor", run_log_monitor),
     ("threat_intel", run_threat_intel),
     ("vuln_scanner", run_vuln_scanner),
+    ("docker_scanner", run_docker_scanner),
     ("incident_response", run_incident_response),
     ("policy_checker", run_policy_checker),
     ("slack_notifier", run_slack_notifier),
@@ -64,7 +66,8 @@ def build_graph():
     graph.set_entry_point("log_monitor")
     graph.add_edge("log_monitor", "threat_intel")
     graph.add_edge("threat_intel", "vuln_scanner")
-    graph.add_edge("vuln_scanner", "incident_response")
+    graph.add_edge("vuln_scanner", "docker_scanner")
+    graph.add_edge("docker_scanner", "incident_response")
     graph.add_edge("incident_response", "policy_checker")
     graph.add_edge("policy_checker", "slack_notifier")
     graph.add_edge("slack_notifier", END)
@@ -77,6 +80,8 @@ def run_analysis(
     session_id: str,
     github_repo: str = "",
     slack_webhook_url: str = "",
+    target_url: str = "",
+    docker_image: str = "",
 ) -> SecurityState:
     """Execute the full agent pipeline synchronously.
 
@@ -86,6 +91,8 @@ def run_analysis(
         session_id: UUID for SSE and eval tracking.
         github_repo: Optional ``owner/repo`` to scan via the Vuln Scanner.
         slack_webhook_url: Optional Slack incoming webhook for alerts.
+        target_url: Optional public URL for HTTP header checks.
+        docker_image: Optional Docker Hub image reference to scan.
 
     Returns:
         Final ``SecurityState`` after all agents complete.
@@ -97,5 +104,7 @@ def run_analysis(
         session_id=session_id,
         github_repo=github_repo,
         slack_webhook_url=slack_webhook_url,
+        target_url=target_url,
+        docker_image=docker_image,
     )
     return app.invoke(initial)

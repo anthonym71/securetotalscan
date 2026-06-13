@@ -1,7 +1,25 @@
 """Tests for NIST/SOC2 compliance mapping and Policy Checker agent."""
 
-from agents.policy_checker import map_to_nist, map_to_soc2, run_policy_checker
+from agents.policy_checker import map_to_iso27001, map_to_nist, map_to_soc2, run_policy_checker
 from state import make_initial_state
+
+
+def test_map_to_iso27001_brute_force():
+    anomalies = [{"type": "brute_force", "severity": "CRITICAL"}]
+    gaps = map_to_iso27001(anomalies)
+    ids = [g["control_id"] for g in gaps]
+    assert "A.8.5" in ids
+
+
+def test_run_policy_checker_includes_rag_sources():
+    state = make_initial_state(raw_logs=[], log_source="synthetic", session_id="pc-rag")
+    state = {
+        **state,
+        "anomalies": [{"type": "brute_force", "severity": "CRITICAL"}],
+    }
+    result = run_policy_checker(state)
+    assert len(result["retrieved_sources"]) > 0
+    assert any(g.get("framework") == "ISO 27001" for g in result["compliance_gaps"])
 
 
 def test_map_to_nist_brute_force():

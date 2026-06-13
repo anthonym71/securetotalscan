@@ -52,10 +52,41 @@ The web app talks to it via `NEXT_PUBLIC_API_URL` (default `http://localhost:800
 | `/report/{session_id}` | GET | Full analysis report |
 | `/evals/{session_id}` | GET | Token usage, cost, cache hits |
 
-## Deploy
+## Deploy (Railway + Nixpacks)
 
-Deploy this folder to Railway. Copy the public HTTPS URL into the web app's
-`NEXT_PUBLIC_API_URL` (Vercel env var).
+This backend ships with **`nixpacks.toml`** and **`railway.toml`** for Railway. Trivy is installed during the build phase.
+
+### 1. Create a backend service
+
+1. In Railway, add a **new service** from this GitHub repo.
+2. **Settings → Root Directory** → `backend`
+3. **Settings → Config-as-code** → Config file path: `/backend/railway.toml`  
+   (Required for monorepos — Railway does not auto-discover config inside subfolders.)
+4. **Variables** — add at minimum:
+   - `OPENROUTER_API_KEY`
+   - `GITHUB_TOKEN` (optional)
+5. Deploy.
+
+Railway uses **Railpack** (Nixpacks successor). It reads `nixpacks.toml`, installs Python from `requirements.txt`, runs `install-trivy.sh`, then starts uvicorn.
+
+### 2. Verify Trivy
+
+```bash
+curl https://YOUR-SERVICE.up.railway.app/health/trivy
+```
+
+Expect `"available": true` and `"db_ready": true`.
+
+### 3. Alternative: Docker
+
+If you prefer Docker over Nixpacks, rename `Dockerfile.trivy` → `Dockerfile` and set `builder = "DOCKERFILE"` in `railway.toml`.  
+**Do not keep both** — Railway always prefers `Dockerfile` when it exists.
+
+### 4. Web app
+
+Copy the Railway HTTPS URL into Vercel as `NEXT_PUBLIC_API_URL`.
+
+**Note:** `Procfile` alone only starts uvicorn — it does **not** install Trivy. Use Nixpacks or Docker.
 
 ## CORS
 

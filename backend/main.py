@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 import platform
 import uuid
 from pathlib import Path
@@ -32,11 +33,26 @@ _running: set[str] = set()
 SYNTHETIC_LOGS_PATH = Path(__file__).parent / "data" / "synthetic_logs.json"
 
 
+@app.on_event("startup")
+async def warmup_trivy_db() -> None:
+    """Pre-download Trivy vulnerability DB when Trivy is installed."""
+    if os.getenv("TRIVY_WARMUP", "true").lower() not in ("1", "true", "yes"):
+        return
+    from tools.docker_scanner import ensure_trivy_db, resolve_trivy_binary
+
+    if not resolve_trivy_binary():
+        return
+    err = await asyncio.to_thread(ensure_trivy_db)
+    if err:
+        print(f"Trivy DB warmup skipped: {err}")
+
+
 class AnalyzeRequest(BaseModel):
     """Request body for ``POST /analyze``."""
 
     source: str
     slack_webhook_url: str = ""
+    target_url: str = ""
 
 
 def _load_synthetic_logs() -> list[str]:
@@ -114,6 +130,8 @@ async def _run_analysis_background(
     session_id: str,
     github_repo: str = "",
     slack_webhook_url: str = "",
+    target_url: str = "",
+    docker_image: str = "",
 ) -> None:
     """Run the LangGraph pipeline in a thread and emit completion events."""
     _running.add(session_id)
@@ -125,6 +143,8 @@ async def _run_analysis_background(
             session_id,
             github_repo,
             slack_webhook_url,
+            target_url,
+            docker_image,
         )
         _sessions[session_id] = state
         finish_session(session_id)
@@ -141,6 +161,8 @@ def _start_analysis(
     log_meta: dict | None = None,
     github_repo: str = "",
     slack_webhook_url: str = "",
+    target_url: str = "",
+    docker_image: str = "",
 ) -> tuple[str, dict]:
     """Create a session, register eval tracking, and queue background analysis.
 
@@ -162,10 +184,16 @@ def _start_analysis(
         session_id,
         github_repo,
         slack_webhook_url,
+        target_url,
+        docker_image,
     )
     meta = {"log_source": log_source, **(log_meta or {})}
     if github_repo:
         meta["github_repo"] = github_repo
+    if target_url:
+        meta["target_url"] = target_url
+    if docker_image:
+        meta["docker_image"] = docker_image
     if slack_webhook_url:
         meta["slack_notify"] = True
     _session_meta[session_id] = meta
@@ -179,6 +207,17 @@ class GitHubAnalyzeRequest(BaseModel):
     include_logs: bool = False
     log_source: str = "synthetic"
     slack_webhook_url: str = ""
+    target_url: str = ""
+
+
+class DockerAnalyzeRequest(BaseModel):
+    """Request body for ``POST /analyze/docker``."""
+
+    image_url: str
+    include_logs: bool = False
+    log_source: str = "synthetic"
+    slack_webhook_url: str = ""
+    target_url: str = ""
 
 
 @app.post("/analyze")
@@ -188,6 +227,7 @@ async def analyze(request: AnalyzeRequest, background_tasks: BackgroundTasks):
     session_id, meta = _start_analysis(
         logs, request.source, background_tasks, log_meta,
         slack_webhook_url=request.slack_webhook_url.strip(),
+        target_url=request.target_url.strip(),
     )
     return {"session_id": session_id, **meta}
 
@@ -254,6 +294,50 @@ async def analyze_github(
         log_meta,
         github_repo=github_repo,
         slack_webhook_url=request.slack_webhook_url.strip(),
+        target_url=request.target_url.strip(),
+    )
+    return {"session_id": session_id, **meta}
+
+
+@app.post("/analyze/docker")
+async def analyze_docker(
+    request: DockerAnalyzeRequest, background_tasks: BackgroundTasks
+):
+    """Start Docker Hub image analysis, optionally combined with logs."""
+    from tools.docker_scanner import parse_docker_image_ref
+
+    image_input = request.image_url.strip()
+    if not image_input:
+        raise HTTPException(status_code=400, detail="Docker Hub image URL is required")
+
+    try:
+        namespace, repo, tag = parse_docker_image_ref(image_input)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    docker_image = image_input
+    image_ref = f"{namespace}/{repo}:{tag}"
+
+    if request.include_logs:
+        logs, log_meta = _load_logs_for_source(request.log_source)
+    else:
+        logs = []
+        log_meta = {"line_count": 0, "used_fallback": False, "paths": []}
+
+    log_meta = {
+        **log_meta,
+        "docker_image": image_ref,
+        "scan_mode": "docker_only" if not request.include_logs else "docker_and_logs",
+    }
+
+    session_id, meta = _start_analysis(
+        logs,
+        "docker",
+        background_tasks,
+        log_meta,
+        docker_image=docker_image,
+        slack_webhook_url=request.slack_webhook_url.strip(),
+        target_url=request.target_url.strip(),
     )
     return {"session_id": session_id, **meta}
 
@@ -292,6 +376,28 @@ async def agents_status(session_id: str):
     if not status:
         raise HTTPException(status_code=404, detail="Session not found")
     return status
+
+
+@app.get("/health/trivy")
+async def trivy_health():
+    """Report whether Trivy CVE scanning is available on this server."""
+    from tools.docker_scanner import ensure_trivy_db, resolve_trivy_binary
+
+    binary = resolve_trivy_binary()
+    if not binary:
+        return {
+            "available": False,
+            "binary": None,
+            "db_ready": False,
+            "message": "Install Trivy: backend/scripts/install-trivy.sh",
+        }
+    db_error = await asyncio.to_thread(ensure_trivy_db)
+    return {
+        "available": True,
+        "binary": binary,
+        "db_ready": db_error is None,
+        "message": db_error or "Trivy CVE scanning enabled",
+    }
 
 
 @app.get("/evals")

@@ -22,6 +22,7 @@ def create_session(session_id: str) -> queue.Queue:
         "log_monitor": "pending",
         "threat_intel": "pending",
         "vuln_scanner": "pending",
+        "docker_scanner": "pending",
         "incident_response": "pending",
         "policy_checker": "pending",
         "slack_notifier": "pending",

@@ -1,5 +1,7 @@
 """Vuln Scanner agent — OWASP mapping, HTTP headers, and GitHub code analysis."""
 
+import httpx
+
 from tools.github_scanner import scan_github_repo_safe
 from state import SecurityState
 
@@ -65,6 +67,21 @@ def scan_for_owasp(anomalies: list[dict]) -> list[dict]:
     return vulns
 
 
+def fetch_response_headers(url: str) -> dict[str, str]:
+    """Fetch HTTP response headers from a public URL.
+
+    Returns:
+        Lowercase header name → value mapping, or empty dict on failure.
+    """
+    if not url.strip():
+        return {}
+    try:
+        resp = httpx.get(url.strip(), timeout=15, follow_redirects=True)
+        return {k: v for k, v in resp.headers.items()}
+    except Exception:
+        return {}
+
+
 def check_api_headers(headers: dict) -> list[dict]:
     """Flag missing recommended HTTP security response headers.
 
@@ -82,6 +99,10 @@ def check_api_headers(headers: dict) -> list[dict]:
                     "header": h,
                     "severity": "MEDIUM",
                     "recommendation": f"Add {h} response header",
+                    "fix_prompt": (
+                        f"Add the {h} HTTP response header to the application or "
+                        f"reverse proxy serving this URL. Configure it for all responses."
+                    ),
                 }
             )
     return missing
@@ -139,8 +160,13 @@ def run_vuln_scanner(state: SecurityState) -> SecurityState:
         Updated state with vulnerabilities, risk level, and code scan metadata.
     """
     owasp_vulns = scan_for_owasp(state["anomalies"])
-    # HTTP header checks apply to web apps, not IaC repo scans
-    header_vulns = [] if state.get("github_repo") else check_api_headers({})
+    # HTTP header checks only when a real target URL is provided
+    target_url = (state.get("target_url") or "").strip()
+    if target_url and not state.get("github_repo"):
+        headers = fetch_response_headers(target_url)
+        header_vulns = check_api_headers(headers) if headers else []
+    else:
+        header_vulns = []
 
     scan = scan_github_code(state)
     code_findings = scan.get("code_findings", [])

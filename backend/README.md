@@ -9,7 +9,15 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env   # set OPENROUTER_API_KEY, optional GITHUB_TOKEN
+./scripts/install-trivy.sh   # enables Docker CVE scanning via Trivy
 .venv/bin/python -m uvicorn main:app --reload --port 8000
+```
+
+Verify Trivy is ready:
+
+```bash
+curl http://localhost:8000/health/trivy
+# → {"available": true, "db_ready": true, ...}
 ```
 
 Run tests:
@@ -204,6 +212,8 @@ backend/
 | POST | `/analyze` | Start analysis (`source`: `synthetic` \| `system`) |
 | POST | `/analyze/upload` | Upload `.log` / `.txt` (max 10 MB) |
 | POST | `/analyze/github` | Scan GitHub repo (`repo_url`, optional `include_logs`) |
+| POST | `/analyze/docker` | Scan Docker Hub image (`image_url`) with Trivy CVE scan |
+| GET | `/health/trivy` | Trivy install / DB readiness check |
 | GET | `/stream/{session_id}` | SSE agent progress stream |
 | GET | `/report/{session_id}` | Full report JSON |
 | GET | `/agents/status/{session_id}` | Agent status snapshot |
@@ -218,6 +228,31 @@ backend/
 | `GITHUB_TOKEN` | Recommended | GitHub API rate limits for repo scans |
 | `NVD_API_KEY` | Optional | NVD CVE API |
 | `ABUSEIPDB_API_KEY` | Optional | IP reputation lookups |
+| `TRIVY_PATH` | Optional | Path to Trivy binary (auto-detected if on `PATH`) |
+| `TRIVY_CACHE_DIR` | Optional | Trivy DB cache directory (default: platform cache) |
+| `TRIVY_WARMUP` | Optional | Pre-download vuln DB on startup (`true` default) |
+| `TRIVY_SEVERITIES` | Optional | CVE severities to report (default: `CRITICAL,HIGH,MEDIUM`) |
+| `TRIVY_MAX_CVES` | Optional | Max CVEs returned per scan (default: `25`) |
+
+## Trivy CVE scanning
+
+The **Docker Scanner** agent runs [Trivy](https://github.com/aquasecurity/trivy) against Docker Hub images for OS and library CVEs.
+
+**Local install:**
+
+```bash
+./scripts/install-trivy.sh
+```
+
+**Production (Railway):** deploy with `backend/nixpacks.toml` + `backend/railway.toml` (Root Directory = `backend`). Trivy installs at build time. Docker alternative: `Dockerfile.trivy`.
+
+**Verify:**
+
+```bash
+curl http://localhost:8000/health/trivy
+```
+
+When Trivy runs successfully, findings appear with `"source": "trivy"` and the dashboard shows a green CVE summary banner.
 
 ## LLM caching
 

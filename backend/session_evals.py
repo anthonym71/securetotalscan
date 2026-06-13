@@ -15,6 +15,7 @@ AGENT_LABELS = {
     "log_monitor": "Log Monitor",
     "threat_intel": "Threat Intel",
     "vuln_scanner": "Vuln Scanner",
+    "docker_scanner": "Docker Scanner",
     "incident_response": "Incident Response",
     "policy_checker": "Policy Checker",
     "slack_notifier": "Slack Notifier",
@@ -24,8 +25,9 @@ AGENT_TYPES = {
     "log_monitor": "deterministic",
     "threat_intel": "external_api",
     "vuln_scanner": "deterministic",
+    "docker_scanner": "external_api",
     "incident_response": "llm",
-    "policy_checker": "deterministic",
+    "policy_checker": "rag",
     "slack_notifier": "external_api",
 }
 
@@ -42,13 +44,17 @@ AGENT_CACHE_INFO = {
         "strategy": "none",
         "reason": "OWASP pattern matching — no LLM calls",
     },
+    "docker_scanner": {
+        "strategy": "none",
+        "reason": "Docker Hub metadata + optional Trivy subprocess",
+    },
     "incident_response": {
         "strategy": "lru_memory",
-        "reason": "In-memory LRU cache keyed on SHA-256(model + messages)",
+        "reason": "In-memory LRU cache keyed on SHA-256(model + messages); RAG-grounded prompts",
     },
     "policy_checker": {
         "strategy": "none",
-        "reason": "NIST/SOC2 rule mapping — no LLM calls",
+        "reason": "NIST/SOC2/ISO rule mapping + RAG retrieval over knowledge base",
     },
     "slack_notifier": {
         "strategy": "none",
