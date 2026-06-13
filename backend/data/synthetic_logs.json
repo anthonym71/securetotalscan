@@ -1,0 +1,12 @@
+[
+  "Jun 12 10:00:01 server sshd[1234]: Failed password for root from 192.168.1.42 port 4444 ssh2",
+  "Jun 12 10:00:02 server sshd[1234]: Failed password for root from 192.168.1.42 port 4444 ssh2",
+  "Jun 12 10:00:03 server sshd[1234]: Failed password for root from 192.168.1.42 port 4444 ssh2",
+  "Jun 12 10:00:04 server sshd[1234]: Failed password for admin from 192.168.1.42 port 4444 ssh2",
+  "Jun 12 10:00:05 server sshd[1234]: Failed password for ubuntu from 192.168.1.42 port 4444 ssh2",
+  "Jun 12 10:01:00 server kernel: Nmap scan detected from 10.0.0.5",
+  "Jun 12 10:01:30 server nginx[5678]: 404 /etc/passwd HTTP/1.1 from 10.0.0.99",
+  "Jun 12 10:02:00 server sudo[9012]: FAILED su for user root by www-data",
+  "Jun 12 10:03:00 server sshd[1234]: Accepted password for deploy from 203.0.113.1 port 22 ssh2",
+  "Jun 12 10:04:00 server nginx[5678]: GET /api/health HTTP/1.1 200 from 127.0.0.1"
+]

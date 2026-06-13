@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2020",
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noEmit": false,
+    "outDir": ".verify",
+    "types": ["node"]
+  },
+  "include": ["scripts/verify-scanner.ts", "lib/scanner/**/*.ts"]
+}

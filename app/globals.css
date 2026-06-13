@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-ink text-white font-sans antialiased;
+  background-image:
+    radial-gradient(60rem 60rem at 70% -10%, rgba(124, 58, 237, 0.18), transparent 60%),
+    radial-gradient(50rem 50rem at 0% 20%, rgba(168, 85, 247, 0.1), transparent 55%);
+  background-attachment: fixed;
+}
+
+/* Thin scrollbar to match the dark aesthetic */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.4);
+  border-radius: 9999px;
+}

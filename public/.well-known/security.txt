@@ -1,0 +1,4 @@
+Contact: mailto:security@securetotalscan.com
+Preferred-Languages: en
+Canonical: https://securetotalscan.com/.well-known/security.txt
+Expires: 2027-06-13T00:00:00.000Z

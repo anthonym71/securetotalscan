@@ -1,0 +1,36 @@
+{
+  "name": "securetotalscan",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Secure Total Scan — security for anything exposed to the internet. Free surface scan plus a five-agent deep analysis engine. Next.js web + FastAPI/LangGraph backend.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "verify:scanner": "tsc -p tsconfig.verify.json && node .verify/scripts/verify-scanner.js"
+  },
+  "dependencies": {
+    "next": "15.5.19",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.5",
+    "@types/react": "19.0.7",
+    "@types/react-dom": "19.0.3",
+    "autoprefixer": "10.4.20",
+    "eslint": "9.39.4",
+    "eslint-config-next": "15.5.19",
+    "postcss": "8.5.10",
+    "tailwindcss": "3.4.17",
+    "typescript": "5.7.3"
+  },
+  "overrides": {
+    "postcss": "8.5.10"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  }
+}
