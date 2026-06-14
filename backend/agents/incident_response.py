@@ -221,13 +221,17 @@ def _fallback_action_plan(state: SecurityState) -> list[str]:
 _NUMBERED_STEP_RE = re.compile(r"^\s*\d+[\.\):\-]\s+(.+)$")
 _BULLET_STEP_RE = re.compile(r"^\s*[-*•]\s+(.+)$")
 _STEP_PREFIX_RE = re.compile(r"^\s*step\s+\d+[\.\):\-]?\s*(.+)$", re.IGNORECASE)
-_MARKDOWN_EMPHASIS_RE = re.compile(r"\*\*([^*]+)\*\*|\*([^*]+)\*")
+_MARKDOWN_BOLD_RE = re.compile(r"\*\*([^*]+)\*\*:?")
+_MARKDOWN_ITALIC_RE = re.compile(r"(?<!\*)\*([^*]+)\*(?!\*)")
 
 
 def _clean_action_step(text: str) -> str:
     """Strip lightweight markdown emphasis from a single action step."""
-    cleaned = _MARKDOWN_EMPHASIS_RE.sub(lambda m: m.group(1) or m.group(2) or "", text)
-    return cleaned.strip()
+    cleaned = text.strip()
+    cleaned = _MARKDOWN_BOLD_RE.sub(r"\1", cleaned)
+    cleaned = _MARKDOWN_ITALIC_RE.sub(r"\1", cleaned)
+    cleaned = cleaned.replace("**", "").replace("*", "")
+    return cleaned.strip().rstrip(":")
 
 
 def _parse_llm_action_plan(raw: str) -> list[str]:
