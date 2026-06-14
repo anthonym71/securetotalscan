@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import {
   AGENT_LABELS,
   AgentEvent,
-  SecurityReport,
   SessionEvals,
   analyzeDocker,
   analyzeGithub,
