@@ -1,7 +1,7 @@
 """
 GitHub repository scanner — language detection + static code vulnerability analysis.
 
-Uses the GitHub REST API (optional GITHUB_TOKEN for higher rate limits).
+Uses the GitHub REST API (optional GIT_TOKEN for higher rate limits).
 """
 
 import base64
@@ -324,7 +324,7 @@ def _headers() -> dict[str, str]:
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    token = os.getenv("GITHUB_TOKEN", "")
+    token = os.getenv("GIT_TOKEN", "")
     if token:
         headers["Authorization"] = f"Bearer {token}"
     return headers
@@ -515,9 +515,9 @@ def scan_github_repo_safe(repo_url: str) -> dict[str, Any]:
     except httpx.HTTPStatusError as e:
         status = e.response.status_code
         if status == 404:
-            return {"error": "Repository not found or is private (requires GITHUB_TOKEN)"}
+            return {"error": "Repository not found or is private (requires GIT_TOKEN)"}
         if status == 403:
-            return {"error": "GitHub API rate limit exceeded — set GITHUB_TOKEN"}
+            return {"error": "GitHub API rate limit exceeded — set GIT_TOKEN"}
         return {"error": f"GitHub API error: {status}"}
     except Exception as e:
         return {"error": str(e)}

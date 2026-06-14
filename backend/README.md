@@ -8,7 +8,7 @@ Python FastAPI service that orchestrates a seven-agent LangGraph security pipeli
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # set OPENROUTER_API_KEY, optional GITHUB_TOKEN
+cp .env.example .env   # set OPENROUTER_API_KEY, optional GIT_TOKEN
 ./scripts/install-trivy.sh   # enables Docker CVE scanning via Trivy
 .venv/bin/python -m uvicorn main:app --reload --port 8000
 ```
@@ -232,7 +232,7 @@ backend/
 | Variable | Required | Purpose |
 |----------|----------|---------|
 | `OPENROUTER_API_KEY` | Recommended | LLM action plans via OpenRouter |
-| `GITHUB_TOKEN` | Recommended | GitHub API rate limits for repo scans |
+| `GIT_TOKEN` | Recommended | GitHub API rate limits for repo scans |
 | `NVD_API_KEY` | Optional | NVD CVE API |
 | `ABUSEIPDB_API_KEY` | Optional | IP reputation lookups |
 | `TRIVY_PATH` | Optional | Path to Trivy binary (auto-detected if on `PATH`) |
