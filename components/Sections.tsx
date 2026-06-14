@@ -106,18 +106,19 @@ export function DemoVideo() {
         style={{ padding: "56.25% 0 0 0", position: "relative" }}
       >
         <iframe
-          src="https://player.vimeo.com/video/1201147238?badge=0&autopause=0&player_id=0&app_id=58479"
-          title={`${BRAND.name} demo`}
+          src="https://demo.arcade.software/video/uq19QCZ0fjCHBbFKK22f?embed&embed_mobile=tab&embed_desktop=inline&show_copy_link=true"
+          title="Secure Total Scan for Internet Security"
           frameBorder={0}
           loading="lazy"
-          allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"
-          referrerPolicy="strict-origin-when-cross-origin"
+          allowFullScreen
+          allow="clipboard-write"
           style={{
             position: "absolute",
             top: 0,
             left: 0,
             width: "100%",
             height: "100%",
+            colorScheme: "light",
           }}
         />
       </div>
