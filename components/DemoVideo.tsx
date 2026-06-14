@@ -4,7 +4,7 @@ import { useState } from "react";
 
 // Arcade interactive demo embed (demo.arcade.software allows inline framing).
 const ARCADE_SRC =
-  "https://demo.arcade.software/video/uq19QCZ0fjCHBbFKK22f?embed&embed_mobile=tab&embed_desktop=inline&show_copy_link=true&autoplay=1";
+  "https://demo.arcade.software/video/uq19QCZ0fjCHBbFKK22f?embed&embed_mobile=inline&embed_desktop=inline&show_copy_link=true&autoplay=1";
 
 export function DemoVideo() {
   const [playing, setPlaying] = useState(false);
