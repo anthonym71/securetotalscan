@@ -2,6 +2,7 @@ import { Faq } from "@/components/Faq";
 import { ScanForm } from "@/components/ScanForm";
 import {
   Agents,
+  DemoVideo,
   Hero,
   HowItWorks,
   NavBar,
@@ -18,6 +19,7 @@ export default function Home() {
     <main>
       <NavBar />
       <Hero />
+      <DemoVideo />
       <TrustBar />
 
       {/* Scan section */}

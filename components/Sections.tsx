@@ -11,6 +11,10 @@ import {
   TRUST,
 } from "@/lib/content";
 
+// GHL hosted checkout for the Pro subscription ($49/mo). Public link, safe to inline.
+const PRO_CHECKOUT_URL =
+  "https://link.ifactoryusa.com/payment-link/6a2e744a03b17c94f5716342";
+
 export function NavBar() {
   return (
     <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
@@ -52,12 +56,22 @@ export function Hero() {
         {HERO.subtitle}
       </p>
       <p className="mx-auto mt-4 max-w-2xl text-lg text-white/60">{HERO.body}</p>
-      <a
-        href="#scan"
-        className="mt-8 inline-block rounded-xl bg-brand-gradient px-8 py-4 font-semibold shadow-glow transition hover:opacity-90"
-      >
-        {HERO.cta}
-      </a>
+      <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <a
+          href="#scan"
+          className="inline-block rounded-xl bg-brand-gradient px-8 py-4 font-semibold shadow-glow transition hover:opacity-90"
+        >
+          {HERO.cta}
+        </a>
+        <a
+          href={PRO_CHECKOUT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block rounded-xl border border-brand/50 px-8 py-4 font-semibold text-brand-light transition hover:bg-brand/10"
+        >
+          Get Pro — $49/mo
+        </a>
+      </div>
     </header>
   );
 }
@@ -73,6 +87,39 @@ export function TrustBar() {
           <p className="font-semibold text-white">{TRUST.headline}</p>
           <p className="mt-1 text-sm leading-relaxed text-white/70">{TRUST.body}</p>
         </div>
+      </div>
+    </section>
+  );
+}
+
+export function DemoVideo() {
+  return (
+    <section id="demo" className="mx-auto max-w-5xl px-6 py-16">
+      <div className="mb-8 text-center">
+        <h2 className="text-3xl font-bold sm:text-4xl">See it in action</h2>
+        <p className="mx-auto mt-3 max-w-xl text-white/60">
+          A quick walkthrough, from URL to security report.
+        </p>
+      </div>
+      <div
+        className="overflow-hidden rounded-2xl border border-white/10 shadow-glow"
+        style={{ padding: "56.25% 0 0 0", position: "relative" }}
+      >
+        <iframe
+          src="https://player.vimeo.com/video/1201147238?badge=0&autopause=0&player_id=0&app_id=58479"
+          title={`${BRAND.name} demo`}
+          frameBorder={0}
+          loading="lazy"
+          allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"
+          referrerPolicy="strict-origin-when-cross-origin"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+          }}
+        />
       </div>
     </section>
   );
@@ -193,10 +240,6 @@ export function Stats() {
     </section>
   );
 }
-
-// GHL hosted checkout for the Pro subscription ($49/mo). Public link, safe to inline.
-const PRO_CHECKOUT_URL =
-  "https://link.ifactoryusa.com/payment-link/6a2e744a03b17c94f5716342";
 
 export function Plans() {
   return (
