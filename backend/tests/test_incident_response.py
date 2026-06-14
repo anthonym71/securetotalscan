@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from agents.incident_response import (
     _fallback_action_plan,
+    _parse_llm_action_plan,
     build_prompt,
     run_incident_response,
 )
@@ -128,3 +129,45 @@ def test_run_incident_response_uses_fallback_when_llm_fails():
         result = run_incident_response(state)
     assert len(result["action_plan"]) >= 1
     assert "iam.tf" in result["action_plan"][0]
+
+
+def test_parse_llm_action_plan_supports_bullets_and_step_prefixes():
+    raw = """Recommended actions:
+
+Step 1: Block 192.168.1.42 at the firewall
+- Enable MFA for SSH access
+* Rotate exposed credentials
+"""
+    steps = _parse_llm_action_plan(raw)
+    assert steps == [
+        "Block 192.168.1.42 at the firewall",
+        "Enable MFA for SSH access",
+        "Rotate exposed credentials",
+    ]
+
+
+def test_run_incident_response_uses_fallback_for_unparsable_llm_output():
+    state = make_initial_state(raw_logs=[], log_source="synthetic", session_id="ir6")
+    state = {
+        **state,
+        "anomalies": [
+            {
+                "type": "brute_force",
+                "source_ip": "192.168.1.42",
+                "attempt_count": 5,
+                "severity": "CRITICAL",
+                "title": "SSH Brute Force Attack",
+                "recommendation": "Block the attacking IP at the firewall",
+            }
+        ],
+        "cve_matches": [],
+        "vulnerabilities": [],
+        "threat_score": 80,
+    }
+    with patch(
+        "agents.incident_response.call_openai",
+        return_value="Please review the findings and remediate as needed.",
+    ):
+        result = run_incident_response(state)
+    assert len(result["action_plan"]) >= 1
+    assert "192.168.1.42" in result["action_plan"][0]
