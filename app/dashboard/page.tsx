@@ -12,8 +12,28 @@ import {
   analyzeUpload,
   getEvals,
   getReport,
+  SecurityReport,
   streamUrl,
 } from "@/lib/api";
+
+async function fetchReportWithRetry(
+  sessionId: string,
+  attempts = 4,
+): Promise<SecurityReport> {
+  let lastError: Error | null = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await getReport(sessionId);
+    } catch (err) {
+      lastError =
+        err instanceof Error ? err : new Error("Failed to load analysis report");
+      if (i < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 500 * (i + 1)));
+      }
+    }
+  }
+  throw lastError ?? new Error("Failed to load analysis report");
+}
 
 type Mode = "github" | "docker" | "synthetic" | "system" | "upload";
 type Tab = "analysis" | "evals";
@@ -121,7 +141,15 @@ export default function Dashboard() {
           doneRef.current = true;
           es.close();
           setRunning(false);
-          getReport(session_id).then(setReport).catch(() => {});
+          fetchReportWithRetry(session_id)
+            .then(setReport)
+            .catch((err) =>
+              setError(
+                err instanceof Error
+                  ? `${err.message}. Try running the scan again.`
+                  : "Failed to load analysis report.",
+              ),
+            );
           getEvals(session_id).then(setEvals).catch(() => {});
           return;
         }
@@ -333,7 +361,7 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {report.action_plan && report.action_plan.length > 0 && (
+              {report.action_plan && report.action_plan.length > 0 ? (
                 <div className="rounded-2xl border border-white/10 bg-card-gradient p-5">
                   <h3 className="font-semibold">Recommended actions</h3>
                   <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-white/70">
@@ -341,6 +369,11 @@ export default function Dashboard() {
                       <li key={i}>{a}</li>
                     ))}
                   </ul>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-card-gradient p-5 text-sm text-white/50">
+                  Recommended actions were not generated for this run. Check that
+                  the incident response agent finished, then try again.
                 </div>
               )}
 

@@ -1,6 +1,7 @@
 """Incident Response agent — LLM action plans with deterministic fallback."""
 
 import os
+import re
 import time
 
 from llm_cache import get_default_cache
@@ -217,6 +218,42 @@ def _fallback_action_plan(state: SecurityState) -> list[str]:
     return steps or ["No automated remediation steps generated — review scan output manually."]
 
 
+_NUMBERED_STEP_RE = re.compile(r"^\s*\d+[\.\):\-]\s+(.+)$")
+_BULLET_STEP_RE = re.compile(r"^\s*[-*•]\s+(.+)$")
+_STEP_PREFIX_RE = re.compile(r"^\s*step\s+\d+[\.\):\-]?\s*(.+)$", re.IGNORECASE)
+_MARKDOWN_EMPHASIS_RE = re.compile(r"\*\*([^*]+)\*\*|\*([^*]+)\*")
+
+
+def _clean_action_step(text: str) -> str:
+    """Strip lightweight markdown emphasis from a single action step."""
+    cleaned = _MARKDOWN_EMPHASIS_RE.sub(lambda m: m.group(1) or m.group(2) or "", text)
+    return cleaned.strip()
+
+
+def _parse_llm_action_plan(raw: str) -> list[str]:
+    """Parse numbered, step-prefixed, or bulleted action steps from an LLM response."""
+    if not raw.strip():
+        return []
+
+    steps: list[str] = []
+    for line in raw.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        match = (
+            _NUMBERED_STEP_RE.match(stripped)
+            or _STEP_PREFIX_RE.match(stripped)
+            or _BULLET_STEP_RE.match(stripped)
+        )
+        if not match:
+            continue
+        step = _clean_action_step(match.group(1))
+        if step:
+            steps.append(step)
+
+    return steps
+
+
 def run_incident_response(state: SecurityState) -> SecurityState:
     """Generate an action plan and markdown runbook from all pipeline findings.
 
@@ -228,27 +265,45 @@ def run_incident_response(state: SecurityState) -> SecurityState:
     Returns:
         Updated state with ``action_plan`` and ``runbook_md``.
     """
-    prompt = build_prompt(state)
-    action_plan: list[str] = []
     try:
-        raw = call_openai(prompt, session_id=state["session_id"])
-        lines = [
-            l.strip()
-            for l in raw.strip().split("\n")
-            if l.strip() and l.strip()[0].isdigit()
-        ]
-        action_plan = [l.split(". ", 1)[-1] if ". " in l else l for l in lines]
-    except Exception:
-        action_plan = []
+        prompt = build_prompt(state)
+        action_plan: list[str] = []
+        try:
+            raw = call_openai(prompt, session_id=state["session_id"])
+            action_plan = _parse_llm_action_plan(raw)
+        except Exception:
+            action_plan = []
 
-    if not action_plan:
+        if not action_plan:
+            action_plan = _fallback_action_plan(state)
+
+        retrieved = retrieve_context(state)
+        runbook_md = (
+            "# Incident Response Runbook\n\n"
+            "## Retrieved Knowledge (RAG)\n\n"
+            + format_retrieved_context(retrieved)
+            + "\n\n## Action Plan\n\n"
+            + "\n".join(f"{i + 1}. {step}" for i, step in enumerate(action_plan))
+        )
+        return {
+            **state,
+            "action_plan": action_plan,
+            "runbook_md": runbook_md,
+            "retrieved_sources": retrieved,
+        }
+    except Exception:
         action_plan = _fallback_action_plan(state)
-    retrieved = retrieve_context(state)
-    runbook_md = (
-        "# Incident Response Runbook\n\n"
-        "## Retrieved Knowledge (RAG)\n\n"
-        + format_retrieved_context(retrieved)
-        + "\n\n## Action Plan\n\n"
-        + "\n".join(f"{i + 1}. {step}" for i, step in enumerate(action_plan))
-    )
-    return {**state, "action_plan": action_plan, "runbook_md": runbook_md, "retrieved_sources": retrieved}
+        retrieved = retrieve_context(state)
+        runbook_md = (
+            "# Incident Response Runbook\n\n"
+            "## Retrieved Knowledge (RAG)\n\n"
+            + format_retrieved_context(retrieved)
+            + "\n\n## Action Plan\n\n"
+            + "\n".join(f"{i + 1}. {step}" for i, step in enumerate(action_plan))
+        )
+        return {
+            **state,
+            "action_plan": action_plan,
+            "runbook_md": runbook_md,
+            "retrieved_sources": retrieved,
+        }
