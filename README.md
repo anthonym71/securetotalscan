@@ -368,6 +368,12 @@ See `backend/.env.example` for full Trivy tuning vars.
 
 `NEXT_PUBLIC_API_URL` is taken from repository **variables** (default in workflow). Each deploy runs `scripts/sync-railway-env.sh` or `scripts/sync-vercel-env.sh` before `railway up` / `vercel deploy`.
 
+**If deploy fails with `Unauthorized` on Railway:** `RAILWAY_TOKEN` must be a **project token** (Railway project → **Settings → Tokens** → generate for **production**), not an account token from railway.com/account/tokens. Project tokens cannot use `railway link`; the workflow deploys with `--project`, `--service`, and `--environment` flags instead.
+
+**If Railway/Vercel jobs are skipped:** CD only deploys when relevant paths change (`backend/` for Railway, `app/`/`lib/`/etc. for Vercel). Changes to `.github/workflows/cd.yml` or the sync scripts trigger **both**. Use **Actions → CD → Run workflow** to force both deploys.
+
+**If deploy fails with empty tokens:** add `RAILWAY_TOKEN` and `VERCEL_TOKEN` to the **`prod`** environment secrets (not just repository secrets).
+
 ---
 
 ## Quick start
