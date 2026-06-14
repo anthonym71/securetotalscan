@@ -1,11 +1,13 @@
 # Railway deploy config — backend service (set Root Directory = backend in Railway UI,
 # or point Config File to /backend/railway.toml from the repo root).
 #
-# Uses Railpack/Nixpacks (not Dockerfile). Trivy is installed via nixpacks.toml build phase.
+# Uses Dockerfile.trivy so Trivy is baked into the image (Railpack was skipping the
+# nixpacks.toml build step, leaving Trivy unavailable at runtime).
 
 [build]
-builder = "RAILPACK"
-watchPatterns = ["backend/**"]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.trivy"
+watchPatterns = ["**"]
 
 [deploy]
 healthcheckPath = "/health/trivy"

@@ -31,16 +31,25 @@ class TrivyScanResult:
 
 
 def resolve_trivy_binary() -> str | None:
-    """Return the Trivy executable path from ``TRIVY_PATH`` or ``PATH``."""
+    """Return the Trivy executable path from ``TRIVY_PATH`` or common install locations."""
+    candidates: list[str] = []
     configured = (os.getenv("TRIVY_PATH") or "").strip()
     if configured:
-        path = Path(configured).expanduser()
-        if path.is_file() and os.access(path, os.X_OK):
-            return str(path)
-    default_local = Path(__file__).resolve().parent.parent / ".bin" / "trivy"
-    if default_local.is_file() and os.access(default_local, os.X_OK):
-        return str(default_local)
-    return shutil.which("trivy")
+        candidates.append(str(Path(configured).expanduser()))
+    candidates.append(str(Path(__file__).resolve().parent.parent / ".bin" / "trivy"))
+    candidates.append("/usr/local/bin/trivy")
+    which = shutil.which("trivy")
+    if which:
+        candidates.append(which)
+
+    seen: set[str] = set()
+    for path in candidates:
+        if path in seen:
+            continue
+        seen.add(path)
+        if Path(path).is_file() and os.access(path, os.X_OK):
+            return path
+    return None
 
 
 def ensure_trivy_db() -> str | None:
