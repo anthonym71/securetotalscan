@@ -338,7 +338,7 @@ Implementation: `backend/tools/rag.py` (no vector DB required; lightweight and o
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `OPENROUTER_API_KEY` | Recommended | LLM incident response |
-| `GITHUB_TOKEN` | Recommended | GitHub API rate limits |
+| `GIT_TOKEN` | Recommended | GitHub API rate limits |
 | `NVD_API_KEY` | Optional | NVD CVE API |
 | `ABUSEIPDB_API_KEY` | Optional | IP reputation |
 | `TRIVY_PATH` | Optional | Trivy binary (auto-detected) |
@@ -358,6 +358,15 @@ See `backend/.env.example` for full Trivy tuning vars.
 **Railway setup:** Root Directory = `backend`, Config file = `/backend/railway.toml`.
 
 **Vercel setup:** Set `NEXT_PUBLIC_API_URL=https://your-railway-url.up.railway.app`, then redeploy.
+
+**CD workflow (`.github/workflows/cd.yml`):** After CI passes on `master`, deploy jobs use the GitHub **`production`** environment. Add secrets under **Settings → Environments → production** (or repository secrets):
+
+| Secret | Synced to |
+| --- | --- |
+| `RAILWAY_TOKEN`, `OPENROUTER_API_KEY`, `GIT_TOKEN`, `NVD_API_KEY`, `ABUSEIPDB_API_KEY` | Railway |
+| `VERCEL_TOKEN`, `GHL_API_TOKEN`, `GHL_LOCATION_ID`, `RESEND_API_KEY`, `REPORT_FROM_EMAIL`, `UPSTASH_REDIS_REST_*` | Vercel |
+
+`NEXT_PUBLIC_API_URL` is taken from repository **variables** (default in workflow). Each deploy runs `scripts/sync-railway-env.sh` or `scripts/sync-vercel-env.sh` before `railway up` / `vercel deploy`.
 
 ---
 

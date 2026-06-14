@@ -1,11 +1,24 @@
 # Deploy to Railway + Vercel after CI passes on master.
 #
-# Required repository secrets (Settings → Secrets and variables → Actions):
+# Configure a GitHub Environment named "production" (Settings → Environments)
+# and add these secrets there (repository secrets also work as fallback):
+#
+# Deploy tokens (required):
 #   RAILWAY_TOKEN  — https://railway.com/account/tokens
 #   VERCEL_TOKEN   — https://vercel.com/account/tokens
 #
-# Optional repository variables (Settings → Variables); defaults are set below.
-#   RAILWAY_PROJECT_ID, RAILWAY_SERVICE_ID, VERCEL_ORG_ID, VERCEL_PROJECT_ID, NEXT_PUBLIC_API_URL
+# Backend API keys (synced to Railway on each backend deploy):
+#   OPENROUTER_API_KEY, GIT_TOKEN, NVD_API_KEY, ABUSEIPDB_API_KEY
+#   Note: name the GitHub secret GIT_TOKEN (not GITHUB_TOKEN — that name is
+#   reserved for the automatic Actions CI token).
+#
+# Frontend API keys (synced to Vercel production on each frontend deploy):
+#   GHL_API_TOKEN, GHL_LOCATION_ID, RESEND_API_KEY, REPORT_FROM_EMAIL,
+#   UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
+#
+# Optional repository variables (Settings → Variables):
+#   RAILWAY_PROJECT_ID, RAILWAY_SERVICE_ID, VERCEL_ORG_ID, VERCEL_PROJECT_ID,
+#   NEXT_PUBLIC_API_URL
 
 name: CD
 
@@ -53,13 +66,13 @@ jobs:
           echo "Changed files:"
           echo "$files"
 
-          if echo "$files" | grep -qE '^backend/'; then
+          if echo "$files" | grep -qE '^backend/|^scripts/sync-railway-env\.sh'; then
             echo "backend=true" >> "$GITHUB_OUTPUT"
           else
             echo "backend=false" >> "$GITHUB_OUTPUT"
           fi
 
-          if echo "$files" | grep -qE '^(app/|components/|lib/|public/|package\.json|package-lock\.json|next\.config|tailwind\.config|postcss\.config|tsconfig|middleware\.|eslint\.config|vercel\.json|scripts/vercel-ignore\.sh)'; then
+          if echo "$files" | grep -qE '^(app/|components/|lib/|public/|package\.json|package-lock\.json|next\.config|tailwind\.config|postcss\.config|tsconfig|middleware\.|eslint\.config|vercel\.json|scripts/vercel-ignore\.sh|scripts/sync-vercel-env\.sh)'; then
             echo "frontend=true" >> "$GITHUB_OUTPUT"
           else
             echo "frontend=false" >> "$GITHUB_OUTPUT"
@@ -71,10 +84,21 @@ jobs:
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    environment: production
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Sync API keys to Railway
+        working-directory: backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
+        run: bash ../scripts/sync-railway-env.sh
 
       - name: Deploy backend to Railway
         working-directory: backend
@@ -93,6 +117,7 @@ jobs:
     if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    environment: production
     env:
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
@@ -104,6 +129,17 @@ jobs:
         with:
           node-version: 20
           cache: npm
+
+      - name: Sync API keys to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          GHL_API_TOKEN: ${{ secrets.GHL_API_TOKEN }}
+          GHL_LOCATION_ID: ${{ secrets.GHL_LOCATION_ID }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          REPORT_FROM_EMAIL: ${{ secrets.REPORT_FROM_EMAIL }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+        run: bash scripts/sync-vercel-env.sh
 
       - name: Deploy frontend to Vercel
         env:
