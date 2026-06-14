@@ -1,9 +1,9 @@
 import { Faq } from "@/components/Faq";
 import { IntroModal } from "@/components/IntroModal";
 import { ScanForm } from "@/components/ScanForm";
+import { DemoVideo } from "@/components/DemoVideo";
 import {
   Agents,
-  DemoVideo,
   Hero,
   HowItWorks,
   NavBar,
