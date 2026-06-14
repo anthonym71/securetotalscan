@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 from agents.incident_response import (
+    _clean_action_step,
     _fallback_action_plan,
     _parse_llm_action_plan,
     build_prompt,
@@ -129,6 +130,27 @@ def test_run_incident_response_uses_fallback_when_llm_fails():
         result = run_incident_response(state)
     assert len(result["action_plan"]) >= 1
     assert "iam.tf" in result["action_plan"][0]
+
+
+def test_parse_llm_action_plan_strips_bold_markdown_titles():
+    raw = """1. **Upgrade to HTTPS:**
+2. **Implement HTTP Security Headers:**
+3. **Review and Secure Secrets Management:**
+"""
+    steps = _parse_llm_action_plan(raw)
+    assert steps == [
+        "Upgrade to HTTPS",
+        "Implement HTTP Security Headers",
+        "Review and Secure Secrets Management",
+    ]
+
+
+def test_clean_action_step_strips_bold_colon_titles():
+    assert _clean_action_step("**Upgrade to HTTPS:**") == "Upgrade to HTTPS"
+    assert (
+        _clean_action_step("**Implement HTTP Security Headers:** Add CSP and HSTS")
+        == "Implement HTTP Security Headers: Add CSP and HSTS"
+    )
 
 
 def test_parse_llm_action_plan_supports_bullets_and_step_prefixes():
