@@ -34,6 +34,11 @@ set_var() {
 
 set_var OPENROUTER_API_KEY
 set_var GIT_TOKEN
+# Legacy Railway env name (pre-rename); keep in sync when GIT_TOKEN is set
+if [ -n "${GIT_TOKEN:-}" ]; then
+  echo "Syncing Railway variable: GITHUB_TOKEN (legacy alias)"
+  "${RAILWAY_CLI[@]}" variable set "GITHUB_TOKEN=${GIT_TOKEN}" "${railway_target[@]}" --skip-deploys
+fi
 set_var NVD_API_KEY
 set_var ABUSEIPDB_API_KEY
 
