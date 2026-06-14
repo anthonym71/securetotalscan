@@ -359,7 +359,7 @@ See `backend/.env.example` for full Trivy tuning vars.
 
 **Vercel setup:** Set `NEXT_PUBLIC_API_URL=https://your-railway-url.up.railway.app`, then redeploy.
 
-**CD workflow (`.github/workflows/cd.yml`):** After CI passes on `master`, deploy jobs use the GitHub **`production`** environment. Add secrets under **Settings → Environments → production** (or repository secrets):
+**CD workflow (`.github/workflows/cd.yml`):** After CI passes on `master`, deploy jobs use the GitHub **`prod`** environment. Add secrets under **Settings → Environments → prod** (or repository secrets):
 
 | Secret | Synced to |
 | --- | --- |

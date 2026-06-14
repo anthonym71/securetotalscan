@@ -1,6 +1,6 @@
 # Deploy to Railway + Vercel after CI passes on master.
 #
-# Configure a GitHub Environment named "production" (Settings → Environments)
+# Configure a GitHub Environment named "prod" (Settings → Environments)
 # and add these secrets there (repository secrets also work as fallback):
 #
 # Deploy tokens (required):
@@ -84,7 +84,7 @@ jobs:
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: production
+    environment: prod
     steps:
       - uses: actions/checkout@v4
         with:
@@ -117,7 +117,7 @@ jobs:
     if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: production
+    environment: prod
     env:
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
