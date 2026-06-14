@@ -6,17 +6,22 @@ RUN apt-get update \
 
 WORKDIR /app
 
+ENV TRIVY_CACHE_DIR=/app/.trivy-cache
+ENV TRIVY_PATH=/usr/local/bin/trivy
+ENV TRIVY_WARMUP=true
+ENV TRIVY_SEVERITIES=CRITICAL,HIGH,MEDIUM
+ENV TRIVY_MAX_CVES=25
+ENV TRIVY_TIMEOUT_SEC=180
+
 COPY scripts/install-trivy.sh scripts/install-trivy.sh
-RUN chmod +x scripts/install-trivy.sh \
+RUN mkdir -p /app/.trivy-cache \
+    && chmod +x scripts/install-trivy.sh \
     && TRIVY_INSTALL_DIR=/usr/local/bin ./scripts/install-trivy.sh
 
 COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-
-ENV TRIVY_CACHE_DIR=/app/.trivy-cache
-ENV TRIVY_WARMUP=true
 
 EXPOSE 8000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -49,6 +49,11 @@ trivy --version | head -1
 echo "Installed to ${INSTALL_DIR}/trivy"
 echo "Set in backend/.env: TRIVY_PATH=${INSTALL_DIR}/trivy"
 echo "Downloading Trivy vulnerability DB (first-time setup)..."
-trivy image --download-db-only
+DB_ARGS=()
+if [ -n "${TRIVY_CACHE_DIR:-}" ]; then
+  mkdir -p "$TRIVY_CACHE_DIR"
+  DB_ARGS=(--cache-dir "$TRIVY_CACHE_DIR")
+fi
+trivy image --download-db-only "${DB_ARGS[@]}"
 
 echo "Trivy ready."

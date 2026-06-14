@@ -5,6 +5,7 @@ providers = ["python"]
 
 [variables]
 NIXPACKS_PYTHON_VERSION = "3.11"
+TRIVY_PATH = "/usr/local/bin/trivy"
 TRIVY_CACHE_DIR = "/tmp/trivy-cache"
 TRIVY_WARMUP = "true"
 TRIVY_SEVERITIES = "CRITICAL,HIGH,MEDIUM"
@@ -21,4 +22,4 @@ cmds = [
 ]
 
 [start]
-cmd = "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"
+cmd = "if ! command -v trivy >/dev/null 2>&1; then chmod +x scripts/install-trivy.sh && TRIVY_INSTALL_DIR=/usr/local/bin ./scripts/install-trivy.sh; fi && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"
