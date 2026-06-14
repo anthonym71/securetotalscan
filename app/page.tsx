@@ -1,4 +1,5 @@
 import { Faq } from "@/components/Faq";
+import { IntroModal } from "@/components/IntroModal";
 import { ScanForm } from "@/components/ScanForm";
 import {
   Agents,
@@ -17,6 +18,7 @@ import { FOOTER, SCAN_SECTION } from "@/lib/content";
 export default function Home() {
   return (
     <main>
+      <IntroModal />
       <NavBar />
       <Hero />
       <DemoVideo />
