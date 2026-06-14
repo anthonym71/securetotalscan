@@ -38,8 +38,8 @@ concurrency:
 env:
   RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID || '224ad38c-41fc-40c3-9da8-afe1dac9a668' }}
   RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID || 'securetotalscan-api' }}
-  VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID || 'team_xebFQIzxvYQi13b4zO7ILMv3' }}
-  VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_F7rj6qqmjKusL7DJdRbPOQ5L5Pzq' }}
+  VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID || 'team_x0HywmHRlyGlzeUAlcsAIsYY' }}
+  VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_LzgIUHdMQXzfOfy1icfyrNHkdK3v' }}
   NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://securetotalscan-api-production.up.railway.app' }}
 
 jobs:

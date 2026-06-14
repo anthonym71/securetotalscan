@@ -8,8 +8,8 @@ Security for anything exposed to the internet: websites, apps, GitHub repos, Doc
 
 | Layer | Stack | Deploy |
 | --- | --- | --- |
-| **Frontend** | Next.js 15, React 19, Tailwind | [Vercel](https://securetotalscan.vercel.app) |
-| **Backend** | FastAPI, LangGraph, OpenRouter | [Railway](https://cybersentinel-api-production.up.railway.app) |
+| **Frontend** | Next.js 15, React 19, Tailwind | [Vercel](https://securetotalscan.com) |
+| **Backend** | FastAPI, LangGraph, OpenRouter | [Railway](https://securetotalscan-api-production.up.railway.app) |
 
 ---
 
