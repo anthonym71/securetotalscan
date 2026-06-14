@@ -92,40 +92,6 @@ export function TrustBar() {
   );
 }
 
-export function DemoVideo() {
-  return (
-    <section id="demo" className="mx-auto max-w-5xl px-6 py-16">
-      <div className="mb-8 text-center">
-        <h2 className="text-3xl font-bold sm:text-4xl">See it in action</h2>
-        <p className="mx-auto mt-3 max-w-xl text-white/60">
-          A quick walkthrough, from URL to security report.
-        </p>
-      </div>
-      <div
-        className="overflow-hidden rounded-2xl border border-white/10 shadow-glow"
-        style={{ padding: "56.25% 0 0 0", position: "relative" }}
-      >
-        <iframe
-          src="https://demo.arcade.software/video/uq19QCZ0fjCHBbFKK22f?embed&embed_mobile=tab&embed_desktop=inline&show_copy_link=true"
-          title="Secure Total Scan for Internet Security"
-          frameBorder={0}
-          loading="lazy"
-          allowFullScreen
-          allow="clipboard-write"
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            colorScheme: "light",
-          }}
-        />
-      </div>
-    </section>
-  );
-}
-
 export function HowItWorks() {
   return (
     <section className="mx-auto max-w-5xl px-6 py-16">
