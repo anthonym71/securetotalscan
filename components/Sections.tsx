@@ -194,6 +194,10 @@ export function Stats() {
   );
 }
 
+// GHL hosted checkout for the Pro subscription ($49/mo). Public link, safe to inline.
+const PRO_CHECKOUT_URL =
+  "https://link.ifactoryusa.com/payment-link/6a2e744a03b17c94f5716342";
+
 export function Plans() {
   return (
     <section id="pricing" className="mx-auto max-w-5xl px-6 py-16">
@@ -234,7 +238,15 @@ export function Plans() {
               ))}
             </ul>
             <a
-              href={p.name === "Organization" ? `mailto:${BRAND.email}` : "#scan"}
+              href={
+                p.name === "Pro"
+                  ? PRO_CHECKOUT_URL
+                  : p.name === "Organization"
+                    ? `mailto:${BRAND.email}`
+                    : "#scan"
+              }
+              target={p.name === "Pro" ? "_blank" : undefined}
+              rel={p.name === "Pro" ? "noopener noreferrer" : undefined}
               className={`mt-6 block rounded-xl px-5 py-3 text-center font-semibold transition ${
                 p.featured
                   ? "bg-brand-gradient hover:opacity-90"
