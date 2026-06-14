@@ -13,6 +13,66 @@ Security for anything exposed to the internet: websites, apps, GitHub repos, Doc
 
 ---
 
+## At a glance
+
+```mermaid
+flowchart LR
+  STS(["Secure Total Scan"])
+
+  STS --> AO["App Overview"]
+  STS --> CS["Core Security Features"]
+  STS --> AA["Autonomous Agents"]
+  STS --> TS["Tech Stack & Architecture"]
+  STS --> PE["Performance & Efficiency"]
+  STS --> PR["Privacy & Security"]
+  STS --> SP["Subscription Plans"]
+
+  AO --> AO1["Security for AI-Generated Code"]
+  AO --> AO2["Passive Surface Scans"]
+  AO --> AO3["Deep Agent Analysis"]
+  AO --> AO4["Automated Fix Prompts"]
+
+  CS --> CS1["Database Exposure Checks"]
+  CS --> CS2["Keys & Secrets Detection"]
+  CS --> CS3["SSL/TLS Configuration"]
+  CS --> CS4["Security Header Analysis"]
+  CS --> CS5["CORS Policy Review"]
+  CS --> CS6["Exposed File Discovery"]
+
+  AA --> AA1["Log Monitor (Anomaly Detection)"]
+  AA --> AA2["Threat Intel (DDoS & MITRE Patterns)"]
+  AA --> AA3["Vulnerability Scanner (Repo Risks)"]
+  AA --> AA4["Incident Response (CVE Remediation)"]
+  AA --> AA5["Compliance (NIST & SOC 2)"]
+
+  TS --> TS1["Frontend: React & Tailwind CSS"]
+  TS --> TS2["Backend: FastAPI Orchestration"]
+  TS --> TS3["AI: GPT-4 via OpenRouter"]
+  TS --> TS4["Frameworks: LangGraph & Claude Specs"]
+  TS --> TS5["Deployment: Railway & Vercel"]
+
+  PE --> PE1["LLM Caching Layer"]
+  PE --> PE2["Token Cost Control"]
+  PE --> PE3["Analysis Under One Minute"]
+  PE --> PE4["Benchmarks (Cached vs Uncached)"]
+
+  PR --> PR1["Memory-Only Analysis"]
+  PR --> PR2["Encrypted in Transit"]
+  PR --> PR3["No Data Persistence"]
+  PR --> PR4["No Model Training"]
+
+  SP --> SP1["Free ($0 Surface Scan)"]
+  SP --> SP2["Pro ($49/mo Full Agent Access)"]
+  SP --> SP3["Organization (Custom Enterprise)"]
+
+  classDef root fill:#4f46e5,stroke:#3730a3,color:#ffffff,font-weight:bold;
+  classDef cat fill:#1f2937,stroke:#374151,color:#ffffff;
+  class STS root;
+  class AO,CS,AA,TS,PE,PR,SP cat;
+```
+
+---
+
 ## Hackathon concepts used
 
 Quick map for judges — **GenAI + accelerator concepts** implemented in this repo:
