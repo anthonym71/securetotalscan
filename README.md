@@ -338,7 +338,7 @@ Implementation: `backend/tools/rag.py` (no vector DB required; lightweight and o
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `OPENROUTER_API_KEY` | Recommended | LLM incident response |
-| `GITHUB_TOKEN` | Recommended | GitHub API rate limits |
+| `GIT_TOKEN` | Recommended | GitHub API rate limits |
 | `NVD_API_KEY` | Optional | NVD CVE API |
 | `ABUSEIPDB_API_KEY` | Optional | IP reputation |
 | `TRIVY_PATH` | Optional | Trivy binary (auto-detected) |
@@ -358,6 +358,23 @@ See `backend/.env.example` for full Trivy tuning vars.
 **Railway setup:** Root Directory = `backend`, Config file = `/backend/railway.toml`.
 
 **Vercel setup:** Set `NEXT_PUBLIC_API_URL=https://your-railway-url.up.railway.app`, then redeploy.
+
+**CD workflow (`.github/workflows/cd.yml`):** After CI passes on `master`, deploy jobs use the GitHub **`prod`** environment. Add secrets under **Settings → Environments → prod** (or repository secrets):
+
+| Secret | Synced to |
+| --- | --- |
+| `RAILWAY_TOKEN`, `OPENROUTER_API_KEY`, `GIT_TOKEN`, `NVD_API_KEY`, `ABUSEIPDB_API_KEY` | Railway |
+| `VERCEL_TOKEN`, `GHL_API_TOKEN`, `GHL_LOCATION_ID`, `RESEND_API_KEY`, `REPORT_FROM_EMAIL`, `UPSTASH_REDIS_REST_*` | Vercel |
+
+`NEXT_PUBLIC_API_URL` is taken from repository **variables** (default in workflow). Each deploy runs `scripts/sync-railway-env.sh` or `scripts/sync-vercel-env.sh` before `railway up` / `vercel deploy`.
+
+**If deploy fails with `Unauthorized` on Railway:** `RAILWAY_TOKEN` must be a **project token** (Railway project → **Settings → Tokens** → generate for **production**), not an account token from railway.com/account/tokens. Project tokens cannot use `railway link`; the workflow deploys with `--project`, `--service`, and `--environment` flags instead.
+
+**If GitHub repo scans hit rate limits:** add a GitHub PAT as **`GIT_TOKEN`** in **Settings → Environments → prod → Secrets**, then re-run CD (or set `GIT_TOKEN` manually on Railway). Unauthenticated GitHub API allows ~60 requests/hour; a PAT raises that to 5,000/hour.
+
+**If Railway/Vercel jobs are skipped:** CD only deploys when relevant paths change (`backend/` for Railway, `app/`/`lib/`/etc. for Vercel). Changes to `.github/workflows/cd.yml` or the sync scripts trigger **both**. Use **Actions → CD → Run workflow** to force both deploys.
+
+**If deploy fails with empty tokens:** add `RAILWAY_TOKEN` and `VERCEL_TOKEN` to the **`prod`** environment secrets (not just repository secrets).
 
 ---
 

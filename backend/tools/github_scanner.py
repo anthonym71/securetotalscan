@@ -1,7 +1,7 @@
 """
 GitHub repository scanner — language detection + static code vulnerability analysis.
 
-Uses the GitHub REST API (optional GITHUB_TOKEN for higher rate limits).
+Uses the GitHub REST API (optional GIT_TOKEN for higher rate limits).
 """
 
 import base64
@@ -318,13 +318,18 @@ def parse_github_url(repo: str) -> tuple[str, str]:
     raise ValueError("Invalid repo — use owner/repo or full GitHub URL")
 
 
+def _github_token() -> str:
+    """GitHub PAT for higher API rate limits (prefer GIT_TOKEN on Railway/backend)."""
+    return os.getenv("GIT_TOKEN") or os.getenv("GITHUB_TOKEN") or ""
+
+
 def _headers() -> dict[str, str]:
     """Build GitHub REST API request headers, including optional auth token."""
     headers = {
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    token = os.getenv("GITHUB_TOKEN", "")
+    token = _github_token()
     if token:
         headers["Authorization"] = f"Bearer {token}"
     return headers
@@ -515,9 +520,13 @@ def scan_github_repo_safe(repo_url: str) -> dict[str, Any]:
     except httpx.HTTPStatusError as e:
         status = e.response.status_code
         if status == 404:
-            return {"error": "Repository not found or is private (requires GITHUB_TOKEN)"}
+            return {
+                "error": "Repository not found or is private — set GIT_TOKEN on the Railway backend (GitHub PAT)"
+            }
         if status == 403:
-            return {"error": "GitHub API rate limit exceeded — set GITHUB_TOKEN"}
+            return {
+                "error": "GitHub API rate limit exceeded — set GIT_TOKEN on the Railway backend (GitHub PAT with repo read access)"
+            }
         return {"error": f"GitHub API error: {status}"}
     except Exception as e:
         return {"error": str(e)}

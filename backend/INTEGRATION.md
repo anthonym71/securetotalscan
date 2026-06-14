@@ -38,7 +38,7 @@ The web app talks to it via `NEXT_PUBLIC_API_URL` (default `http://localhost:800
 | Var | Purpose |
 | --- | --- |
 | `OPENROUTER_API_KEY` | LLM calls (GPT-4o via OpenRouter) — this is the chosen provider |
-| `GITHUB_TOKEN` | Higher GitHub API rate limits for repo scans |
+| `GIT_TOKEN` | Higher GitHub API rate limits for repo scans |
 | `NVD_API_KEY` | CVE lookups (optional) |
 | `ABUSEIPDB_API_KEY` | IP reputation (optional) |
 
@@ -64,7 +64,7 @@ This backend ships with **`nixpacks.toml`** and **`railway.toml`** for Railway. 
    (Required for monorepos — Railway does not auto-discover config inside subfolders.)
 4. **Variables** — add at minimum:
    - `OPENROUTER_API_KEY`
-   - `GITHUB_TOKEN` (optional)
+   - `GIT_TOKEN` (optional)
 5. Deploy.
 
 Railway uses **Railpack** (Nixpacks successor). It reads `nixpacks.toml`, installs Python from `requirements.txt`, runs `install-trivy.sh`, then starts uvicorn.

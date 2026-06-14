@@ -49,13 +49,16 @@ const CORE_AGENTS = [
   "policy_checker",
 ];
 
+const DEFAULT_SLACK_WEBHOOK_URL =
+  "https://hooks.slack.com/services/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";
+
 export default function Dashboard() {
   const [mode, setMode] = useState<Mode>("github");
   const [repo, setRepo] = useState("");
   const [dockerImage, setDockerImage] = useState("");
   const [targetUrl, setTargetUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [slackUrl, setSlackUrl] = useState("");
+  const [slackUrl, setSlackUrl] = useState(DEFAULT_SLACK_WEBHOOK_URL);
   const [tab, setTab] = useState<Tab>("analysis");
 
   const [status, setStatus] = useState<Record<string, string>>({});
@@ -242,8 +245,8 @@ export default function Dashboard() {
             disabled={running}
           />
           <p className="mt-1 px-1 text-xs text-white/40">
-            Provide a webhook and the incident-response suggestions get posted to
-            your Slack channel automatically.
+            Pre-filled with the default webhook; edit or clear to use a different
+            channel or disable Slack alerts.
           </p>
         </div>
 
