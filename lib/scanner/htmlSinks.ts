@@ -44,6 +44,14 @@ const VENDOR_PATH_PATTERNS: RegExp[] = [
   /\/(chunk-vendors|vendors?)[-.][\w]+\.js$/i,
   // Anything served straight out of a dependency tree.
   /\/node_modules\//i,
+  // Well-known libraries dropped in as plain <script> tags. A site owner
+  // cannot fix HTML injection inside jQuery or Bootstrap, so reporting it is
+  // noise rather than a finding.
+  /\/(jquery|bootstrap|lodash|underscore|moment|alpine|htmx|swiper|slick|gsap|three|chart|d3|popper|tinymce|ckeditor|quill|summernote|dompurify|handlebars|mustache|knockout|backbone|ember|angular|vue|react|preact|svelte|zepto|prototype|mootools|axios|jquery-ui)([.-][\w.]*)?\.min\.js$/i,
+  /\/(jquery|bootstrap|lodash|underscore|moment|alpine|htmx|swiper|gsap|three|angular|vue|react|preact|zepto)([.-]\d[\w.]*)?\.js$/i,
+  /\/(vendor|vendors|libs?|plugins?|bundles?)\//i,
+  /\/wp-includes\/js\//i,
+  /\/cdn[-.]/i,
 ];
 
 /**
@@ -61,6 +69,14 @@ const FRAMEWORK_FINGERPRINTS: string[] = [
   "Vue warn",
   "[svelte]",
   "angular.io/errors",
+  "jQuery JavaScript Library",
+  "jQuery v",
+  "jquery.com/license",
+  "Bootstrap (https://getbootstrap.com",
+  "@license lodash",
+  "DOMPurify",
+  "Alpine.js",
+  "htmx.org",
 ];
 
 /** True when this script is framework or third-party code, not app code. */

@@ -112,6 +112,40 @@ check(
   !isVendorScript("https://x.test/_next/static/chunks/app/page-a72506c0.js", APP_UNSAFE),
 );
 
+// 1b. Third-party libraries loaded as plain scripts.
+const JQUERY = `
+/*! jQuery v3.7.1 | (c) OpenJS Foundation | jquery.com/license */
+elem.innerHTML = value;
+`;
+check(
+  "jquery.min.js is recognised as vendor code by filename",
+  isVendorScript("https://x.test/js/jquery.min.js", ""),
+);
+check(
+  "a jQuery banner marks the file as vendor code even under an odd name",
+  isVendorScript("https://x.test/js/site-libs.js", JQUERY),
+);
+check(
+  "files under /vendor/ are vendor code",
+  isVendorScript("https://x.test/vendor/app.js", ""),
+);
+check(
+  "WordPress core scripts are vendor code",
+  isVendorScript("https://x.test/wp-includes/js/wp-emoji.js", ""),
+);
+check(
+  "jQuery produces no finding",
+  findUnsafeHtmlSinks([{ url: "https://x.test/js/jquery.min.js", source: JQUERY }])
+    .length === 0,
+);
+check(
+  "the site's own script is still analysed alongside jQuery",
+  findUnsafeHtmlSinks([
+    { url: "https://x.test/js/jquery.min.js", source: JQUERY },
+    { url: "https://x.test/js/site.js", source: APP_UNSAFE },
+  ]).length === 1,
+);
+
 // 2. No false positives on framework code.
 check(
   "react-dom alone produces no finding",
