@@ -1,10 +1,13 @@
 // Client for the Secure Total Scan agent backend (FastAPI + LangGraph).
 // The backend lives in /backend and deploys to Railway.
-// Set NEXT_PUBLIC_API_URL to its public URL in your environment.
+//
+// The browser never calls the backend directly any more: every request goes
+// through /api/agent/*, a same-origin proxy that requires an authenticated
+// session with an active entitlement (see app/api/agent/[...path]/route.ts).
+// The real backend URL is a server-side env var (AGENT_API_URL).
 // Shapes mirror backend/main.py, session_events.py, and session_evals.py.
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_BASE = "/api/agent";
 
 export interface StartResponse {
   session_id: string;

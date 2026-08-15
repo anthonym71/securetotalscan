@@ -16,6 +16,7 @@ const PHASES = [
 
 export function ScanForm() {
   const [url, setUrl] = useState("");
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +24,7 @@ export function ScanForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!url.trim() || loading) return;
+    if (!url.trim() || !email.trim() || loading) return;
 
     setLoading(true);
     setError(null);
@@ -40,7 +41,7 @@ export function ScanForm() {
       const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
+        body: JSON.stringify({ url: url.trim(), email: email.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -73,6 +74,18 @@ export function ScanForm() {
           className="flex-1 rounded-xl bg-black/40 px-4 py-3.5 text-white placeholder-white/30 outline-none ring-brand/50 transition focus:ring-2"
           disabled={loading}
         />
+        <input
+          type="email"
+          name="email"
+          required
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@company.com"
+          aria-label="Email address for your scan report"
+          className="flex-1 rounded-xl bg-black/40 px-4 py-3.5 text-white placeholder-white/30 outline-none ring-brand/50 transition focus:ring-2 sm:max-w-[15rem]"
+          disabled={loading}
+        />
         <button
           type="submit"
           disabled={loading}
@@ -84,6 +97,9 @@ export function ScanForm() {
 
       <p className="mt-3 text-center text-sm text-white/40">
         {SCAN_SECTION.supports}
+      </p>
+      <p className="mt-1 text-center text-xs text-white/30">
+        We email your report and occasional security tips. Unsubscribe any time.
       </p>
 
       {loading && (
