@@ -9,6 +9,7 @@ import {
 import { EMAIL_RE, createLead } from "@/lib/leads";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { assertSameOrigin } from "@/lib/security/origin";
+import { limiterUnavailable } from "@/lib/security/limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +27,7 @@ export async function POST(req: NextRequest) {
 
   const ip = clientIp(req.headers);
   const attempts = await rateLimit(`login:ip:${ip}`, 10, 15 * 60);
+  if (!attempts.available) return limiterUnavailable();
   if (!attempts.ok) {
     return NextResponse.json(
       { error: "Too many attempts. Please wait and try again." },
