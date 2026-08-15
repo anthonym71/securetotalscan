@@ -35,14 +35,30 @@ Fixed windows, Upstash Redis when configured, in-memory per instance otherwise:
 - 10 scans/day per email
 - 10 scans/hour per target domain (stops the scanner being used to hammer one site)
 
+## Service-to-service authentication (proxy → backend)
+
+The FastAPI backend only serves callers that present a shared secret in the
+`X-STS-Service-Auth` header, validated with a constant-time comparison
+(`backend/service_auth.py`). The Next.js proxy attaches it server-side
+(`lib/security/serviceAuth.ts`); it never reaches the browser.
+
+- Web app (Vercel): `AGENT_SERVICE_TOKEN`
+- Backend (Railway): `STS_SERVICE_TOKEN`
+- Both must hold the **same** 32+ character value. Generate one with
+  `openssl rand -hex 32`. Keep it in environment variables only — never in
+  code, logs, PR text, chat or git history.
+- **Fail closed.** Missing or too-short secret: the proxy returns 503 without
+  calling the backend, and the backend returns 503 for every protected path.
+  A wrong secret returns 401.
+- Exempt from the check: `/health/trivy`, `/health` and `/` so the platform
+  health check still works during deploys.
+- Rotation: set the new value on both sides (backend first, then the web app),
+  then redeploy. In-flight deep runs will fail and can be retried.
+
 ## Known remaining gaps
 
-1. **The Railway backend is still reachable directly.** The web app no longer
-   exposes its URL, but anyone who knows it can call it. Fix: require a shared
-   secret header on the FastAPI side (`X-Agent-Token`) and send it from the
-   proxy. Needs a Railway environment change.
-2. **CSP still allows `'unsafe-inline'` for scripts**, because Next.js inlines
+1. **CSP still allows `'unsafe-inline'` for scripts**, because Next.js inlines
    its hydration bootstrap on statically pre-rendered pages. Moving to
    nonce-based CSP makes every page dynamic; do it deliberately.
-3. **Rate limits are per-instance without Upstash.** Set
+2. **Rate limits are per-instance without Upstash.** Set
    `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` for durable limits.
