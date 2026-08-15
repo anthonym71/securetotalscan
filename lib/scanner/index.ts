@@ -82,6 +82,12 @@ export async function scan(input: string): Promise<ScanReport> {
   // Fetch the JS bundles concurrently so we can scan their source.
   const bundles = await Promise.all(scriptUrls.map((u) => safeFetch(u)));
   const bundleSource = bundles.map((b) => b.body).join("\n");
+  // Keep per-file sources so checks can separate application code from
+  // framework/vendor chunks.
+  const bundleSources = bundles.map((b, i) => ({
+    url: scriptUrls[i] ?? b.url,
+    source: b.body,
+  }));
   if (scriptUrls.length === 0) {
     notes.push("No same-origin JavaScript bundles were found to scan for secrets.");
   }
@@ -94,6 +100,7 @@ export async function scan(input: string): Promise<ScanReport> {
     html: root.body,
     scriptUrls,
     bundleSource,
+    bundles: bundleSources,
     notes,
   };
 

@@ -7,7 +7,17 @@
     "esModuleInterop": true,
     "noEmit": false,
     "outDir": ".verify",
-    "types": ["node"]
+    "types": [
+      "node"
+    ],
+    "lib": [
+      "es2022",
+      "dom"
+    ]
   },
-  "include": ["scripts/verify-scanner.ts", "lib/scanner/**/*.ts"]
+  "include": [
+    "scripts/verify-scanner.ts",
+    "scripts/verify-input-validation.ts",
+    "lib/scanner/**/*.ts"
+  ]
 }
