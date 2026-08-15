@@ -1,3 +1,8 @@
+import {
+  extractInlineScripts,
+  findUnsafeHtmlSinks,
+  type ScriptSource,
+} from "./htmlSinks";
 import type { CategoryResult, Finding, ScanContext } from "./types";
 
 /* ───────────────────────── Security Headers ───────────────────────── */
@@ -253,18 +258,25 @@ export function checkSsl(ctx: ScanContext): CategoryResult {
 export function checkInputValidation(ctx: ScanContext): CategoryResult {
   const findings: Finding[] = [];
 
-  // dangerouslySetInnerHTML / innerHTML with concatenation are classic XSS sinks.
-  const dangerous =
-    /dangerouslySetInnerHTML/.test(ctx.bundleSource) ||
-    /\.innerHTML\s*=\s*[^"'`]/.test(ctx.bundleSource);
-  if (dangerous) {
+  // Raw HTML injection is a classic DOM-XSS sink — but only when the site's own
+  // code does it. React, Next and other frameworks use innerHTML internally, so
+  // vendor chunks are excluded to avoid flagging every React site (see
+  // ./htmlSinks.ts).
+  const scripts: ScriptSource[] =
+    ctx.bundles ??
+    (ctx.bundleSource
+      ? [{ url: ctx.scriptUrls[0] ?? "application bundle", source: ctx.bundleSource }]
+      : []);
+  const sinks = findUnsafeHtmlSinks([...scripts, ...extractInlineScripts(ctx.html)]);
+  if (sinks.length > 0) {
+    const files = [...new Set(sinks.map((sink) => sink.url))];
     findings.push({
       category: "input-validation",
       severity: "medium",
       title: "Potential unsafe HTML rendering",
       detail:
-        "The client code uses raw HTML injection (innerHTML / dangerouslySetInnerHTML). If any part is user-controlled, this is a DOM-XSS sink.",
-      evidence: "innerHTML / dangerouslySetInnerHTML usage detected.",
+        "Your application code writes raw HTML into the DOM (innerHTML, insertAdjacentHTML or dangerouslySetInnerHTML) from a variable. If any part of that value is user-controlled, this is a DOM-XSS sink. Framework and vendor bundles are excluded from this check.",
+      evidence: `${sinks[0]!.snippet} (in ${files[0]}${files.length > 1 ? ` and ${files.length - 1} more file(s)` : ""})`,
       fixPrompt:
         "Avoid setting raw HTML from variables. Render text safely, and if HTML is required, sanitize it with a library like DOMPurify before injecting.",
     });

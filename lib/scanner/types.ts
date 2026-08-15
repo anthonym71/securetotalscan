@@ -69,5 +69,11 @@ export interface ScanContext {
   scriptUrls: string[];
   /** Concatenated contents of fetched JS bundles. */
   bundleSource: string;
+  /**
+   * Per-bundle sources, so checks can tell application code from framework
+   * and vendor chunks. Optional for callers that only have the concatenated
+   * blob; those are treated as application code.
+   */
+  bundles?: { url: string; source: string }[];
   notes: string[];
 }
