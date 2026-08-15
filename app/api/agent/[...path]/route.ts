@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { assertSameOrigin } from "@/lib/security/origin";
+import { SERVICE_AUTH_HEADER, serviceToken } from "@/lib/security/serviceAuth";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -31,6 +32,18 @@ const ALLOWED = [
 ];
 
 async function guard(req: NextRequest, path: string) {
+  // Fail closed: without a service token we cannot authenticate ourselves to
+  // the backend, so we refuse rather than sending an unauthenticated request.
+  if (!serviceToken()) {
+    console.error(
+      "agent proxy: AGENT_SERVICE_TOKEN is not configured — refusing to call the backend.",
+    );
+    return NextResponse.json(
+      { error: "The analysis backend is not configured." },
+      { status: 503 },
+    );
+  }
+
   const originError = assertSameOrigin(req);
   if (originError) return originError;
 
@@ -54,6 +67,12 @@ async function guard(req: NextRequest, path: string) {
     );
   }
   return null;
+}
+
+/** Headers sent upstream on every proxied request. Never echoed to the client. */
+function serviceHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const token = serviceToken();
+  return token ? { ...extra, [SERVICE_AUTH_HEADER]: token } : { ...extra };
 }
 
 function upstreamUrl(path: string, req: NextRequest): string {
@@ -96,7 +115,10 @@ export async function GET(
   const path = (await ctx.params).path.join("/");
   const denied = await guard(req, path);
   if (denied) return denied;
-  return forward(req, path, { method: "GET", headers: { Accept: "*/*" } });
+  return forward(req, path, {
+    method: "GET",
+    headers: serviceHeaders({ Accept: "*/*" }),
+  });
 }
 
 export async function POST(
@@ -108,7 +130,7 @@ export async function POST(
   if (denied) return denied;
 
   const contentType = req.headers.get("content-type") ?? "";
-  const headers: Record<string, string> = { Accept: "*/*" };
+  const headers = serviceHeaders({ Accept: "*/*" });
   if (contentType) headers["content-type"] = contentType;
   const body = await req.arrayBuffer();
   return forward(req, path, { method: "POST", headers, body });

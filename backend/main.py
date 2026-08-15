@@ -18,13 +18,29 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from orchestrator import run_analysis
+from service_auth import ServiceAuthMiddleware
 from session_events import close_session, create_session, emit_sync, get_agent_status, get_queue
 from session_evals import begin_session, finish_session, list_all_evals, session_to_dict
 
 app = FastAPI(title="CyberSentinel AI")
+
+# Only the web app's server-side proxy may call this API, and it must present the
+# shared secret. CORSMiddleware is registered first so it stays the outermost
+# layer and preflight requests are still answered correctly.
+_allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "STS_ALLOWED_ORIGINS", "https://securetotalscan.com"
+    ).split(",")
+    if origin.strip()
+]
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
+    CORSMiddleware,
+    allow_origins=_allowed_origins,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["content-type", "accept", "x-sts-service-auth"],
 )
+app.add_middleware(ServiceAuthMiddleware)
 
 _sessions: dict[str, dict] = {}
 _session_meta: dict[str, dict] = {}
