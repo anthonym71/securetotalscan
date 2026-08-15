@@ -68,8 +68,11 @@ const CORE_AGENTS = [
   "policy_checker",
 ];
 
+// Never ship a real webhook URL to the browser: anything in client code is
+// public. Users paste their own; operators can pre-fill one via
+// NEXT_PUBLIC_DEFAULT_SLACK_WEBHOOK_URL if they accept that it is public.
 const DEFAULT_SLACK_WEBHOOK_URL =
-  "https://hooks.slack.com/services/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";
+  process.env.NEXT_PUBLIC_DEFAULT_SLACK_WEBHOOK_URL ?? "";
 
 export default function Dashboard() {
   const [mode, setMode] = useState<Mode>("github");
@@ -177,9 +180,21 @@ export default function Dashboard() {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
-      <a href="/" className="text-sm text-brand-light hover:text-white">
-        ← Back to home
-      </a>
+      <div className="flex items-center justify-between">
+        <a href="/" className="text-sm text-brand-light hover:text-white">
+          ← Back to home
+        </a>
+        <button
+          type="button"
+          onClick={async () => {
+            await fetch("/api/auth/logout", { method: "POST" });
+            window.location.assign("/");
+          }}
+          className="text-sm text-white/40 hover:text-white"
+        >
+          Sign out
+        </button>
+      </div>
       <h1 className="mt-4 text-3xl font-bold">Agent dashboard</h1>
       <p className="mt-2 text-white/60">
         Run the deep analysis on a GitHub repo, Docker Hub image, your logs, or
