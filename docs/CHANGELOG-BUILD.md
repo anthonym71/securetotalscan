@@ -276,6 +276,59 @@ successful CD after this fix.
 
 ---
 
+## 2026-08-17 — Correction: the cost measurement measured nothing
+
+**Reported by Anthony**, who ran a GitHub analysis in the dashboard and got
+`GitHub API error 401`. **`GIT_TOKEN` on the Railway backend is expired,
+revoked or malformed.**
+
+**This invalidates the cost measurement published earlier today.**
+`scan_github_repo_safe()` catches an HTTP failure and returns `{"error": …}`;
+`run_vuln_scanner()` turns that into `code_findings: []` plus a `scan_error`
+string and **returns normally**. No agent raises, the pipeline completes,
+`/evals` records a run — and the harness, which only treated an agent
+*exception* as failure, marked all 26 repository fixtures successful.
+
+**The tell was in the published table and I read it the wrong way round.**
+`large` (Linux kernel, Kubernetes, TensorFlow) had the identical median and
+maximum as `deliberately-vulnerable` (juice-shop, DVWA, NodeGoat) — $0.0040 and
+$0.0042. I presented that as proof that `build_prompt()`'s caps bind and
+repository size does not move cost. But juice-shop is built to fill all ten
+prompt slots and `is-number` is five lines; **they cannot legitimately cost the
+same.** Both scanned nothing. 434–516 tokens was far too few for a prompt
+carrying ten findings, and `docker-image` — the one group that never touches
+the GitHub API — was the only one that stood apart, because Trivy was doing
+real work.
+
+**Withdrawn:** every repository cost figure, and the $0.50 gate conclusion
+drawn from them. **Still valid:** the Docker figures, the log figures, and the
+cache-hit result.
+
+**Three fixes:**
+
+- The harness now records a run as **failed** when the report carries a
+  `scan_error`, or when a `github`/`docker` fixture scanned **zero files**. A
+  scan that read nothing is not a cheap scan; it is not a scan.
+- `scan_github_repo_safe()` gives **401 its own message**. It previously fell
+  through to `"GitHub API error: 401"`, while 404 and 403 both said *"set
+  GIT_TOKEN"* — which sends someone to check whether the token is set. A 401
+  means it **is** set and GitHub rejected it. Fine-grained PATs expire by
+  default, so this is the failure a working deployment drifts into.
+- `docs/UNIT-ECONOMICS.md` is marked **WITHDRAWN** with the reasoning above,
+  rather than quietly corrected.
+
+**Anthony must replace `GIT_TOKEN`** — a GitHub PAT with repo read access — as
+a secret in the `prod` GitHub environment. Until then every GitHub deep scan
+returns an error to the customer, which is a paid feature failing in
+production.
+
+**Note on why the harness did not catch this:** it checked that the *pipeline*
+succeeded, not that the *scan* did. That is the same class of mistake as
+`railway up --detach` reporting a successful upload as a successful deploy —
+verifying the wrapper rather than the work.
+
+---
+
 ## 2026-08-17 — Phase 0, PR 0.2 (dependency triage)
 
 **Code:**

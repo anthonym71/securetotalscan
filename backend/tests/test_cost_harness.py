@@ -21,6 +21,33 @@ def _result(**kwargs) -> ch.RunResult:
 # ── Fixture file ──────────────────────────────────────────────────────────
 
 
+def test_a_scanner_error_is_a_failed_run():
+    """A scan that read nothing is not a cheap scan — it is not a scan.
+
+    scan_github_repo_safe() catches an HTTP failure and returns {"error": …};
+    run_vuln_scanner() turns that into code_findings: [] plus a scan_error
+    string and returns normally. The pipeline completes, /evals records a run,
+    and everything looks successful while the repository was never read.
+
+    That is how the 2026-08-17 measurement went wrong: a GitHub 401 meant all
+    26 repository fixtures scanned nothing, and juice-shop cost the same as a
+    five-line utility library.
+    """
+    ok = _result(files_scanned=60, cache_misses=3)
+    errored = _result(scan_error="GitHub API error: 401", files_scanned=0)
+    empty = _result(files_scanned=0)
+
+    assert ok.ok is True
+    # The harness sets .ok during run_fixture; here we assert the summary
+    # treats an explicitly-failed run as failed.
+    errored.ok = False
+    empty.ok = False
+    summary = ch.summarize([ok, errored, empty])
+    assert summary["runs_succeeded"] == 1
+    assert summary["runs_failed"] == 2
+    assert summary["median_cost_usd"] == ok.cost_usd
+
+
 def test_fixture_file_parses_and_is_complete():
     fixtures = ch.load_fixtures()
     assert fixtures["deep"], "no deep fixtures"
