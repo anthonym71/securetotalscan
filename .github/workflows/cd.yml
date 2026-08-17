@@ -10,17 +10,25 @@
 #   VERCEL_TOKEN   — https://vercel.com/account/tokens
 #
 # Backend API keys (synced to Railway on each backend deploy):
-#   OPENROUTER_API_KEY, GIT_TOKEN, NVD_API_KEY, ABUSEIPDB_API_KEY
+#   OPENROUTER_API_KEY, GIT_TOKEN, NVD_API_KEY, ABUSEIPDB_API_KEY,
+#   ALERT_WEBHOOK_URL, ALERT_WEBHOOK_SECRET
 #   Note: name the GitHub secret GIT_TOKEN (not GITHUB_TOKEN — that name is
 #   reserved for the automatic Actions CI token).
 #
 # Frontend API keys (synced to Vercel production on each frontend deploy):
 #   GHL_API_TOKEN, GHL_LOCATION_ID, RESEND_API_KEY, REPORT_FROM_EMAIL,
-#   UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
+#   UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN,
+#   ALERT_WEBHOOK_URL, ALERT_WEBHOOK_SECRET
+#
+# Alerting (docs/ALERTING.md) has three senders and therefore needs the same
+# pair in three places: Vercel (web-tier failures), Railway (backend failures)
+# and the `prod` GitHub environment itself, which .github/workflows/health-check.yml
+# reads directly. The GitHub environment is the source for all three — the two
+# sync steps below carry it to the other two platforms.
 #
 # Optional repository variables (Settings → Variables):
 #   RAILWAY_PROJECT_ID, RAILWAY_SERVICE_ID, VERCEL_ORG_ID, VERCEL_PROJECT_ID,
-#   NEXT_PUBLIC_API_URL
+#   NEXT_PUBLIC_API_URL, SITE_URL
 
 name: CD
 
@@ -109,6 +117,8 @@ jobs:
           GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
           ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+          ALERT_WEBHOOK_SECRET: ${{ secrets.ALERT_WEBHOOK_SECRET }}
         run: |
           if [ -z "$RAILWAY_TOKEN" ]; then
             echo "::error::Missing RAILWAY_TOKEN — add it to Settings → Environments → prod → Secrets"
@@ -150,6 +160,8 @@ jobs:
           REPORT_FROM_EMAIL: ${{ secrets.REPORT_FROM_EMAIL }}
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
           UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+          ALERT_WEBHOOK_SECRET: ${{ secrets.ALERT_WEBHOOK_SECRET }}
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "::error::Missing VERCEL_TOKEN — add it to Settings → Environments → prod → Secrets"
