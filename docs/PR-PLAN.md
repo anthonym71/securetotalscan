@@ -145,7 +145,7 @@ Two smaller notes:
 
 ## 4. The PR plan
 
-30 PRs across 8 phases. Each phase ends with a stop for approval.
+31 PRs across 8 phases. Each phase ends with a stop for approval.
 
 ### Phase 0 — Restore and verify infrastructure
 
@@ -154,7 +154,8 @@ Two smaller notes:
 | **0.1** | `phase0/build-docs` | This plan + `docs/CHANGELOG-BUILD.md` + `docs/RUNBOOK-ENV.md` (every env var: exact name, where set, which sync script carries it). **Docs only, no product code.** | None |
 | **0.2** | `phase0/dependabot-triage` | Triage the 19 open Dependabot PRs: merge safe patches, group the rest, **defer breaking majors** (Tailwind 4, TS 7, ESLint 10) to a post-launch window per Anthony's decision. **Freeze the LLM code path until Phase 0.5 is measured** — see the note below the table. Tighten `.github/dependabot.yml` grouping. | Low; unblocks everything after it |
 | **0.3** | `phase0/ratelimit-fail-closed` | Finish PR #97: rebase onto current `master`, **remove the committed conflict markers in `docs/ACCESS_CONTROL.md`**, wire `verify:ratelimit` into CI. Merge **only after** Upstash is live in Vercel production — merging first makes every rate-limited route return 503. | Medium — ordering matters |
-| **0.4** | `phase0/baseline-evidence` | `docs/BASELINE-2026-08.md`: recorded self-scan grade, `/health/trivy` result, authenticated agent-proxy round trip, Railway redeploy confirmation. Evidence, not claims. | None |
+| **0.4** | `phase0/cd-deploy-verification` | **New, from what item 3 uncovered on 2026-08-17.** `scripts/sync-railway-env.sh` deploys with `railway up --detach`, so the CD job reports success the instant the upload completes and never learns whether Railway built, deployed or healthchecked. Production was dead for two months behind a green pipeline. Make the deploy step wait for the outcome and fail the job when Railway fails. Also fix the misleading comment at the top of `backend/railway.toml` (it offers Root Directory **or** a full config path; setting both is what broke the build). | **High value** — this defect hid every other one |
+| **0.5** | `phase0/baseline-evidence` | `docs/BASELINE-2026-08.md`: recorded self-scan grade, `/health/trivy` result, authenticated agent-proxy round trip, Railway deploy confirmation. Evidence, not claims. | None |
 
 **Note on the dependency freeze (PR 0.2).** Anthony's decision is to pin
 `openai` (#105) until after Phase 0.5. That pin is right, and on the same
@@ -166,6 +167,13 @@ would invalidate a cost baseline measured before it. **Recommend freezing all
 four until Phase 0.5 records its numbers**, then taking them together as one
 reviewed batch with a re-measurement. Flagged rather than applied: it extends
 Anthony's decision, so it needs his yes.
+
+**Open question raised by item 3, for Anthony.** The Railway service is
+GitHub-connected, so Railway may still auto-deploy on its own trigger while CD
+also deploys via the CLI. Two systems deploying the same service race each
+other and make "what is actually running" unanswerable. PRD §0.1.1 says
+everything goes through the repository pipeline, so the pipeline should win and
+Railway's own GitHub trigger should be disabled. Confirm before PR 0.4 lands.
 
 **Anthony's manual actions (blocking):** Railway Hobby redeploy; set
 `AGENT_SERVICE_TOKEN` (Vercel) == `STS_SERVICE_TOKEN` (Railway), 32+ chars;
@@ -179,7 +187,7 @@ baseline grade recorded, CI green with no conflict markers on any open branch.
 
 | PR | Branch | Scope | Risk |
 |---|---|---|---|
-| **0.5** | `phase0/cost-measurement` | Script to run a fixture set of deep scans and export per-run tokens, USD, duration and peak Railway RAM from `/evals`; publish first findings as `docs/UNIT-ECONOMICS.md` (draft). | Low; consumes OpenRouter credit |
+| **0.6** | `phase0/cost-measurement` | Script to run a fixture set of deep scans and export per-run tokens, USD, duration and peak Railway RAM from `/evals`; publish first findings as `docs/UNIT-ECONOMICS.md` (draft). | Low; consumes OpenRouter credit |
 
 **Exit:** a median and p95 cost per deep scan exists as a number, so the $4.99
 tier's scope can be decided rather than assumed.

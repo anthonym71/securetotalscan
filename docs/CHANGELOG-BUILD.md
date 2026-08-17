@@ -6,6 +6,57 @@ Newest first.
 
 ---
 
+## 2026-08-17 — Phase 0 (infrastructure: GitHub access, CI, Railway restored)
+
+**Code:** `docs/PR-PLAN.md` updated — new PR 0.4 (`phase0/cd-deploy-verification`),
+old 0.4 renumbered to 0.5, cost measurement to 0.6, PR count 30 → 31.
+
+**GitHub:** The Claude GitHub App was **not installed** on the account — only
+OAuth-authorized, which grants identity and no write access. Installing it on
+`anthonym71/securetotalscan` resolved every 403. Verified by pushing this
+branch, and separately by pushing a commit touching `.github/workflows/cd.yml`
+on a throwaway branch — so the `workflows` permission is confirmed present and
+**PR 2.1 will not stall on it**. Scratch branch deleted.
+
+**CI:** Repository Dependency Graph enabled. The `Review dependencies` check on
+PR #106 was re-run and now passes; all seven checks green.
+
+**Railway — backend restored after a two-month outage.** Root cause was three
+stacked configuration faults, none visible from the repository:
+
+1. Service **Config File** was `/backend/railway.toml` while **Root Directory**
+   was `/backend`, so Railway resolved `backend/backend/railway.toml` and failed
+   at "Snapshot code" in 2 seconds, before building. Dead since 2026-06-14.
+2. A Railway trial expiry landed on top on 2026-08-15 (`Your trial has expired`
+   in the CD log) and masked the first fault. Cleared by the Hobby plan.
+3. With the config path corrected, **Root Directory** `/backend` then failed in
+   the opposite direction — CD uploads from inside `backend/`, so the snapshot
+   root *is* the backend folder and there is no `backend/` inside it. Cleared
+   the field.
+
+Settings now: Root Directory **empty**, Config File **`railway.toml`**.
+
+**Verified:** deploy successful and online; `GET /health/trivy` returns
+`{"available":true,"binary":"/usr/local/bin/trivy","db_ready":true,"message":"Trivy CVE scanning enabled"}`.
+Trivy binary present and CVE database downloaded. Checked in a browser — this
+session's egress policy blocks the Railway host (`CONNECT tunnel failed, 403`),
+so the backend cannot be reached from the build environment.
+
+**Consequence worth recording:** commit `147d439` (2026-08-15, shared-secret
+auth between the Vercel proxy and Railway) had **never been deployed** before
+today. Setting `AGENT_SERVICE_TOKEN` / `STS_SERVICE_TOKEN` against the previously
+running code would have had no effect.
+
+**Defect found, now PR 0.4:** `scripts/sync-railway-env.sh` runs
+`railway up --detach`. The CD job reported success in one second on every run,
+including runs where Railway then failed. That is why a two-month outage went
+unnoticed.
+
+**Open:** whether Railway's own GitHub auto-deploy is still enabled alongside
+CD. Two deploy paths on one service race each other.
+
+---
+
 ## 2026-08-17 — Phase 0 (planning, decisions recorded)
 
 **Code:** `docs/PR-PLAN.md` updated to record Anthony's decisions. No product
