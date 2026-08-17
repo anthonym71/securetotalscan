@@ -7,8 +7,8 @@ import {
   checkHeaders,
   checkInfoDisclosure,
   checkInputValidation,
-  checkSsl,
 } from "../lib/scanner/checks";
+import { checkHttpPosture } from "../lib/scanner/httpPosture";
 import { checkSecrets } from "../lib/scanner/secrets";
 import { buildReport } from "../lib/scanner/score";
 import type { ScanContext } from "../lib/scanner/types";
@@ -47,7 +47,18 @@ const categories = [
   checkDebugArtifacts(ctx),
   checkInputValidation(ctx),
   checkAuth(ctx),
-  checkSsl(ctx),
+  // PR 1.3 re-baseline: transport is now graded on what port 80 actually
+  // does, not only on the scheme the target was requested with. The fixture
+  // stands in for a site that redirects properly but sets no HSTS — a common,
+  // realistic posture — so the expected total below moved up by one.
+  checkHttpPosture(ctx, {
+    reachable: true,
+    status: 301,
+    location: "https://demo-vibe-app.example/",
+    redirectsToHttps: true,
+    sameHost: true,
+    permanent: true,
+  }),
   { id: "ai-risks" as const, label: "AI-Specific Risks", findings: ai, passed: ai.length === 0 },
 ];
 
@@ -60,9 +71,25 @@ for (const c of report.categories) {
     console.log(`  [${f.severity.toUpperCase().padEnd(8)}] ${f.title}`);
   }
 }
+// Re-baselined in PR 1.3. Two changes cancel out in the count: the transport
+// check adds findings, and `strict-transport-security` was removed from the
+// generic missing-header list because the transport check now grades the
+// policy properly. Before this PR the fixture reported HSTS twice and was
+// penalised twice for one header.
+const transportFindings = report.categories
+  .filter((c) => c.id === "ssl-tls")
+  .flatMap((c) => c.findings);
 const ok =
   report.grade === "F" &&
   report.summary.critical >= 2 && // AWS key + OpenAI key + wildcard-cors-with-creds
-  report.summary.total >= 8;
+  report.summary.total >= 8 &&
+  // The fixture's HTML references an http:// image and it sets no HSTS, so
+  // both must be reported. If either disappears, the transport check has
+  // regressed rather than the fixture having improved.
+  transportFindings.some((f) => f.title === "No HSTS header") &&
+  transportFindings.some((f) => f.title.startsWith("Mixed content")) &&
+  // Exactly one HSTS finding, from the transport check and nowhere else.
+  report.categories.flatMap((c) => c.findings).filter((f) => /HSTS|strict-transport/i.test(f.title))
+    .length === 1;
 console.log(ok ? "\nVERIFY: PASS ✅" : "\nVERIFY: FAIL ❌");
 process.exit(ok ? 0 : 1);

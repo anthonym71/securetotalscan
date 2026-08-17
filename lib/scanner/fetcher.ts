@@ -30,8 +30,11 @@ export async function safeFetch(
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     const res = await fetch(url, {
-      ...init,
+      // `redirect` comes from init when the caller sets it. The HTTP-posture
+      // probe needs "manual": following the redirect would land on the HTTPS
+      // site and tell us nothing about whether a redirect happened at all.
       redirect: "follow",
+      ...init,
       signal: controller.signal,
       headers: {
         "User-Agent": UA,

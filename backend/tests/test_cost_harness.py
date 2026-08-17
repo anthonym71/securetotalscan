@@ -109,6 +109,41 @@ def test_percentile_ignores_input_order():
 # ── Aggregation ───────────────────────────────────────────────────────────
 
 
+def test_a_run_served_from_cache_is_detected_by_its_counters():
+    """A group label says what a fixture was for; the counters say what happened.
+
+    The first full measurement run proved this matters: llm_cache.py is
+    process-global and survives between runs, so five fixtures labelled "fresh"
+    had already been scanned minutes earlier and reported $0.0000.
+    """
+    warm = _result(id="small-slugify", group="small", cost_usd=0.0, cache_hits=3, cache_misses=0)
+    cold = _result(id="large-linux", group="large", cost_usd=0.004, cache_hits=0, cache_misses=3)
+    partial = _result(id="mixed", group="large", cost_usd=0.002, cache_hits=1, cache_misses=2)
+    surface = _result(id="surface-self", group="surface", cost_usd=0.0)
+
+    assert ch.was_cache_hit(warm) is True
+    assert ch.was_cache_hit(cold) is False
+    # A partial hit still cost money, so it is a real scan.
+    assert ch.was_cache_hit(partial) is False
+    # A surface scan makes no LLM calls at all — nothing to cache.
+    assert ch.was_cache_hit(surface) is False
+
+
+def test_an_accidentally_warm_run_does_not_drag_the_median_down():
+    runs = [
+        _result(id="a", cost_usd=0.004, cache_misses=3),
+        _result(id="b", cost_usd=0.004, cache_misses=3),
+        _result(id="c", cost_usd=0.004, cache_misses=3),
+        # Labelled `small`, but served entirely from a warm cache.
+        _result(id="warm", group="small", cost_usd=0.0, cache_hits=3, cache_misses=0),
+    ]
+    summary = ch.summarize(runs)
+    assert summary["median_cost_usd"] == 0.004
+    assert summary["fresh_runs"] == 3
+    assert summary["cache_hit_runs"] == 1
+    assert summary["cache_hit_fixtures"] == ["warm"]
+
+
 def test_cache_hits_are_excluded_from_the_median():
     """A repeat scan is near-free and must not drag the median down.
 
