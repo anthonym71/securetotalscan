@@ -152,21 +152,34 @@ Two smaller notes:
 | PR | Branch | Scope | Risk |
 |---|---|---|---|
 | **0.1** | `phase0/build-docs` | This plan + `docs/CHANGELOG-BUILD.md` + `docs/RUNBOOK-ENV.md` (every env var: exact name, where set, which sync script carries it). **Docs only, no product code.** | None |
-| **0.2** | `phase0/dependabot-triage` | Triage the 19 open Dependabot PRs: merge safe patches, group the rest, **defer breaking majors** (Tailwind 4, TS 7, ESLint 10) to a post-launch window per Anthony's decision. **Freeze the LLM code path until Phase 0.5 is measured** — see the note below the table. Tighten `.github/dependabot.yml` grouping. | Low; unblocks everything after it |
+| **0.2** | `phase0/dependabot-triage` | Triage the 19 open Dependabot PRs: merge safe patches, group the rest, **defer breaking majors** (Tailwind 4, TS 7, ESLint 10) to a post-launch window. **Freeze `openai` (#105) and `langgraph` (#104)** until PR 0.6 has measured; **delete `langchain` (#103) and `langchain-openai` (#101) from `requirements.txt`** — imported nowhere. See the note below the table. Tighten `.github/dependabot.yml` grouping. | Low; unblocks everything after it |
 | **0.3** | `phase0/ratelimit-fail-closed` | Finish PR #97: rebase onto current `master`, **remove the committed conflict markers in `docs/ACCESS_CONTROL.md`**, wire `verify:ratelimit` into CI. Merge **only after** Upstash is live in Vercel production — merging first makes every rate-limited route return 503. | Medium — ordering matters |
 | **0.4** | `phase0/cd-deploy-verification` | **New, from what item 3 uncovered on 2026-08-17.** `scripts/sync-railway-env.sh` deploys with `railway up --detach`, so the CD job reports success the instant the upload completes and never learns whether Railway built, deployed or healthchecked. Production was dead for two months behind a green pipeline. Make the deploy step wait for the outcome and fail the job when Railway fails. Also fix the misleading comment at the top of `backend/railway.toml` (it offers Root Directory **or** a full config path; setting both is what broke the build). | **High value** — this defect hid every other one |
 | **0.5** | `phase0/baseline-evidence` | `docs/BASELINE-2026-08.md`: recorded self-scan grade, `/health/trivy` result, authenticated agent-proxy round trip, Railway deploy confirmation. Evidence, not claims. | None |
 
-**Note on the dependency freeze (PR 0.2).** Anthony's decision is to pin
-`openai` (#105) until after Phase 0.5. That pin is right, and on the same
-reasoning it is incomplete: **#101 `langchain-openai`, #103 `langchain` and
-#104 `langgraph` sit on the same measured code path.** `incident_response.py`
-reaches GPT-4o through the LangChain/LangGraph stack, so a major bump to any of
-those four changes token accounting, retry behaviour or prompt assembly — and
-would invalidate a cost baseline measured before it. **Recommend freezing all
-four until Phase 0.5 records its numbers**, then taking them together as one
-reviewed batch with a re-measurement. Flagged rather than applied: it extends
-Anthony's decision, so it needs his yes.
+**Note on the LLM dependencies (PR 0.2) — resolved 2026-08-17, freeze two,
+delete two.** Verified by import search across `backend/` rather than inferred:
+
+| Package | Used? | Decision |
+|---|---|---|
+| `openai` (#105) | **Yes** — `llm_client.py` does `from openai import OpenAI`, pointed at OpenRouter's base URL. `CallMeta` reads `input_tokens`/`output_tokens` from its responses, and those feed `/evals`, which is the sole source of the cost figures | **Freeze** through PR 0.6 |
+| `langgraph` (#104) | **Yes** — one import, `orchestrator.py`, sequencing the five agents | **Freeze** through PR 0.6 — a major could change execution order or retries, moving wall-clock and possibly call count |
+| `langchain` (#103) | **No imports in application code** | **Remove from `requirements.txt`** |
+| `langchain-openai` (#101) | **No imports in application code** | **Remove from `requirements.txt`** |
+
+OpenRouter is the provider; the `openai` package is the client library used to
+reach it, because OpenRouter is OpenAI-API-compatible. Both facts hold at once,
+which is why the package version matters even though the vendor is OpenRouter.
+A 1.x → 3.x major can move or rename the usage fields, so a baseline measured
+on one version would describe software no longer running.
+
+`langchain` and `langchain-openai` are declared but imported nowhere.
+**Deleting beats freezing:** it closes #101 and #103 permanently instead of
+deferring them, shrinks the image, speeds every build, and removes two large
+dependency trees from a security product's supply chain — trees that otherwise
+generate `dependency-review` and `pip-audit` findings to triage forever for no
+benefit. The removal requires a full backend test run to confirm nothing
+imports them indirectly.
 
 **Open question raised by item 3, for Anthony.** The Railway service is
 GitHub-connected, so Railway may still auto-deploy on its own trigger while CD
@@ -325,12 +338,44 @@ is delayed or complicated for outreach.
 All four amendments listed in PRD v1.2 §6 are covered by rows 1 and 6 above and
 are approved.
 
+| 8 | **LLM dependencies: freeze `openai` and `langgraph`, delete `langchain` and `langchain-openai`** | PR 0.2 scope settled; closes #101 and #103 rather than deferring them |
+| 9 | **Cost-measurement fixtures: 28 targets, chosen by Claude, plus Anthony's own repo and sites** | PR 0.6 scope settled — see below |
+
+### Cost-measurement fixtures (PR 0.6), approved 2026-08-17
+
+26 deep scans and 4 surface scans. Deep: 5 small, 5 mid-with-Docker, 7 large
+(proving the 60-file cap binds), 3 deliberately vulnerable
+(`juice-shop`, `DVWA`, `NodeGoat` — these fill the 10-finding prompt slots and
+so measure the **worst-case** token cost, which clean repos would understate),
+3 Docker Hub images, 2 log modes, plus `anthonym71/securetotalscan` and
+`legioncodeinc/vibe-coding-tools`, plus one deliberate repeat to measure the
+cache-hit cost. Surface: `securetotalscan.com` (self-scan, release gate at
+grade **A**), `ospry.ai`, `hellofreedom.co`, `myghlcoach.com`.
+
+Two findings shape the design. **The prompt is bounded by construction** —
+`build_prompt()` takes at most 10 code findings, 10 Docker findings and 3 CVEs,
+each truncated, and the repo scanner caps at 60 files / 100 KB per file. So
+token cost is near-constant regardless of repo size, and the $0.50 gate is
+likely met with room to spare; the real variables are wall-clock, Railway
+RAM/CPU and external API calls. **And `llm_cache.py` means a repeated target
+measures a cache hit, not a scan** — so every fixture is distinct and the
+cache-hit cost is measured separately, since "repeat scans cost near zero" is a
+marketing claim that should be evidenced rather than asserted.
+
+`anthonym71/securetotalscan` is private; if `GIT_TOKEN`'s scope excludes private
+repo read, that scan returns 404 or a rate-limit rather than results.
+
+**Execution:** the harness must run in **GitHub Actions**, not from the Claude
+session — this environment's egress reaches GitHub only, and both
+`securetotalscan.com` and the Railway backend return `HTTP 000`. Actions also
+beats a local script: repeatable, versioned, and re-runnable when Railway moves
+off Hobby, which changes the numbers. **Prerequisite: `STS_SERVICE_TOKEN` must
+be added as a secret in the GitHub `prod` environment** (same value as Railway)
+so the workflow can authenticate to the backend.
+
 ### Outstanding
 
-1. **Extend the LLM-path freeze** from `openai` alone to `langchain`,
-   `langchain-openai` and `langgraph` (#101, #103, #104) for the duration of
-   Phase 0.5. Reasoning under Phase 0 above. *(Blocks: PR 0.2 scope.)*
-2. From PRD §9, and genuinely open rather than merely unanswered:
+1. From PRD §9, and genuinely open rather than merely unanswered:
    - **$4.99 deep-scan inclusion** — cannot be decided until Phase 0.5 reports.
      Deciding it early would defeat the gate that made Phase 0.5 necessary.
    - **Organization contact-sales only at launch** — answerable now.
