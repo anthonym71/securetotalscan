@@ -329,6 +329,58 @@ verifying the wrapper rather than the work.
 
 ---
 
+## 2026-08-17 — CD hotfix 2 (`??` does not fall through an empty string)
+
+**Code:** `scripts/migrate.ts`, `lib/db/client.ts`, `scripts/verify-schema.ts`.
+
+The first CD run after the sync fix got further and then failed at **Apply
+database migrations**:
+
+```
+DATABASE_URL: ***
+DATABASE_URL_UNPOOLED:
+…
+DATABASE_URL_UNPOOLED (preferred) or DATABASE_URL must be set.
+```
+
+`DATABASE_URL` **was** set. The migration refused anyway.
+
+**Cause.** `process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL`.
+GitHub Actions sets an env var to the **empty string** when the secret behind
+it does not exist, and `??` only falls back on `null`/`undefined` — so the
+expression resolved to `""` and never reached the populated variable sitting
+right next to it. Changed to `||` in both places.
+
+**The `cd.yml` guard did not catch it** because it tested the *concatenation*
+(`"${DATABASE_URL_UNPOOLED}${DATABASE_URL}"`), which was non-empty and
+therefore correct. Bash and JavaScript disagreed about what "set" means, and
+the disagreement was invisible from either side alone.
+
+**Also added:** migrating over the pooled connection now emits a `::warning::`
+rather than proceeding silently. It works for a small forward migration, but
+the pooler can drop an advisory lock, so two concurrent deploys are not fully
+serialised — a weaker guarantee than the one documented, and worth saying out
+loud.
+
+**Regression check:** `verify:schema` now fails if any `process.env` chain uses
+`??`, and separately asserts the `||` semantics, so the rule is not just a
+grep. This class of bug will recur with every future secret.
+
+**What worked:** the sync fix from #124 did exactly what it was built to do —
+`--force` refused, the variable was removed and re-added, and the step passed.
+Railway also deployed successfully in the same run.
+
+**Environment variables Anthony must set** — all three are `prod` GitHub
+environment secrets, no code changes:
+
+| Secret | Consequence while missing |
+|---|---|
+| `GIT_TOKEN` (replace — returns 401) | Every GitHub deep scan fails for customers |
+| `ALERT_WEBHOOK_URL` | Alerting is entirely inert |
+| `DATABASE_URL_UNPOOLED` | Migrations run over the pooler with a weaker locking guarantee |
+
+---
+
 ## 2026-08-17 — Phase 0, PR 0.2 (dependency triage)
 
 **Code:**

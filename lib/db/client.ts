@@ -58,7 +58,9 @@ export function __resetDbClient(): void {
  * work until two of them race.
  */
 export function migrationUrl(): string {
-  const url = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
+  // `||`, not `??` — see scripts/migrate.ts. An env var whose secret does not
+  // exist arrives as the empty string, which `??` treats as a real value.
+  const url = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
   if (!url) {
     throw new DatabaseUnavailableError(
       "Neither DATABASE_URL_UNPOOLED nor DATABASE_URL is set; cannot migrate.",

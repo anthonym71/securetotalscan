@@ -174,6 +174,34 @@ console.log("\nThis PR changes no behaviour:");
   );
 }
 
+// ── 9. Empty-string environment variables ───────────────────────────────
+//
+// GitHub Actions sets an env var to the EMPTY STRING when the secret behind it
+// does not exist. `??` only falls back on null/undefined, so
+// `A ?? B` resolves to "" and never reaches B — which is how the first CD run
+// after PR 2.1 refused to migrate while DATABASE_URL was populated and sitting
+// right there. `||` is the correct operator for anything sourced from the
+// environment.
+
+console.log("\nEnvironment fallbacks tolerate an empty string:");
+{
+  const sources = ["scripts/migrate.ts", "lib/db/client.ts"];
+  for (const file of sources) {
+    const text = readFileSync(join(root, file), "utf8");
+    const nullish = /process\.env\.\w+\s*\?\?\s*process\.env\.\w+/.exec(text);
+    check(
+      `${file} does not chain process.env with ?? ` +
+        (nullish ? `— FOUND: ${nullish[0]}` : ""),
+      nullish === null,
+    );
+  }
+
+  // And prove the semantics, so the rule is not just a grep.
+  const emptyThenReal = (a: string, b: string) => a || b;
+  check("|| falls through an empty string", emptyThenReal("", "real") === "real");
+  check("|| keeps a real value", emptyThenReal("first", "second") === "first");
+}
+
 console.log(
   failures === 0 ? "\nVERIFY: PASS ✅" : `\nVERIFY: FAIL ❌ (${failures} checks)`,
 );
