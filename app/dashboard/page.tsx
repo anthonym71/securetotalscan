@@ -14,6 +14,13 @@ import {
   SecurityReport,
   streamUrl,
 } from "@/lib/api";
+import {
+  findingLabel,
+  findingLocation,
+  findingMeta,
+  findingRecommendation,
+  isUnreadable,
+} from "@/lib/findings";
 
 async function fetchReportWithRetry(
   sessionId: string,
@@ -464,13 +471,12 @@ function FindingList({
       <ul className="mt-3 space-y-2">
         {items.slice(0, 25).map((item, i) => {
           const sev = String(item.severity ?? item.level ?? "").toLowerCase();
-          const text =
-            (item.message as string) ??
-            (item.description as string) ??
-            (item.title as string) ??
-            (item.type as string) ??
-            JSON.stringify(item);
-          const where = (item.file ?? item.path ?? item.location) as string | undefined;
+          // Raw JSON is the last resort, not the fourth option — see
+          // lib/findings.ts for which agent shapes were landing there.
+          const label = isUnreadable(item) ? JSON.stringify(item) : findingLabel(item);
+          const recommendation = findingRecommendation(item);
+          const where = findingLocation(item);
+          const meta = findingMeta(item);
           return (
             <li
               key={i}
@@ -481,9 +487,15 @@ function FindingList({
                   [{sev}]
                 </span>
               )}
-              <span className="text-white/75">{text}</span>
+              <span className="text-white/75">{label}</span>
+              {meta && (
+                <span className="ml-2 font-mono text-xs text-white/40">{meta}</span>
+              )}
               {where && (
                 <span className="ml-2 font-mono text-xs text-white/40">{where}</span>
+              )}
+              {recommendation && (
+                <p className="mt-1 text-xs text-white/50">{recommendation}</p>
               )}
               {typeof item.fix_prompt === "string" && item.fix_prompt && (
                 <CopyFixPrompt prompt={item.fix_prompt} />
