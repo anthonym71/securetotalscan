@@ -1,4 +1,18 @@
 version: 2
+
+# Triage policy (docs/PR-PLAN.md, PR 0.2 — Anthony, 2026-08-17):
+#   * Patches and minors: take them.
+#   * GitHub Actions bumps: take them.
+#   * Breaking majors on the web toolchain (Tailwind, TypeScript, ESLint):
+#     deferred to a post-launch window. Each is a day of breakage for zero
+#     customer value before launch, and each collides with every feature branch
+#     in the delivery plan.
+#   * openai and langgraph majors: held until PR 0.6 has measured deep-scan
+#     cost. See backend/requirements.txt for why.
+#
+# Every ignore below is temporary and has a named condition for lifting it.
+# Review this file at the end of Phase 6.
+
 updates:
   - package-ecosystem: npm
     directory: "/"
@@ -15,15 +29,40 @@ updates:
         patterns:
           - "react"
           - "react-dom"
+      # Everything else non-breaking arrives as one PR instead of five.
+      dev-minor-and-patch:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Lift after launch, one at a time, each with a full visual regression pass.
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: pip
     directory: "/backend"
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    ignore:
+      # Lift together once PR 0.6 records the cost baseline, then re-measure.
+      - dependency-name: "openai"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "langgraph"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      # Action bumps are low-risk and verified by CI on the PR itself.
+      actions:
+        patterns:
+          - "*"

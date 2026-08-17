@@ -1,9 +1,23 @@
 uvicorn[standard]>=0.29.0
 fastapi>=0.115.0
-openai>=1.30.0
-langgraph>=0.1.0
-langchain>=0.2.0
-langchain-openai>=0.1.0
+
+# LLM path. OpenRouter is the provider; the `openai` package is the client
+# library used to reach it (OpenRouter is OpenAI-API-compatible).
+#
+# Both are held below their next major until the deep-scan cost measurement
+# (docs/PR-PLAN.md, PR 0.6) has recorded its numbers:
+#   * openai   — CallMeta in llm_client.py reads input_tokens/output_tokens
+#                from this client's responses, and those feed /evals, which is
+#                the sole source of the cost figures. A major can move or
+#                rename those fields, so a baseline measured on one version
+#                would describe software we are no longer running.
+#   * langgraph — sequences the five agents in orchestrator.py. A major can
+#                change execution order or retries, moving wall-clock and
+#                possibly the number of LLM calls.
+# Lift both together, as one reviewed batch with a re-measurement.
+openai>=1.30.0,<2
+langgraph>=0.1.0,<1
+
 python-dotenv>=1.0.0
 httpx>=0.27.0
 pydantic>=2.7.0

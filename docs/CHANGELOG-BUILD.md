@@ -6,6 +6,38 @@ Newest first.
 
 ---
 
+## 2026-08-17 — Phase 0, PR 0.2 (dependency triage)
+
+**Code:**
+
+- `backend/requirements.txt` — **removed `langchain` and `langchain-openai`.**
+  Verified by import search across `backend/` including `tests/`: neither is
+  imported anywhere. They were declared dependencies pulling large trees into a
+  security product's image for no benefit, and Dependabot #101 and #103 were
+  proposing major upgrades to libraries the code never loads. Removing closes
+  both permanently rather than deferring them.
+- Held `openai` below 2.0 and `langgraph` below 1.0 until PR 0.6 records the
+  cost baseline. `openai` is the client library used to reach OpenRouter and
+  `CallMeta` reads the token counts from its responses, so a major that renames
+  those fields would invalidate the measurement; `langgraph` sequences the five
+  agents and a major could change execution order, retries or call count.
+- `.github/dependabot.yml` — deferred breaking majors for `tailwindcss`,
+  `typescript` and `eslint` to a post-launch window; held `openai` and
+  `langgraph` majors until PR 0.6; grouped dev-dependency minors/patches and all
+  GitHub Actions bumps so they arrive as one PR each instead of five. Every
+  ignore carries a named condition for lifting it.
+
+**GHL:** No change. **Infrastructure:** No change.
+
+**Verified:** installed the trimmed dependency set in a clean virtualenv and ran
+the backend suite — **88 passed**. The removal is confirmed by a green test run,
+not by inspection alone.
+
+**Still missing:** the Dependabot queue itself is not yet triaged — the open PRs
+still need closing or merging in line with this policy.
+
+---
+
 ## 2026-08-17 — Phase 0 (service tokens, Upstash, dashboard access — end-to-end proven)
 
 **Infrastructure, all set by Anthony and verified through the pipeline:**
