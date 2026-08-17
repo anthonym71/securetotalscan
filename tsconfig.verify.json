@@ -20,6 +20,7 @@
     "lib/findings.ts",
     "lib/ratelimit.ts",
     "lib/scanner/**/*.ts",
+    "scripts/verify-target.ts",
     "scripts/verify-alerting.ts",
     "scripts/verify-findings.ts",
     "scripts/verify-http-posture.ts",

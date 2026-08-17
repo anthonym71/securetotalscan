@@ -90,6 +90,49 @@ still need closing or merging in line with this policy.
 
 ---
 
+## 2026-08-17 — Phase 1, PR 1.2 (scan input accepts what people actually type)
+
+**Code:** new `lib/scanner/target.ts` and `scripts/verify-target.ts` (wired into
+`verify:scanner`); `components/ScanForm.tsx`, `ScanResults.tsx`,
+`LeadCapture.tsx`, `lib/scanner/index.ts`.
+
+**Bare domains work again.** `ScanForm` used `type="url"`, so the browser
+rejected `example.com` — the most natural thing anyone types — while the
+server's `normalizeTarget()` accepted it happily. The client was stricter than
+the server for no reason, and the visitor got a native browser tooltip rather
+than anything we wrote. The field is now `type="text"` with `inputMode="url"`,
+and validation mirrors the server.
+
+**Protocol selector, defaulting to HTTPS.** Applies only when the typed value
+has no scheme; a pasted `http://…` wins and the selector syncs to it, so the
+control can never disagree with the field.
+
+**The rules moved to a shared module** so the browser can apply them without
+importing the scanner. `lib/scanner/target.ts` touches no network, filesystem
+or environment. **The server stays authoritative** — the SSRF block only
+protects anything server-side, since the browser belongs to the attacker. The
+client copy exists to catch a typo before it costs a round trip and a scan
+credit, and the module says so.
+
+**The scan email carries into the report form,** pre-filled and editable.
+Asking for the same address twice on one page reads as a form not paying
+attention.
+
+**One copy fix taken early:** the consent line under the form said "We email
+your report and occasional security tips." We do not email reports yet — that
+is PR 2.5. Narrowed to what the address is actually used for. The rest of the
+false-claims sweep is PR 1.4.
+
+**Verified:** typecheck clean, build succeeds, `verify:scanner` passes
+including **45 new target checks** — bare domains, explicit schemes, non-web
+schemes (`file:`, `javascript:`, `data:`), every SSRF range including cloud
+metadata `169.254.169.254`, and the near-misses that must still be allowed
+(`172.32.0.1`, `local.example.com`).
+
+**GHL:** No change. **Infrastructure:** No change.
+
+---
+
 ## 2026-08-17 — Phase 0, PR 0.5 (baseline evidence)
 
 **Code:** `docs/BASELINE-2026-08.md`. Documentation only.
