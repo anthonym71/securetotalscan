@@ -77,6 +77,57 @@ make "what is running" unanswerable.
 
 **GHL:** No change. **Infrastructure:** No change. No DNS record touched, no
 environment variable set, no deployment triggered.
+## 2026-08-17 — Phase 1, PR 1.0 (dashboard findings render as text, not JSON)
+
+**Code:** new `lib/findings.ts`, new `scripts/verify-findings.ts` (wired into
+`verify:scanner`), `app/dashboard/page.tsx` `FindingList` updated.
+
+**The defect was wider than first recorded.** The 2026-08-17 entry below notes
+that deep-analysis *vulnerabilities* rendered as `JSON.stringify(item)` because
+`FindingList` never consulted `name`. Checking each agent's real output shows
+**three** of the seven shapes the backend can emit were landing in that
+fallback, not one:
+
+| Shape | Source | Keys | Rendered before |
+|---|---|---|---|
+| Code finding | `tools/github_scanner.py` | `category`, `name`, `severity`, `recommendation`, `file`, `line`, … | **raw JSON** |
+| OWASP vulnerability | `agents/vuln_scanner.py` | `category`, `name`, `severity`, `recommendation`, `linked_anomaly` | **raw JSON** |
+| Missing header | `agents/vuln_scanner.py` | `header`, `severity`, `recommendation`, `fix_prompt` | **raw JSON** |
+| Docker CVE / metadata | `tools/docker_scanner.py` | `name`, `severity`, `description` | correct |
+| Log anomaly | `tools/log_parser.py` | `type`, `source_ip`, `severity` | correct |
+| Compliance gap | `agents/policy_checker.py` | `framework`, `control_id`, `description` | correct |
+
+Code findings are the *repository scan* — the headline feature of a GitHub deep
+analysis — so the most valuable output of the most expensive scan was the part
+displayed as a JSON blob.
+
+The missing-header shape has no label key at all, so `name` alone would not
+have fixed it; a label is composed from `header`.
+
+**Also surfaced:** `recommendation`, present on every code finding, OWASP
+vulnerability and header finding, and never displayed. The agents were writing
+remediation advice the customer could not see. Plus line numbers on file
+locations, and CVE ids / OWASP categories as a meta tag.
+
+**Docker CVEs keep their existing behaviour on purpose:** `description` stays
+ahead of `name` in the chain, because "Out-of-bounds write in zlib MiniZip" is
+a better headline than "CVE-2023-45853". The identifier is not lost — it moves
+to the meta tag.
+
+**Why the logic left the component.** It is now a pure module with 44 checks
+run by CI on every PR, each fixture copied from the agent that emits it rather
+than invented. The original bug was not a logic error but a shape nobody had
+checked the renderer against, so the fix has to be a test against every real
+shape. Raw JSON remains as a deliberate last resort — visibly wrong is better
+than an empty row, and it signals that a new agent shape needs adding.
+
+**Verified:** `npm run typecheck` clean; `npm run build` succeeds;
+`npm run verify:scanner` passes including the 44 new checks.
+
+**Sequencing:** done before PR 1.4, so the Phase 1 `/preview` dashboard mirrors
+a fixed component rather than inheriting the bug.
+
+**GHL:** No change. **Infrastructure:** No change.
 ## 2026-08-17 — Phase 0.5 (deep-scan cost measurement harness)
 
 **Code:** `backend/cost_harness.py`, `backend/cost_fixtures.json`,

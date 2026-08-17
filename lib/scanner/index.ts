@@ -11,41 +11,16 @@ import { safeFetch } from "./fetcher";
 import { runProbes } from "./probes";
 import { buildReport } from "./score";
 import { checkSecrets } from "./secrets";
+import { ScanError } from "./target";
 import type { CategoryResult, ScanContext, ScanReport } from "./types";
 
 const MAX_BUNDLES = Number(process.env.SCAN_MAX_BUNDLES ?? 8);
 
-export class ScanError extends Error {}
-
-/** Resolve and validate a user-supplied URL. Blocks obvious SSRF targets. */
-export function normalizeTarget(input: string): URL {
-  let url: URL;
-  try {
-    url = new URL(input.includes("://") ? input : `https://${input}`);
-  } catch {
-    throw new ScanError("That doesn't look like a valid URL.");
-  }
-  if (url.protocol !== "https:" && url.protocol !== "http:") {
-    throw new ScanError("Only http and https URLs can be scanned.");
-  }
-  const host = url.hostname.toLowerCase();
-  const blocked =
-    host === "localhost" ||
-    host === "0.0.0.0" ||
-    host.endsWith(".local") ||
-    host.endsWith(".internal") ||
-    /^127\./.test(host) ||
-    /^10\./.test(host) ||
-    /^192\.168\./.test(host) ||
-    /^169\.254\./.test(host) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
-    host === "[::1]" ||
-    !host.includes(".");
-  if (blocked) {
-    throw new ScanError("For safety, internal and private addresses cannot be scanned.");
-  }
-  return url;
-}
+// Target resolution lives in ./target so the browser can apply the same rules
+// without importing the scanner. Re-exported here so existing callers and the
+// verify scripts are unaffected. The server-side call in /api/scan is the
+// authoritative one; the client copy only saves a wasted round trip.
+export { ScanError, normalizeTarget } from "./target";
 
 /** Extract same-origin script URLs from an HTML document. */
 function extractScripts(html: string, base: URL): string[] {
