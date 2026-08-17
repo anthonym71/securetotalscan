@@ -56,7 +56,12 @@ export function loadMigrations(dir: string = MIGRATIONS_DIR): Migration[] {
 
 async function main() {
   const dryRun = process.argv.includes("--dry");
-  const url = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
+  // `||`, not `??`. GitHub Actions sets an env var to the EMPTY STRING when
+  // the secret behind it does not exist, and `??` only falls back on
+  // null/undefined — so `DATABASE_URL_UNPOOLED ?? DATABASE_URL` resolved to ""
+  // and refused to migrate while DATABASE_URL was sitting right there,
+  // populated. That is exactly what happened on the first CD run after #123.
+  const url = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
   if (!url) {
     console.error(
       "DATABASE_URL_UNPOOLED (preferred) or DATABASE_URL must be set.\n" +
@@ -64,6 +69,19 @@ async function main() {
         "or advisory locks reliably.",
     );
     process.exit(2);
+  }
+
+  if (!process.env.DATABASE_URL_UNPOOLED) {
+    // Falling back to the pooled string works for a small forward migration,
+    // but the pooler can drop an advisory lock, so two concurrent deploys
+    // could both decide to run the same migration. Worth saying out loud
+    // rather than silently accepting a weaker guarantee.
+    console.log(
+      "::warning::DATABASE_URL_UNPOOLED is not set — migrating over the pooled " +
+        "connection. Add the direct (unpooled) Neon string as a secret in the " +
+        "GitHub 'prod' environment; the pooler does not hold advisory locks " +
+        "reliably, so concurrent deploys are not fully serialised.",
+    );
   }
 
   const sql = neon(url);
