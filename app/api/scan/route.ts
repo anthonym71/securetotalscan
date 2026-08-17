@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { ScanError, normalizeTarget, scan } from "@/lib/scanner";
 import { EMAIL_RE, createLead } from "@/lib/leads";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { assertSameOrigin } from "@/lib/security/origin";
 import { anyUnavailable, limiterUnavailable } from "@/lib/security/limits";
+import { customerRef, postAlert } from "@/lib/alerting";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -86,7 +87,22 @@ export async function POST(req: NextRequest) {
     rateLimit(`scan:target:h:${domain}`, LIMITS.targetPerHour.max, LIMITS.targetPerHour.window),
   ]);
   // No trustworthy counter (no durable store, or it is unreachable) → refuse.
-  if (anyUnavailable(checks)) return limiterUnavailable();
+  if (anyUnavailable(checks)) {
+    // Critical: this is not one visitor being unlucky. While the durable store
+    // is unreachable, every rate-limited route refuses, so the free scanner is
+    // down for everyone. The dedupe key carries no request detail, so a flood
+    // of 503s collapses into one page.
+    after(() =>
+      postAlert({
+        severity: "critical",
+        kind: "ratelimit-store-unavailable",
+        detail:
+          "Durable rate-limit store unreachable in production; /api/scan is refusing all requests with 503.",
+        dedupeKey: "ratelimit-store-unavailable",
+      }),
+    );
+    return limiterUnavailable();
+  }
 
   const blocked = checks.find((check) => !check.ok);
   if (blocked) return tooMany(blocked.resetIn);
@@ -113,6 +129,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: err.message }, { status: 422 });
     }
     console.error("scan failed:", err);
+
+    // Warning, not critical: one scan failing is usually the target, not us.
+    // The error class is part of the dedupe key so a new failure mode is a new
+    // alert rather than being suppressed behind an unrelated one. "The scanner
+    // is down for everyone" is caught by the scheduled health check
+    // (.github/workflows/health-check.yml), which does not depend on this
+    // process being alive — the case that hid the two-month Railway outage.
+    const errorClass = err instanceof Error ? err.constructor.name : "UnknownError";
+    after(() =>
+      postAlert({
+        severity: "warning",
+        kind: "scan-unhandled-error",
+        site: domain,
+        customer: customerRef(email),
+        detail: `Free scan raised ${errorClass} and returned 500.`,
+        dedupeKey: `scan-unhandled-error:${errorClass}`,
+      }),
+    );
+
     return NextResponse.json(
       { error: "The scan failed unexpectedly. Please try again." },
       { status: 500 },

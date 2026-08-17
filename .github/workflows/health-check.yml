@@ -1,0 +1,142 @@
+# External health check.
+#
+# This runs on GitHub's schedule, deliberately outside both Vercel and Railway.
+# An in-app check cannot report a total outage — it is dead in exactly the case
+# that matters, which is how the backend stayed down from 2026-06-14 to
+# 2026-08-17 behind a green pipeline.
+#
+# Severity follows docs/ALERTING.md: a single failed probe is a blip and is a
+# `warning`; every probe in a run failing is the service being down and is
+# `critical`. The probes are spaced inside one run rather than counted across
+# runs, because Actions keeps no state between runs and a persisted counter
+# would be one more thing that can silently stop working.
+#
+# Secrets required in the `prod` environment: ALERT_WEBHOOK_URL,
+# ALERT_WEBHOOK_SECRET.
+
+name: Health check
+
+on:
+  schedule:
+    # Every 15 minutes. Fast enough that an outage is measured in minutes
+    # rather than months; slow enough to stay far inside the Actions allowance.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: health-check
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Probe production
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: prod
+    env:
+      BACKEND_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://securetotalscan-api-production.up.railway.app' }}
+      SITE_URL: ${{ vars.SITE_URL || 'https://securetotalscan.com' }}
+      ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+      ALERT_WEBHOOK_SECRET: ${{ secrets.ALERT_WEBHOOK_SECRET }}
+      PROBES: "3"
+      PROBE_GAP_SECONDS: "45"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe the deep-agent backend
+        id: backend
+        run: |
+          url="${BACKEND_URL%/}/health/trivy"
+          ok=0
+          last=""
+          for i in $(seq 1 "$PROBES"); do
+            if body="$(curl -fsS --max-time 20 "$url" 2>/dev/null)"; then
+              last="$body"
+              case "$body" in
+                *'"available":true'*|*'"available": true'*)
+                  ok=$((ok + 1))
+                  echo "probe ${i}/${PROBES}: healthy"
+                  ;;
+                *)
+                  echo "probe ${i}/${PROBES}: reachable but unhealthy — ${body}"
+                  ;;
+              esac
+            else
+              echo "probe ${i}/${PROBES}: no response"
+            fi
+            [ "$i" -lt "$PROBES" ] && sleep "$PROBE_GAP_SECONDS"
+          done
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+          # Only the shape of the response is reported onward, never its body:
+          # a health payload is not secret today, but it is not this workflow's
+          # place to decide that for every future field.
+          echo "reachable=$([ -n "$last" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Probe the web app
+        id: web
+        run: |
+          ok=0
+          for i in $(seq 1 "$PROBES"); do
+            if curl -fsS -o /dev/null --max-time 20 "$SITE_URL"; then
+              ok=$((ok + 1))
+              echo "probe ${i}/${PROBES}: reachable"
+            else
+              echo "probe ${i}/${PROBES}: no response"
+            fi
+            [ "$i" -lt "$PROBES" ] && sleep "$PROBE_GAP_SECONDS"
+          done
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+
+      - name: Report backend result
+        run: |
+          ok="${{ steps.backend.outputs.ok }}"
+          if [ "$ok" = "$PROBES" ]; then
+            echo "Backend healthy on all ${PROBES} probes."
+            exit 0
+          fi
+          if [ "$ok" = "0" ]; then
+            bash scripts/post-alert.sh \
+              --severity critical \
+              --kind backend-down \
+              --dedupe-key backend-down \
+              --site "${BACKEND_URL}" \
+              --detail "All ${PROBES} health probes failed over $(( (PROBES - 1) * PROBE_GAP_SECONDS ))s. Deep scans are unavailable. Backend reachable at all: ${{ steps.backend.outputs.reachable }}."
+            echo "::error::Backend failed every probe."
+            exit 1
+          fi
+          bash scripts/post-alert.sh \
+            --severity warning \
+            --kind backend-flapping \
+            --dedupe-key backend-flapping \
+            --site "${BACKEND_URL}" \
+            --detail "${ok} of ${PROBES} health probes succeeded — the backend is intermittently unhealthy."
+          echo "::warning::Backend passed only ${ok}/${PROBES} probes."
+
+      - name: Report web result
+        if: always()
+        run: |
+          ok="${{ steps.web.outputs.ok }}"
+          if [ "$ok" = "$PROBES" ]; then
+            echo "Web app healthy on all ${PROBES} probes."
+            exit 0
+          fi
+          if [ "$ok" = "0" ]; then
+            bash scripts/post-alert.sh \
+              --severity critical \
+              --kind web-down \
+              --dedupe-key web-down \
+              --site "${SITE_URL}" \
+              --detail "All ${PROBES} probes of the public site failed. Nothing can be scanned or purchased."
+            echo "::error::Web app failed every probe."
+            exit 1
+          fi
+          bash scripts/post-alert.sh \
+            --severity warning \
+            --kind web-flapping \
+            --dedupe-key web-flapping \
+            --site "${SITE_URL}" \
+            --detail "${ok} of ${PROBES} probes of the public site succeeded."
+          echo "::warning::Web app passed only ${ok}/${PROBES} probes."

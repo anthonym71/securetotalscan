@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
+from alerting import post_alert
 from orchestrator import run_analysis
 from service_auth import ServiceAuthMiddleware
 from session_events import close_session, create_session, emit_sync, get_agent_status, get_queue
@@ -140,6 +141,30 @@ def _load_logs_for_source(source: str) -> tuple[list[str], dict]:
     raise HTTPException(status_code=400, detail="Use /analyze/upload for file uploads")
 
 
+#: A deep run that passes this without finishing is stuck, not slow. It is not
+#: cancelled — ``asyncio.to_thread`` cannot be interrupted, and killing a run
+#: that is merely slow would lose work the customer paid for. The watchdog
+#: reports; it does not intervene.
+SLOW_RUN_ALERT_SECONDS = float(os.getenv("STS_SLOW_RUN_ALERT_SECONDS", "600"))
+
+
+async def _watch_for_slow_run(log_source: str) -> None:
+    """Alert if a run is still going long after it should have finished."""
+    try:
+        await asyncio.sleep(SLOW_RUN_ALERT_SECONDS)
+    except asyncio.CancelledError:
+        return
+    post_alert(
+        severity="critical",
+        kind="deep-scan-run-stuck",
+        detail=(
+            f"A {log_source} deep run has been executing for more than "
+            f"{int(SLOW_RUN_ALERT_SECONDS)}s and has not completed."
+        ),
+        dedupe_key=f"deep-scan-run-stuck:{log_source}",
+    )
+
+
 async def _run_analysis_background(
     logs: list[str],
     log_source: str,
@@ -151,6 +176,7 @@ async def _run_analysis_background(
 ) -> None:
     """Run the LangGraph pipeline in a thread and emit completion events."""
     _running.add(session_id)
+    watchdog = asyncio.create_task(_watch_for_slow_run(log_source))
     try:
         state = await asyncio.to_thread(
             run_analysis,
@@ -165,7 +191,20 @@ async def _run_analysis_background(
         _sessions[session_id] = state
         finish_session(session_id)
         emit_sync(session_id, "pipeline", "done")
+    except Exception as exc:
+        # Individual agent failures already alert with the agent's name
+        # (orchestrator._wrap). This catches everything else — graph
+        # construction, state handling, a failure between agents — and is a
+        # warning so the two do not page twice for one incident.
+        post_alert(
+            severity="warning",
+            kind="deep-scan-pipeline-error",
+            detail=f"Deep run over {log_source} raised {type(exc).__name__}.",
+            dedupe_key=f"deep-scan-pipeline-error:{type(exc).__name__}",
+        )
+        raise
     finally:
+        watchdog.cancel()
         close_session(session_id)
         _running.discard(session_id)
 

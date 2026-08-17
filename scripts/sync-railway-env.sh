@@ -51,6 +51,8 @@ if [ -n "${GIT_TOKEN:-}" ]; then
 fi
 set_var NVD_API_KEY
 set_var ABUSEIPDB_API_KEY
+set_var ALERT_WEBHOOK_URL
+set_var ALERT_WEBHOOK_SECRET
 
 deploy_railway() {
   echo "Deploying backend to Railway (project=${RAILWAY_PROJECT_ID}, service=${RAILWAY_SERVICE_ID})"
