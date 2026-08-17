@@ -1,6 +1,7 @@
 # Unit economics — deep scan
 
-**Status: draft. The harness exists; no measured run has been recorded yet.**
+**Status: measured. The $0.50 gate passes with two orders of magnitude to
+spare — a deep scan costs well under one cent.**
 
 This document has one job before Phase 2: turn "what does a deep scan cost?"
 into a number, so the $4.99 tier's scope can be **decided** rather than
@@ -124,32 +125,98 @@ Failures.
 
 ## 5. Measured runs
 
-> Nothing here yet. Add one subsection per run: date, commit, fixture groups,
-> the pasted markdown summary, and the Railway peak RAM/CPU read by hand for
-> the reported window.
+### 2026-08-17 — full fixture set — commit `79b138d`
 
-### Template
+[Workflow run 32019106407](https://github.com/anthonym71/securetotalscan/actions/runs/32019106407).
+**32 of 32 fixtures succeeded, 0 failed.** Total spend for the entire set:
+**$0.0929** — nine cents.
 
-```
-### YYYY-MM-DD — <groups> — commit <sha>
+| | |
+|---|---|
+| Median cost, fresh deep scan | **$0.0037** |
+| p95 | **$0.0070** |
+| Most expensive single scan | $0.0083 |
+| Median wall-clock | 5.2s (p95 13.1s) |
+| Median tokens | 492 (p95 1,565) |
+| Cost of a repeat (cache hit) | $0.0000 |
 
-<paste cost-results.md>
+**PRD §4 gate ($0.50 per deep scan), applied to p95: PASS — by 71×.**
 
-Railway peak (from the dashboard, for the window above):
-  memory: … MB
-  CPU:    … vCPU
+| Group | Runs | Median | Max | Median duration |
+|---|---|---|---|---|
+| deliberately-vulnerable | 3 | $0.0040 | $0.0042 | 5.2s |
+| docker-image | 3 | $0.0068 | $0.0083 | 15.5s |
+| large | 7 | $0.0040 | $0.0042 | 5.2s |
+| logs | 2 | $0.0036 | $0.0072 | 7.8s |
+| mid-with-docker | 5 | $0.0035 | $0.0042 | 5.2s |
+| our-own | 2 | $0.0036 | $0.0038 | 5.2s |
+| small | 5 | $0.0000 | $0.0000 | 5.2s |
+| surface | 4 | $0.0000 | $0.0000 | 1.6s |
 
-Installed versions: openai …, langgraph …, langgraph-checkpoint …
-```
+**Read the `small` row as a caveat, not a result.** Those five fixtures had
+been scanned by an earlier run twenty minutes before, `llm_cache.py` is
+process-global, and the backend had not restarted — so they were served from
+cache and cost nothing. They were counted as fresh, which pulled the reported
+median down slightly. Excluding them, the fresh median is closer to **$0.0040**
+and the p95 is unchanged. The harness now classifies cache hits from the
+`/evals` counters rather than the fixture's label, so a later run reports this
+correctly without anyone having to notice it.
+
+### What the numbers establish
+
+**The prompt really is bounded by construction.** `large` — seven repositories
+including the Linux kernel, Kubernetes and TensorFlow — has the *same* median
+as `deliberately-vulnerable` (both $0.0040) and the same maximum ($0.0042).
+Repository size does not move cost, exactly as `build_prompt()`'s caps predict.
+This was the main open question and it is now answered with data rather than
+by reading the code.
+
+**Docker images are the expensive case, not big repos.** `docker-image` costs
+~70% more per scan ($0.0068 median) and takes three times as long (15.5s),
+because Trivy work scales with the image's package count. If anything is ever
+worth an abuse guard, it is this — not repository size.
+
+**Repeat scans genuinely cost nothing.** $0.0000 across every cache hit. That
+claim can now be made in marketing copy with a measurement behind it.
+
+**`anthonym71/securetotalscan` scanned successfully**, so `GIT_TOKEN`'s scope
+does include private repository read. That was flagged as an open risk in the
+plan and is now closed.
+
+### What is still missing from this run
+
+- **Peak Railway RAM and CPU.** Not in `/evals`; read them from the dashboard
+  for the window `10:13:33Z → 10:17:01Z` and add them here.
+- **Installed versions.** Not captured automatically. From the same day's CD
+  build: openai 3.1.0, langgraph 1.2.11, langgraph-checkpoint 4.2.0,
+  langgraph-sdk 0.4.2, langchain-core 1.5.5.
+- **Surface-scan grades.** The four surface runs completed in 1.6s each but
+  their grades are not in the summary table. They are in the run's
+  `cost-results.json` artifact, and `docs/BASELINE-2026-08.md` §8 is where the
+  self-scan grade belongs.
+- **Concurrency.** Every fixture ran sequentially against an idle backend. Real
+  load will move wall-clock and RAM, though not token cost.
 
 ## 6. The decision this feeds
 
-**Open, and deliberately not pre-empted:** whether the $4.99 tier includes a
-deep scan. Deciding it before the measurement would defeat the gate that made
-this phase necessary. Once §5 has a p95, the answer follows from it:
+**Answered, from §5.** Whether the $4.99 tier includes a deep scan was left
+open on purpose — deciding it before the measurement would have defeated the
+gate that made this phase necessary. The rule was:
 
 - p95 ≤ $0.50 → the tier can include a deep scan.
 - p95 > $0.50 → it cannot, and Phase 2 ships the $4.99 tier without one.
+
+**Measured p95 is $0.0070. The tier can include a deep scan**, at a marginal
+cost of roughly 0.14% of the sale price. Phase 2 is unblocked on this point.
+
+Two caveats worth carrying into Phase 4 rather than treating as settled:
+
+- **This is LLM cost only.** It excludes Railway compute, egress, and the
+  Stripe fee — the last of which, at a blended ~60% US / ~40% EU-UK rate, will
+  dwarf $0.0070 on a $4.99 sale. Margin work is PR 4.3.
+- **The abuse guard should target Docker images, not repository size.** The
+  measurement says size does not move cost but image scanning does, which
+  inverts the assumption the plan was carrying.
 
 Phase 4 (PR 4.3) then revisits this from ≥20 runs and adds margin per tier, the
 Railway cost per 100 scans, and the abuse guards — concurrency cap, repo size

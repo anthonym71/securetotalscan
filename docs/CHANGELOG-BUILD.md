@@ -6,6 +6,63 @@ Newest first.
 
 ---
 
+## 2026-08-17 — Phase 0.5, PR 0.6 follow-up (the deep-scan cost is measured)
+
+**Code:** `backend/cost_harness.py`, `backend/tests/test_cost_harness.py`,
+`docs/UNIT-ECONOMICS.md`.
+
+**The gate is answered.** Full fixture set,
+[run 32019106407](https://github.com/anthonym71/securetotalscan/actions/runs/32019106407):
+**32 of 32 fixtures succeeded, 0 failed**, total spend **$0.0929**.
+
+| | |
+|---|---|
+| Median cost, fresh deep scan | **$0.0037** |
+| p95 | **$0.0070** |
+| Max | $0.0083 |
+| Median wall-clock | 5.2s (p95 13.1s) |
+
+**PRD §4 gate ($0.50), applied to p95: PASS by 71×.** The $4.99 tier can
+include a deep scan — marginal LLM cost is about 0.14% of the sale price.
+Phase 2 is unblocked on the question it was waiting for.
+
+**The main open question is settled with data.** `large` — seven repositories
+including the Linux kernel, Kubernetes and TensorFlow — has the *same* median
+($0.0040) and maximum ($0.0042) as `deliberately-vulnerable`. Repository size
+does not move cost, exactly as `build_prompt()`'s caps predicted. That was read
+off the code before; it is now measured.
+
+**And it inverts an assumption.** The expensive case is **Docker images**, not
+big repositories: ~70% more per scan and three times the wall-clock, because
+Trivy work scales with package count. Any abuse guard should target image
+scanning, not repository size.
+
+**Two other things closed:** repeat scans genuinely cost $0.0000, so that
+marketing claim now has a measurement behind it; and
+`anthonym71/securetotalscan` scanned successfully, so `GIT_TOKEN`'s scope does
+include private repository read — an open risk in the plan, now closed.
+
+**Defect found by the run itself, and fixed.** The `small` group reported
+$0.0000. Those five fixtures had been scanned by a smaller run twenty minutes
+earlier; `llm_cache.py` is process-global and the backend had not restarted, so
+they were served from cache while still being counted as fresh, pulling the
+median down. The harness classified cache hits by the fixture's *label*; it now
+classifies them from the `/evals` cache counters, so an accidentally warm run is
+excluded from the fresh median and named in the report. A group label records
+what a fixture was for; only the counters record what happened.
+
+**Still missing from this run**, recorded rather than glossed: peak Railway
+RAM/CPU (read from the dashboard for `10:13:33Z → 10:17:01Z`), the surface-scan
+grades (in the run artifact; they belong in `docs/BASELINE-2026-08.md` §8), and
+any concurrency effect — every fixture ran sequentially against an idle backend.
+
+**Verified:** backend suite passes with 3 new cache-classification tests.
+
+**GHL:** four contacts created by the surface scans, all under
+`cost-harness@securetotalscan.com`. **Infrastructure:** no change.
+
+---
+
 ## 2026-08-17 — Phase 0, PR 0.2 (dependency triage)
 
 **Code:**
