@@ -9,9 +9,10 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "verify:scanner": "tsc -p tsconfig.verify.json && node .verify/scripts/verify-scanner.js && npm run verify:input-validation && npm run verify:ratelimit",
+    "verify:scanner": "tsc -p tsconfig.verify.json && node .verify/scripts/verify-scanner.js && npm run verify:input-validation && npm run verify:ratelimit && npm run verify:findings",
     "verify:input-validation": "node .verify/scripts/verify-input-validation.js",
-    "verify:ratelimit": "node .verify/scripts/verify-ratelimit.js"
+    "verify:ratelimit": "node .verify/scripts/verify-ratelimit.js",
+    "verify:findings": "node .verify/scripts/verify-findings.js"
   },
   "dependencies": {
     "next": "15.5.23",
