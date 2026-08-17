@@ -1,5 +1,5 @@
 uvicorn[standard]>=0.29.0
-fastapi>=0.115.0
+fastapi>=0.141.1
 
 # LLM path. OpenRouter is the provider; the `openai` package is the client
 # library used to reach it (OpenRouter is OpenAI-API-compatible).
