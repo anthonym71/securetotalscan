@@ -1,5 +1,21 @@
-# Railway deploy config — backend service (set Root Directory = backend in Railway UI,
-# or point Config File to /backend/railway.toml from the repo root).
+# Railway deploy config — backend service.
+#
+# SERVICE SETTINGS (Railway UI → service → Settings). These two are load-bearing
+# and are NOT alternatives to each other, despite what an earlier version of this
+# comment implied. Setting both broke the build from 2026-06-14 to 2026-08-17:
+#
+#   Root Directory      (empty)
+#   Railway Config File railway.toml
+#
+# CD uploads from inside backend/ (`working-directory: backend` in cd.yml), so
+# the snapshot Railway receives is already rooted at this folder. Root Directory
+# must therefore stay EMPTY — setting it to /backend makes Railway look for
+# backend/backend/, which does not exist. For the same reason the config path is
+# relative: `railway.toml`, never `/backend/railway.toml`.
+#
+# If the service is ever switched to building from the GitHub connection instead
+# of the CLI, these settings invert — and two deploy paths on one service race
+# each other, so pick one.
 #
 # Uses Dockerfile.trivy so Trivy is baked into the image (Railpack was skipping the
 # nixpacks.toml build step, leaving Trivy unavailable at runtime).
