@@ -12,7 +12,7 @@
 // than discovered when the cohort is mysteriously empty.
 // ──────────────────────────────────────────────────────────────
 
-import type { ScanReport } from "@/lib/scanner/types";
+import type { ScanReport } from "../scanner/types";
 import { databaseConfigured, db } from "./client";
 
 /** Failed writes on this instance. Logged with each failure. */
@@ -32,6 +32,16 @@ export type ScanKind = "surface" | "deep";
 export interface RecordScanInput {
   report: ScanReport;
   kind: ScanKind;
+  /**
+   * The row id to insert under, rather than letting Postgres default it.
+   *
+   * The caller needs the id *before* this write happens: recording runs inside
+   * `after()`, which by definition is after the response has been sent, and the
+   * response has to carry the id so the client can ask for premium prompts. So
+   * the id is minted at the top of the request and passed down. When omitted,
+   * `gen_random_uuid()` still applies.
+   */
+  id?: string;
   /** Null until Phase 3 gives us accounts. */
   customerId?: string | null;
   /**
@@ -59,7 +69,7 @@ export async function recordScan(input: RecordScanInput): Promise<RecordScanResu
   // line per scan in development is noise, not signal.
   if (!databaseConfigured()) return { recorded: false, reason: "not-configured" };
 
-  const { report, kind, customerId = null, costUsdMicros = 0 } = input;
+  const { report, kind, customerId = null, costUsdMicros = 0, id: suppliedId } = input;
 
   let host = "";
   try {
@@ -73,11 +83,14 @@ export async function recordScan(input: RecordScanInput): Promise<RecordScanResu
 
   try {
     const sql = db();
+    // `COALESCE(supplied, gen_random_uuid())` rather than two separate
+    // statements: one code path, and a null id still gets a generated one.
     const rows = (await sql`
       INSERT INTO scan (
-        customer_id, target_url, target_host, kind,
+        id, customer_id, target_url, target_host, kind,
         grade, score, findings, cost_usd_micros, duration_ms
       ) VALUES (
+        COALESCE(${suppliedId ?? null}::uuid, gen_random_uuid()),
         ${customerId}, ${report.url}, ${host}, ${kind},
         ${report.grade}, ${report.score}, ${JSON.stringify({
           categories: report.categories,

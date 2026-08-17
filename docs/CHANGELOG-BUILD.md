@@ -6,6 +6,93 @@ Newest first.
 
 ---
 
+## 2026-08-17 — Phase 2, PR 2.3 (the paywall, moved from the browser to the server)
+
+**Code:** new `lib/entitlements.ts`, `lib/scanner/publicReport.ts`,
+`app/api/scan/[id]/prompts/route.ts`, `scripts/verify-paywall.ts`; changed
+`lib/scanner/types.ts`, `app/api/scan/route.ts`, `lib/db/scans.ts`,
+`components/ScanResults.tsx`, `components/ScanForm.tsx`,
+`components/LeadCapture.tsx`, `lib/content.ts`, `scripts/verify-claims.ts`,
+`package.json`, `tsconfig.verify.json`.
+
+**What was wrong.** `/api/scan` returned the complete internal `ScanReport` to
+anyone who asked. Every premium fix prompt was already in every free visitor's
+browser; the "paywall" was a component deciding not to draw them. There was
+nothing to sell, and anyone who opened the network tab had the whole product.
+
+**The type split is the fix, not the redaction.** `ScanReport` is internal and
+carries a prompt on every finding. `PublicScanReport` is what a browser
+receives. They are deliberately *different types* rather than one type with
+optional fields — so returning the internal object from a route is a compile
+error rather than a leak that type-checks perfectly, which is precisely the
+state the code was in.
+
+**Redaction is an allowlist, never a delete-list.** `toPublicReport()` names
+every field it copies. `{...finding}` followed by `delete pub.fixPrompt` would
+pass every test written today and leak silently the day someone adds a field to
+`Finding`. With an allowlist, forgetting to update this file produces a
+*missing* field, which someone notices, rather than a *leaked* one, which
+nobody does. `verify:paywall` asserts the behaviour by attaching an unknown
+field at runtime, and separately asserts the mechanism, since a delete-list that
+happened to name that field would satisfy the first check alone.
+
+**A free visitor gets exactly one prompt**, sampled from a medium-severity
+finding, chosen across the whole report rather than per category — per category
+would have handed out one prompt per category, which on a real report is most of
+them. The sample is deterministic. Everything else a free scan promised is
+untouched: every finding, its severity, detail and evidence.
+
+**A bug this PR's own tests caught.** The first implementation folded two
+questions into one Set — "who is entitled to everything?" and "which finding is
+the sample?" — where an empty Set meant both "no restriction" and "no samples".
+A member therefore received *nothing*. It looked correct because the free path,
+the one being developed and eyeballed, was right. The two decisions are now
+separate lines.
+
+**`/api/scan/[id]/prompts`** serves the rest, behind a session check that runs
+*before* the database read — ordering asserted by the test, because a check that
+runs after the read is one refactor from not running. It reads the recorded scan
+rather than re-scanning: a customer paying to unlock the prompts for the seven
+findings in front of them must get those seven, not whatever their site looks
+like a minute later. It also enforces the six-month retention **on read**, so
+"six months" does not quietly mean "six months, unless the deletion job was
+down".
+
+**Stated limitation, because it would be easy to mistake this for more than it
+is:** a `member` today holds a shared access code, not an account. It proves
+someone paid; it cannot prove *which* customer they are, so it cannot answer "is
+this your scan?". Any member can currently read any scan's prompts. That is
+acceptable only because every member has already paid for prompts, and it is
+closed by PR 2.6's per-scan grant and PR 3.1's accounts.
+
+**Four pieces of copy became false in this release and were fixed in it** —
+working rule 4 again. The free plan advertised "Copy-paste fix prompts"; an FAQ
+said "Every finding ships with a copy-paste fix prompt"; another said the free
+scan gives "every finding and a fix prompt"; and the lead-capture confirmation
+said "every finding and fix prompt is on this page". `verify:claims` now reads
+`FREE_PROMPT_SAMPLES` and fails if the copy and the allowance disagree — and
+rather than banning the phrase outright, it checks that each occurrence is
+qualified as paid, since the sentence is true of a paid scan.
+
+**Known edge, not papered over:** a report with no medium-severity finding shows
+no sample at all. Falling back to the next severity would mean the worst reports
+give away the most valuable prompt. Nine of the scanner's checks emit medium,
+one of them a commonly-missing header, so this is rare rather than theoretical;
+if Phase 4 measurement disagrees, the sample widens downward, never upward.
+
+**Also fixed:** the `@/…` alias added to `tsconfig.verify.json` in PR 2.2
+compiled but did not resolve at runtime in the CommonJS verify build — it had
+only ever been exercised by type-only imports, which are erased. Removed, so the
+failure is a compile error rather than a module-not-found at test time.
+
+**Verified:** typecheck clean, build succeeds with `/api/scan/[id]/prompts`
+registered, `verify:scanner` passes with **363 checks across 11 suites** (was
+326). The paywall suite asserts against the *serialised payload* — substring
+search over the JSON — rather than against the component tree, because what a
+component draws is a display decision and what the server sent is the boundary.
+
+**GHL:** No change. **Infrastructure:** No change.
+
 ## 2026-08-17 — Phase 2, PR 2.2 (the first writer, and the CD job that was never running)
 
 **Code:** new `lib/db/scans.ts`, `scripts/verify-persistence.ts`; changed

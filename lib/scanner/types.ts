@@ -56,6 +56,66 @@ export interface ScanReport {
   notes: string[];
 }
 
+// ──────────────────────────────────────────────────────────────
+// The public half of the report.
+//
+// `ScanReport` above is the **internal** report. It carries a `fixPrompt` on
+// every finding, and it must never be serialised to a browser: the prompts are
+// the product. Everything a visitor receives is a `PublicScanReport`, built by
+// `toPublicReport()` in ./publicReport.ts.
+//
+// These are deliberately separate types rather than one type with optional
+// fields. If the free response were typed as `ScanReport`, returning the
+// internal object would type-check perfectly and leak every prompt — which is
+// exactly the state this codebase was in before PR 2.3. Making them distinct
+// means the mistake is a compile error rather than a customer discovering our
+// paid content in their network tab.
+// ──────────────────────────────────────────────────────────────
+
+export interface PublicFinding {
+  category: CategoryId;
+  severity: Severity;
+  title: string;
+  detail: string;
+  evidence?: string;
+  /**
+   * Present only where the viewer is entitled to it — for a free visitor that
+   * is exactly one sampled finding, so the value on offer is demonstrated
+   * rather than described.
+   */
+  fixPrompt?: string;
+  /** True when a prompt exists for this finding and is being withheld. */
+  promptLocked: boolean;
+}
+
+export interface PublicCategoryResult {
+  id: CategoryId;
+  label: string;
+  passed: boolean;
+  findings: PublicFinding[];
+}
+
+export interface PublicScanReport {
+  /**
+   * The recorded `scan.id`. Generated before the response is sent, so the
+   * client can ask for premium prompts without waiting on the database write
+   * that happens after it. Absent when persistence is not configured.
+   */
+  scanId?: string;
+  url: string;
+  scannedAt: string;
+  durationMs: number;
+  grade: Grade;
+  score: number;
+  summary: ScanReport["summary"];
+  categories: PublicCategoryResult[];
+  notes: string[];
+  /** What the viewer is entitled to. Drives what the UI offers, not what it hides. */
+  entitlement: "free" | "member";
+  /** How many prompts are being withheld. Zero for a member. */
+  lockedPromptCount: number;
+}
+
 /** Shared context passed to every check so each can reuse fetched data. */
 export interface ScanContext {
   target: URL;

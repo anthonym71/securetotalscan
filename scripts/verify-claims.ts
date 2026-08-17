@@ -14,7 +14,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { FAQS, HERO, SCAN_SECTION, TRUST } from "../lib/content";
+import { FAQS, HERO, PLANS, SCAN_SECTION, TRUST } from "../lib/content";
+import { FREE_PROMPT_SAMPLES } from "../lib/entitlements";
 
 let failures = 0;
 
@@ -116,6 +117,64 @@ for (const banned of BANNED) {
     console.log(`        why it is false: ${banned.why}`);
     console.log(`        safe to say from: ${banned.liftWhen}`);
   }
+}
+
+// ── Fix prompts: the copy must match the paywall ──────────────────────────
+//
+// Before PR 2.3 the free scan returned every prompt, so "a fix prompt for every
+// finding" was an accurate description of a free scan. It is now false, and
+// false in the most damaging direction: a visitor promised every prompt, who
+// then receives one, has been advertised at rather than sold to.
+//
+// The number is read from `FREE_PROMPT_SAMPLES` rather than written here, so
+// raising the free allowance later is a one-line change that the copy check
+// follows rather than fights.
+
+console.log("\nThe free tier's prompt allowance must match what the copy promises:");
+{
+  check(
+    "exactly one prompt is sampled, so the copy can say 'one'",
+    FREE_PROMPT_SAMPLES === 1,
+  );
+
+  const freePlan = PLANS.find((plan) => plan.price === "$0");
+  check("a free plan exists in PLANS", Boolean(freePlan));
+
+  const freeFeatures = (freePlan?.features ?? []).join(" ");
+  check(
+    "the free plan does not advertise prompts in the plural",
+    !/copy-?paste fix prompts/i.test(freeFeatures),
+  );
+  check(
+    "and says a sample is included",
+    /sample fix prompt/i.test(freeFeatures),
+  );
+
+  // "Every finding ships with a fix prompt" is not banned — it is true, of a
+  // paid scan. What is banned is saying it *unqualified*, because an unqualified
+  // sentence on a page whose main action is a free scan reads as a promise about
+  // the free scan.
+  //
+  // So this looks at what precedes each occurrence rather than at the phrase
+  // itself. Sixty characters is enough to carry "On a paid scan," or "Paid scans
+  // include" and short enough that a qualifier two sentences away does not count
+  // as one.
+  const promptPromise = /every finding ships with a (?:copy-?paste )?fix prompt/gi;
+  const unqualified: string[] = [];
+  for (const match of copy.matchAll(promptPromise)) {
+    const before = copy.slice(Math.max(0, (match.index ?? 0) - 60), match.index ?? 0);
+    if (!/\bpaid\b|\bPro\b|\bupgrade\b/i.test(before)) unqualified.push(match[0]);
+  }
+  check(
+    `every "every finding ships with a fix prompt" is qualified as paid${
+      unqualified.length ? ` — UNQUALIFIED: "${unqualified[0]}"` : ""
+    }`,
+    unqualified.length === 0,
+  );
+  check(
+    "the free-scan FAQ does not claim every finding comes with a prompt",
+    !/free scan[^.]{0,120}every finding and a fix prompt/i.test(copy),
+  );
 }
 
 // ── Retention: the promise must match the enforcement ─────────────────────

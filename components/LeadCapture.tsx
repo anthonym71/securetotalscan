@@ -52,8 +52,8 @@ export function LeadCapture({
         <p className="font-semibold text-grade-a">You&apos;re on the list.</p>
         <p className="mt-1 text-sm text-white/60">
           Emailed PDF reports are launching shortly and you&apos;ll be among the
-          first to get one. In the meantime every finding and fix prompt is on
-          this page — copy anything you need before you close it.
+          first to get one. In the meantime every finding is on this page — copy
+          anything you need before you close it.
         </p>
       </div>
     );

@@ -1,4 +1,9 @@
-import type { Finding, Grade, ScanReport, Severity } from "@/lib/scanner/types";
+import type {
+  Grade,
+  PublicFinding,
+  PublicScanReport,
+  Severity,
+} from "@/lib/scanner/types";
 import { LeadCapture } from "./LeadCapture";
 
 const GRADE_COLOR: Record<Grade, string> = {
@@ -23,7 +28,7 @@ export function ScanResults({
   report,
   email,
 }: {
-  report: ScanReport;
+  report: PublicScanReport;
   /** Address the scan was run with, pre-filled into the report form below. */
   email?: string;
 }) {
@@ -78,6 +83,27 @@ export function ScanResults({
         ))}
       </div>
 
+      {/* What is included, stated plainly.
+          A visitor who finds out mid-scroll that most prompts are withheld
+          feels bait-and-switched; one told up front, next to a real working
+          sample, is being shown the product. Only rendered when something is
+          actually withheld — a member, or a report where every finding
+          happens to be shown, sees nothing here. */}
+      {report.lockedPromptCount > 0 && (
+        <div className="rounded-xl border border-brand/30 bg-brand/10 p-4 text-sm">
+          <p className="font-medium text-white/90">
+            {report.lockedPromptCount} fix prompt
+            {report.lockedPromptCount === 1 ? " is" : "s are"} included with a paid
+            scan.
+          </p>
+          <p className="mt-1 text-white/60">
+            One is unlocked below as a sample, so you can see exactly what you
+            would be getting — a copy-paste instruction for your AI tool, written
+            against what we actually found on your site.
+          </p>
+        </div>
+      )}
+
       {/* Findings */}
       {allFindings.length === 0 ? (
         <div className="rounded-2xl border border-grade-a/30 bg-grade-a/10 p-6 text-center">
@@ -111,7 +137,7 @@ export function ScanResults({
   );
 }
 
-function FindingCard({ finding }: { finding: Finding }) {
+function FindingCard({ finding }: { finding: PublicFinding }) {
   return (
     <li className="rounded-xl border border-white/10 bg-card-gradient p-5">
       <div className="flex flex-wrap items-center gap-3">
@@ -128,14 +154,26 @@ function FindingCard({ finding }: { finding: Finding }) {
           {finding.evidence}
         </p>
       )}
-      <details className="mt-3 group">
-        <summary className="cursor-pointer text-sm font-medium text-brand-light hover:text-white">
-          Fix prompt →
-        </summary>
-        <p className="mt-2 rounded-lg border border-brand/30 bg-brand/10 px-3 py-2 text-sm text-white/80">
-          {finding.fixPrompt}
+      {/* There are three states, and the locked one is not rendered as a
+          disabled copy of the unlocked one: there is no prompt text in the
+          DOM to reveal with a devtools edit, because the server never sent
+          any. That is the whole point of PR 2.3 — the lock is in the payload,
+          not in the CSS. */}
+      {finding.fixPrompt ? (
+        <details className="mt-3 group">
+          <summary className="cursor-pointer text-sm font-medium text-brand-light hover:text-white">
+            Fix prompt →
+          </summary>
+          <p className="mt-2 rounded-lg border border-brand/30 bg-brand/10 px-3 py-2 text-sm text-white/80">
+            {finding.fixPrompt}
+          </p>
+        </details>
+      ) : finding.promptLocked ? (
+        <p className="mt-3 flex items-center gap-2 text-sm text-white/40">
+          <span aria-hidden>🔒</span>
+          Fix prompt included with a paid scan
         </p>
-      </details>
+      ) : null}
     </li>
   );
 }

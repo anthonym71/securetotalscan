@@ -7,16 +7,6 @@
     "esModuleInterop": true,
     "noEmit": false,
     "outDir": ".verify",
-    // The `@/…` alias from tsconfig.json, repeated here so a file under test
-    // can import the way the rest of the codebase does. Without it, anything
-    // the verify build compiles has to use relative paths — a rule nothing
-    // states and nothing enforces, so it is broken by the next file added.
-    "baseUrl": ".",
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    },
     "types": [
       "node"
     ],
@@ -35,6 +25,8 @@
     "lib/db/**/*.ts",
     "scripts/migrate.ts",
     "scripts/verify-persistence.ts",
+    "scripts/verify-paywall.ts",
+    "lib/entitlements.ts",
     "scripts/verify-claims.ts",
     "scripts/verify-schema.ts",
     "scripts/verify-target.ts",

@@ -6,6 +6,10 @@ import { assertSameOrigin } from "@/lib/security/origin";
 import { anyUnavailable, limiterUnavailable } from "@/lib/security/limits";
 import { customerRef, postAlert } from "@/lib/alerting";
 import { recordScan } from "@/lib/db/scans";
+import { databaseConfigured } from "@/lib/db/client";
+import { entitlementFor } from "@/lib/entitlements";
+import { toPublicReport } from "@/lib/scanner/publicReport";
+import { randomUUID } from "node:crypto";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -108,8 +112,14 @@ export async function POST(req: NextRequest) {
   const blocked = checks.find((check) => !check.ok);
   if (blocked) return tooMany(blocked.resetIn);
 
+  const entitlement = await entitlementFor(req);
+
   try {
     const report = await scan(target.toString());
+
+    // Minted here, not by the database, because the response must carry it and
+    // the row is written in `after()` — i.e. after this response is gone.
+    const scanId = databaseConfigured() ? randomUUID() : undefined;
 
     // Lead capture and scan recording are both best effort: neither may fail
     // or delay the scan because the CRM or the database is slow, and both are
@@ -130,11 +140,15 @@ export async function POST(req: NextRequest) {
         }).catch(() => undefined),
         // The free scan is a surface scan and makes no LLM calls, so its
         // measured cost is zero rather than unknown.
-        recordScan({ report, kind: "surface", costUsdMicros: 0 }),
+        recordScan({ id: scanId, report, kind: "surface", costUsdMicros: 0 }),
       ]),
     );
 
-    return NextResponse.json(report, {
+    // `toPublicReport` and never `report`. The internal report carries a fix
+    // prompt on every finding, and those prompts are the product — this is the
+    // single line that decides whether they are sold or given away.
+    // `verify:paywall` asserts this route serialises nothing else.
+    return NextResponse.json(toPublicReport(report, { entitlement, scanId }), {
       status: 200,
       headers: { "Cache-Control": "no-store" },
     });

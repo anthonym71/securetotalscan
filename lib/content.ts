@@ -58,7 +58,10 @@ export const HOW_IT_WORKS: Step[] = [
   {
     icon: "🔧",
     title: "Fix and monitor",
-    body: "Copy-paste fix prompts for every finding, then keep watch on a schedule.",
+    // "for every finding" is true of a paid scan and false of the free one,
+    // which is the step a visitor thinks they are reading about. PR 2.3 made
+    // the distinction real in the payload; this makes it real in the copy.
+    body: "A copy-paste fix prompt for every finding on a paid scan, then keep watch on a schedule.",
   },
 ];
 
@@ -122,7 +125,10 @@ export const PLANS: Plan[] = [
   {
     name: "Free",
     price: "$0",
-    features: ["Surface scan", "A–F security grade", "Copy-paste fix prompts"],
+    // The free scan returns exactly one sample prompt (FREE_PROMPT_SAMPLES in
+    // lib/entitlements.ts). Listing "Copy-paste fix prompts" as a free feature
+    // described the pre-2.3 behaviour, where the paywall did not exist.
+    features: ["Surface scan", "A–F security grade", "One sample fix prompt"],
   },
   {
     name: "Pro",
@@ -158,7 +164,7 @@ export const FAQS: FaqItem[] = [
   },
   {
     q: "What do I do with the findings?",
-    a: "Start with anything marked critical. Every finding ships with a copy-paste fix prompt you can hand straight to your AI tool. After fixing, rotate any exposed credentials and re-scan to confirm.",
+    a: "Start with anything marked critical. On a paid scan every finding ships with a copy-paste fix prompt you can hand straight to your AI tool; the free scan unlocks one of them as a sample. After fixing, rotate any exposed credentials and re-scan to confirm.",
   },
   {
     q: "How long does it take?",
@@ -170,7 +176,7 @@ export const FAQS: FaqItem[] = [
     // 10/day per email, and 10/hour per target domain. Stating them is also
     // better product — a visitor who hits a limit unexpectedly assumes we are
     // broken.
-    a: "Yes, no credit card. The free scan gives you a complete surface assessment with every finding and a fix prompt. Fair-use limits apply — 5 scans an hour and 20 a day — so the scanner stays available for everyone. The agents and continuous monitoring are the paid tiers.",
+    a: "Yes, no credit card. The free scan gives you a complete surface assessment: every finding we detect, with its severity, evidence and what it means. One fix prompt is unlocked as a sample so you can see the format; the rest come with a paid scan. Fair-use limits apply — 5 scans an hour and 20 a day — so the scanner stays available for everyone. The agents and continuous monitoring are the paid tiers.",
   },
 ];
 
