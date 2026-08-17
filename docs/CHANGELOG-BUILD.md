@@ -161,6 +161,75 @@ any concurrency effect — every fixture ran sequentially against an idle backen
 
 ---
 
+## 2026-08-17 — Phase 2, PR 2.1 (Neon Postgres foundation)
+
+**Code:** `migrations/0001_init.sql`, `lib/db/client.ts`, `scripts/migrate.ts`,
+`scripts/verify-schema.ts` (wired into `verify:scanner`); env plumbing in
+`cd.yml`, `scripts/sync-vercel-env.sh`, `.env.example`.
+
+**Schema only. No behaviour change** — nothing queries the database yet, and a
+check asserts that no API route imports it. PR 2.2 is the first writer.
+
+**The first runtime dependency this project has ever had.** `package.json`
+listed exactly `next`, `react` and `react-dom` until now, so
+`@neondatabase/serverless` is a supply-chain decision as much as a technical
+one. It is Neon's own driver over their HTTP endpoint, so a serverless function
+does not open a TCP connection per invocation and exhaust the pool under
+exactly the traffic you want. `npm audit`: 0 vulnerabilities.
+
+**Seven tables** — `customer`, `subscription`, `site`, `scan`, `report`,
+`purchase`, `event_log` — with four conventions applied without exception, each
+because the alternative is a silent failure:
+
+- **Every customer-owned table carries `customer_id` and is indexed on it.**
+  PR 3.4 has to *prove* customer A cannot read customer B's data, and that
+  proof is impossible if a table cannot be scoped to its owner.
+- **Money is integer minor units.** `amount_cents integer`, never a float.
+  Scan cost is `cost_usd_micros bigint`, because a deep scan costs ~$0.004
+  (PR 0.6) and cents would round every scan to zero.
+- **All timestamps are `timestamptz`.**
+- **`external_id` is uniquely indexed** on `purchase` and `subscription`, so a
+  replayed payment webhook is a no-op rather than a second charge record.
+
+**`customer.email` is unique on `lower(email)`**, matching how the rest of the
+codebase compares addresses (`email.trim().toLowerCase()`). A case-sensitive
+index would let `Alice@` and `alice@` become two customers with two histories.
+
+**`scan.expires_at` defaults to six months** (PRD §5.7) and is indexed. Phase 2
+stores and displays it honestly; Phase 4 enforces it. Storing it rather than
+deriving it means the date a customer was shown is the date we act on.
+
+**Migration runner, deliberately not a framework.** Seven tables and one
+contributor does not need one. It enforces three rules: applied migrations are
+**immutable** (checksummed — editing one that has already run leaves every
+environment that ran it silently different, so it is an error here rather than a
+surprise later); one at a time under an advisory lock, so two concurrent deploys
+cannot both run `0002`; and each migration is a transaction.
+
+**Migrations run before the Vercel deploy, never after.** Code expecting a
+column that does not exist is an outage; a database with a column the code does
+not use is nothing at all.
+
+**Environment variables Anthony must set:** `DATABASE_URL` and
+`DATABASE_URL_UNPOOLED`, as secrets in the **`prod` GitHub environment** —
+already done. Neon issues both: pooled for runtime, direct for migrations,
+because the pooler does not carry DDL or advisory locks reliably. Both are now
+in `sync-vercel-env.sh` and the `cd.yml` comment block per the standing rule.
+
+**Verified:** typecheck clean, build succeeds, `verify:scanner` passes with 33
+new schema checks, `npm run migrate -- --dry` refuses cleanly with no
+connection string rather than pretending to succeed.
+
+**Two checks caught their own documentation on the first run** — the comment
+explaining why money is not a float contains the word "float". SQL comments are
+now stripped before matching, the same lesson `verify-claims.ts` learned an hour
+earlier.
+
+**GHL:** No change. **Infrastructure:** No DNS change; no migration has been
+applied yet — the first CD run after merge applies `0001`.
+
+---
+
 ## 2026-08-17 — Phase 0, PR 0.2 (dependency triage)
 
 **Code:**
