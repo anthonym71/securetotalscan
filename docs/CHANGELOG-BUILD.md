@@ -230,6 +230,52 @@ applied yet — the first CD run after merge applies `0001`.
 
 ---
 
+## 2026-08-17 — CD hotfix (the Vercel env sync aborted on the first bad variable)
+
+**Code:** `scripts/sync-vercel-env.sh`.
+
+**CD failed on `master` from 10:37 to 11:00.** Three merged PRs — #120, #122,
+#123 — sat undeployed behind a red pipeline. Found by checking the CD run
+rather than by anything reporting it.
+
+**Root cause, introduced by PR 0.7.** `add_env` runs
+`vercel env add … --force`. That overrides a variable scoped to production, but
+**not** one created against a different target or branch; Vercel rejects those
+with *"already exists for the target production on branch undefined"*.
+`ALERT_WEBHOOK_SECRET` was already on Vercel in that shape — the same way stray
+`STS_SERVICE_TOKEN` entries appeared there earlier today, from an automatic
+copy.
+
+**The failure mode was worse than the failure.** The script ran under
+`set -e`, so it died at that line. Every variable after it — including
+`ALERT_WEBHOOK_SECRET` itself, and on the next run `DATABASE_URL` — was never
+attempted, and the deploy step never ran. One variable that would not sync took
+the whole pipeline down and hid the state of the rest.
+
+**Fixed three ways:**
+
+- **Remove and re-add when `--force` is refused**, rather than leaving
+  production on a value the pipeline no longer controls.
+- **No `set -e`.** Failures are collected and the job fails at the end with the
+  full list, so the log shows the state of *every* variable rather than the
+  state of the first broken one.
+- The error line says what it means for production: *"Production is running on
+  whatever value it had before this deploy."*
+
+**Finding for Anthony: `ALERT_WEBHOOK_URL` is not set in the `prod`
+environment.** The sync log shows it skipped while `ALERT_WEBHOOK_SECRET` was
+present. `postAlert()` requires **both**, so **alerting is currently inert** —
+it fails the `alertingConfigured()` check and returns `not-configured` without
+sending. The health check will also skip its POST with a `::warning::`. Add
+`ALERT_WEBHOOK_URL` as a secret in the `prod` GitHub environment and the whole
+path comes alive; nothing else needs changing.
+
+**Consequence to note:** because the Vercel job dies at the sync step, the
+`0001_init` migration added in #123 has **not run yet**. It runs on the first
+successful CD after this fix.
+
+---
+
 ## 2026-08-17 — Phase 0, PR 0.2 (dependency triage)
 
 **Code:**
