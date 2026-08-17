@@ -88,6 +88,93 @@ the path for a few cents before committing to the full set.
 **GHL:** No change — but note that surface scans create contacts, so the
 workflow defaults to skipping them and uses an obviously-harness address when
 they are enabled.
+## 2026-08-17 — Phase 0.7 (operational alerting, webhook only)
+
+**Code:** `lib/alerting.ts` (web tier), `backend/alerting.py` (backend tier),
+`scripts/post-alert.sh` (health check), `.github/workflows/health-check.yml`,
+`docs/ALERTING.md`. Call sites added in `app/api/scan/route.ts`,
+`app/api/agent/[...path]/route.ts`, `backend/orchestrator.py` and
+`backend/main.py`.
+
+An HMAC-signed JSON alert is posted to `ALERT_WEBHOOK_URL`. Fire-and-forget,
+2-second timeout, no retries, exceptions swallowed but **counted and logged** —
+alerting that fails silently reproduces the pathology it exists to fix.
+Unconfigured is a silent no-op, so local runs and CI page nobody.
+
+**The health check runs in GitHub Actions, not in the app.** An alert path that
+lives inside the thing it monitors is dead in exactly the case that matters —
+which is how the Railway outage lasted two months. Three probes 45s apart every
+15 minutes; all failing is `critical`, some failing is `warning`. That resolves
+the conflict in Viktor's spec, which had health checks at "warning or info"
+while reserving `critical` for "scanner down".
+
+**No customer email address is sent.** The payload's `customer` field carries an
+HMAC digest of the address (`c_…`), not the address. `docs/PR-PLAN.md` records
+an outstanding confirmation — the webhook host and the email host Viktor gave
+are different domains, and the payload was specified to carry addresses. Rather
+than block Phase 0 on that confirmation or send addresses without it, identity
+travels pseudonymously: stable enough to correlate, not reversible. The field
+can carry a real account id once the confirmation exists and Phase 2 creates
+accounts.
+
+**Environment variables Anthony must set:** `ALERT_WEBHOOK_URL` and
+`ALERT_WEBHOOK_SECRET`, as secrets in the **`prod` GitHub environment** —
+already done. Both are now added to `scripts/sync-vercel-env.sh`,
+`scripts/sync-railway-env.sh` and the `cd.yml` comment block, per the standing
+environment-variable rule; the GitHub environment is the source and CD carries
+it to Vercel and Railway.
+
+**Verified:** `npm run typecheck` clean; `npm run build` succeeds;
+`npm run verify:scanner` passes including **31 new alerting checks**; backend
+suite **103 passed** (15 new). The signature was cross-checked across all three
+implementations — bash/openssl, Python and Node produce byte-identical HMACs for
+the same payload, so a receiver written against one verifies all three.
+
+**Not built:** the email path (needs the Phase 2 mailer — `RESEND_API_KEY` is
+not in production yet), the payment/checkout call site (Phase 2, PR 2.6),
+consecutive-failure counting for application routes (needs shared state), and
+real cancellation of a stuck deep run (`asyncio.to_thread` cannot be
+interrupted; belongs with the Phase 4 scheduler). All four are recorded in
+`docs/ALERTING.md` §9.
+
+**GHL:** No change. **DNS:** No record touched.
+
+---
+
+## 2026-08-17 — Phase 0 (PRs 0.2, 0.3, 0.4 merged)
+
+**Merged in order:** #108 (dependency triage), #109 (durable rate limiting,
+superseding #97, now closed), #110 (CD deploy verification).
+
+**Correction made to #108 before merge, and the reason is worth keeping.** The
+PR originally capped `openai<2` and `langgraph<1` to hold the LLM path still
+for the PR 0.6 cost measurement. pip-audit failed it with six known
+vulnerabilities in langgraph 0.6.11, langgraph-checkpoint 3.0.1 and
+langgraph-sdk 0.2.15.
+
+The cause is a property of the repository, not a typo: **there is no lockfile
+under `backend/`**, so the lines in `requirements.txt` are floors, not a record
+of what runs — every Railway build installs the newest version satisfying them.
+Production already ran **openai 3.1.0** and **langgraph 1.2.11**, two majors
+above those caps. The cap would not have held anything still; it would have
+downgraded the runtime two majors on the next deploy and reintroduced the
+advisories fixed in langgraph 1.0.10 / langgraph-checkpoint 4.0.0 /
+langgraph-sdk 0.3.15, while the measurement it was meant to protect described
+software we had just stopped running.
+
+Held at the current major instead — `openai>=3.1.0,<4`, `langgraph>=1.2.11,<2`.
+Verified in a clean virtualenv: 88 backend tests pass on those versions and
+`pip-audit` is clean.
+
+**Consequence for PR 0.6:** floors alone do not make the cost baseline
+reproducible. The transitive tree (`langgraph-checkpoint`, `langgraph-sdk`,
+`langchain-core`) is still unpinned, so two runs a week apart can install
+different versions. Exact reproducibility wants a lockfile — a separate change,
+not yet made.
+
+**Dependabot #101, #103, #104, #105** are all now closeable: #101 and #103
+target packages that no longer exist in the manifest, #104 and #105 are
+satisfied by the new floors.
 
 ---
 

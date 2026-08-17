@@ -16,8 +16,10 @@
     ]
   },
   "include": [
+    "lib/alerting.ts",
     "lib/ratelimit.ts",
     "lib/scanner/**/*.ts",
+    "scripts/verify-alerting.ts",
     "scripts/verify-input-validation.ts",
     "scripts/verify-ratelimit.ts",
     "scripts/verify-scanner.ts"
