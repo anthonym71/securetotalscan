@@ -7,8 +7,10 @@ version: 2
 #     deferred to a post-launch window. Each is a day of breakage for zero
 #     customer value before launch, and each collides with every feature branch
 #     in the delivery plan.
-#   * openai and langgraph majors: held until PR 0.6 has measured deep-scan
-#     cost. See backend/requirements.txt for why.
+#   * openai and langgraph: held on their CURRENT major until PR 0.6 has
+#     measured deep-scan cost — held still, not rolled back. There is no
+#     lockfile, so the floors in backend/requirements.txt are what production
+#     actually installs. See that file for the full reasoning.
 #
 # Every ignore below is temporary and has a named condition for lifting it.
 # Review this file at the end of Phase 6.
