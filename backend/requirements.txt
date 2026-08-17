@@ -1,9 +1,34 @@
 uvicorn[standard]>=0.29.0
 fastapi>=0.115.0
-openai>=1.30.0
-langgraph>=0.1.0
-langchain>=0.2.0
-langchain-openai>=0.1.0
+
+# LLM path. OpenRouter is the provider; the `openai` package is the client
+# library used to reach it (OpenRouter is OpenAI-API-compatible).
+#
+# These two are held on their CURRENT major until the deep-scan cost
+# measurement (docs/PR-PLAN.md, PR 0.6) has recorded its numbers:
+#   * openai   — CallMeta in llm_client.py reads input_tokens/output_tokens
+#                from this client's responses, and those feed /evals, which is
+#                the sole source of the cost figures. A major can move or
+#                rename those fields, so a baseline measured on one version
+#                would describe software we are no longer running.
+#   * langgraph — sequences the five agents in orchestrator.py. A major can
+#                change execution order or retries, moving wall-clock and
+#                possibly the number of LLM calls.
+#
+# The floor matters as much as the ceiling. There is no lockfile here, so
+# every Railway build installs the newest version satisfying these lines —
+# which means production already runs openai 3.x and langgraph 1.x, and a
+# cap below those would *downgrade* two majors on the next deploy rather
+# than hold anything still. langgraph < 1.0.10 additionally carries
+# PYSEC-2026-83 and the langgraph-checkpoint / langgraph-sdk advisories.
+# So the hold is at the current major, not below it.
+#
+# Lift both together after PR 0.6, as one reviewed batch with a
+# re-measurement. Dependabot PRs #104 and #105 are already satisfied by
+# these floors and can be closed.
+openai>=3.1.0,<4
+langgraph>=1.2.11,<2
+
 python-dotenv>=1.0.0
 httpx>=0.27.0
 pydantic>=2.7.0
