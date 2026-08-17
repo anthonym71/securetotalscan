@@ -118,6 +118,49 @@ for (const banned of BANNED) {
   }
 }
 
+// ── Retention: the promise must match the enforcement ─────────────────────
+//
+// From PR 2.2 the trust copy states a retention period, which makes it the
+// first customer promise this codebase can silently break by editing a file
+// somewhere else. `scan.expires_at` is what will actually be enforced, so the
+// number in the copy is checked against the number in the schema rather than
+// against a constant restating it — a constant would just be the same claim
+// written twice.
+
+console.log("\nStated retention must match what the schema enforces:");
+{
+  const schema = source("migrations/0001_init.sql").replace(/^\s*--.*$/gm, " ");
+  const enforced = /expires_at[^,]*?interval\s*'(\d+)\s*months?'/i.exec(schema)?.[1];
+  check(`scan.expires_at defaults to an interval in months (found: ${enforced ?? "none"})`, Boolean(enforced));
+
+  // Spelled out in the copy ("six months"), a numeral in SQL ("6 months").
+  const words: Record<string, string> = {
+    "1": "one", "2": "two", "3": "three", "6": "six", "12": "twelve",
+  };
+  const stated = enforced ? words[enforced] : undefined;
+  check(
+    `the trust copy says "${stated ?? enforced} months" too`,
+    Boolean(stated) && new RegExp(`\\b${stated}\\s+months\\b`, "i").test(TRUST.body),
+  );
+  if (enforced && stated && !new RegExp(`\\b${stated}\\s+months\\b`, "i").test(TRUST.body)) {
+    console.log(
+      `        the schema keeps scans for ${enforced} months; TRUST.body must say so in words.`,
+    );
+  }
+
+  // The other half of the promise. Scan *results* are now stored; the files
+  // and logs a customer submits still are not, and that distinction is the
+  // whole reason the copy can stay reassuring while being accurate.
+  check(
+    "the copy still states that submitted files and logs are not stored",
+    /never store them/i.test(TRUST.body),
+  );
+  check(
+    "and no longer claims we keep nothing at all",
+    !/we can'?t lose data we never keep/i.test(`${TRUST.headline} ${TRUST.body}`),
+  );
+}
+
 // ── Component copy ────────────────────────────────────────────────────────
 //
 // Checked as source text rather than through the module, because these live

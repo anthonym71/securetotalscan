@@ -157,21 +157,39 @@ for (const constraint of [
   check(`${constraint} exists`, allSql.includes(constraint));
 }
 
-// ── 8. Nothing reads the database yet ────────────────────────────────────
+// ── 8. How a route is allowed to touch the database ──────────────────────
 //
-// PR 2.1 is schema only. If a route had started querying, this PR would be a
-// behaviour change wearing a migration's clothes.
+// PR 2.1 asserted here that no route imported the database at all, because
+// that PR was schema only. PR 2.2 is the release that makes a route a writer,
+// so the check is replaced rather than deleted — the successor is the rule
+// that actually matters once writes exist.
+//
+// On Vercel a function may freeze the moment its response is returned, so a
+// bare `void promise` is not "fire and forget", it is "fire and possibly
+// nothing at all". Any database write on a request path therefore has to be
+// handed to `after()`, or the row is written only when the platform happens to
+// keep the instance warm — which is the worst kind of bug, because it works
+// perfectly in every test and loses a random fraction of production.
 
-console.log("\nThis PR changes no behaviour:");
+console.log("\nDatabase writes on a request path go through after():");
 {
   const routes = ["app/api/scan/route.ts", "app/api/lead/route.ts", "app/api/auth/login/route.ts"];
-  const importsDb = routes.filter((r) =>
-    /from "@\/lib\/db/.test(readFileSync(join(root, r), "utf8")),
-  );
-  check(
-    `no API route imports the database yet (${importsDb.join(", ") || "none do"})`,
-    importsDb.length === 0,
-  );
+  for (const route of routes) {
+    const src = readFileSync(join(root, route), "utf8");
+    if (!/from "@\/lib\/db/.test(src)) {
+      check(`${route} does not touch the database`, true);
+      continue;
+    }
+    check(`${route} imports after() from next/server`, /\bafter\b[^;]*from "next\/server"/.test(src));
+    check(`${route} does not call recordScan outside after()`, !/void\s+recordScan\s*\(/.test(src));
+    // `after(` must appear before the call, on the same expression. Flattening
+    // whitespace lets the two sit on different lines, which they always do.
+    const flat = src.replace(/\s+/g, " ");
+    check(
+      `${route} calls recordScan inside an after() callback`,
+      /after\(\s*\(\)\s*=>[^;]{0,400}recordScan\(/.test(flat),
+    );
+  }
 }
 
 // ── 9. Empty-string environment variables ───────────────────────────────

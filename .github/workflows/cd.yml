@@ -24,9 +24,11 @@
 # Neon issues two connection strings and both are needed. DATABASE_URL is the
 # pooled one used at runtime; DATABASE_URL_UNPOOLED is the direct one that
 # migrations use, because the pooler does not carry DDL or advisory locks
-# reliably. Migrations run as their own CD step before the frontend deploys —
+# reliably. Migrations run as their own CD job before the frontend deploys —
 # a build that ships code expecting a column the database does not have yet is
-# an outage, so the order matters.
+# an outage, so the order matters. That job is triggered by changes under
+# migrations/ as well as by a frontend deploy, because a migration-only change
+# would otherwise sail through CD without being applied.
 #
 # Alerting (docs/ALERTING.md) has three senders and therefore needs the same
 # pair in three places: Vercel (web-tier failures), Railway (backend failures)
@@ -65,6 +67,7 @@ jobs:
     outputs:
       backend: ${{ steps.targets.outputs.backend }}
       frontend: ${{ steps.targets.outputs.frontend }}
+      migrations: ${{ steps.targets.outputs.migrations }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -77,6 +80,7 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "backend=true" >> "$GITHUB_OUTPUT"
             echo "frontend=true" >> "$GITHUB_OUTPUT"
+            echo "migrations=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -86,6 +90,7 @@ jobs:
 
           backend=false
           frontend=false
+          migrations=false
 
           # CD workflow or sync script changes → redeploy both + refresh env secrets
           if echo "$files" | grep -qE '^\.github/workflows/cd\.yml$|^scripts/sync-(railway|vercel)-env\.sh$'; then
@@ -101,9 +106,25 @@ jobs:
             frontend=true
           fi
 
+          # The migration runner and the SQL it applies. Neither of these paths
+          # is a frontend path, which is how PR #128 — a fix to the migration
+          # runner itself — produced a green CD run that deployed nothing and
+          # migrated nothing. The pipeline reported success for doing no work.
+          if echo "$files" | grep -qE '^migrations/|^scripts/migrate\.ts$'; then
+            migrations=true
+          fi
+
+          # A frontend deploy always migrates first: shipping code that expects
+          # a column the database does not have is the outage this ordering
+          # exists to prevent.
+          if [ "$frontend" = "true" ]; then
+            migrations=true
+          fi
+
           echo "backend=$backend" >> "$GITHUB_OUTPUT"
           echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
-          echo "Deploy backend=$backend frontend=$frontend"
+          echo "migrations=$migrations" >> "$GITHUB_OUTPUT"
+          echo "Deploy backend=$backend frontend=$frontend migrations=$migrations"
 
   deploy-backend:
     name: Railway
@@ -140,9 +161,52 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: bash ../scripts/sync-railway-env.sh --deploy
 
+  # Migrations are their own job, not a step inside the Vercel deploy.
+  #
+  # As a step they only ran when a frontend path changed, so a pull request
+  # that touched nothing but `migrations/` or the migration runner passed CD
+  # green without applying anything — which is exactly what happened to #128.
+  # As a job they run whenever the database changed, and the frontend deploy
+  # waits for them.
+  migrate:
+    name: Migrate
+    needs: changes
+    if: needs.changes.outputs.migrations == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Apply database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+        run: |
+          # `-z` on the concatenation, because GitHub sets an env var to the
+          # empty string when the secret behind it does not exist — so testing
+          # either one alone says "set" for a variable holding nothing.
+          if [ -z "${DATABASE_URL_UNPOOLED}${DATABASE_URL}" ]; then
+            echo "::warning::No database connection string in this environment — skipping migrations. Set DATABASE_URL and DATABASE_URL_UNPOOLED as secrets in the GitHub 'prod' environment."
+            exit 0
+          fi
+          npm ci
+          npm run migrate
+
   deploy-frontend:
     name: Vercel
-    needs: changes
+    # Migrations run before the deploy, never after. Code that expects a column
+    # the database does not have yet is an outage; a database that has a column
+    # the code does not use yet is nothing at all. `needs` is what enforces the
+    # order — and it also means a failed migration stops the deploy.
+    needs: [changes, migrate]
     if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -178,21 +242,6 @@ jobs:
             exit 1
           fi
           bash scripts/sync-vercel-env.sh
-
-      # Migrations run before the deploy, never after. Code that expects a
-      # column the database does not have yet is an outage; a database that has
-      # a column the code does not use yet is nothing at all.
-      - name: Apply database migrations
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
-        run: |
-          if [ -z "${DATABASE_URL_UNPOOLED}${DATABASE_URL}" ]; then
-            echo "::warning::No database connection string in this environment — skipping migrations. Set DATABASE_URL and DATABASE_URL_UNPOOLED as secrets in the GitHub 'prod' environment."
-            exit 0
-          fi
-          npm ci
-          npm run migrate
 
       - name: Deploy frontend to Vercel
         env:

@@ -6,6 +6,72 @@ Newest first.
 
 ---
 
+## 2026-08-17 — Phase 2, PR 2.2 (the first writer, and the CD job that was never running)
+
+**Code:** new `lib/db/scans.ts`, `scripts/verify-persistence.ts`; changed
+`app/api/scan/route.ts`, `lib/content.ts`, `scripts/verify-claims.ts`,
+`scripts/verify-schema.ts`, `.github/workflows/cd.yml`, `tsconfig.verify.json`,
+`package.json`.
+
+**Every scan is now recorded.** `recordScan()` writes the target, host, grade,
+score, findings blob, measured cost and duration to the `scan` table created in
+PR 2.1. Free or paid, anonymous or not — that is what lets the Phase 5 peer
+cohort accrue while Phases 3–4 are still being built. Nothing reads these rows
+yet.
+
+**Recording is best effort and cannot break a scan.** The customer's result is
+the product; the row is our bookkeeping. Failures are swallowed — but counted
+and logged with a running total, the same discipline as `postAlert`, because
+swallowed-and-uncounted is how a writer dies unnoticed and the cohort turns out
+to be empty six weeks later.
+
+**Both background writes moved into `after()`.** `createLead` was being called
+as `void createLead(...)`, which on Vercel is not "fire and forget" but "fire
+and possibly nothing" — the function can freeze the instant the response is
+returned. `verify:schema` now asserts the rule for every route that imports the
+database, replacing PR 2.1's "no route touches the database yet" check rather
+than deleting it.
+
+**The trust copy was made true again, in the same release that made it false.**
+It previously said we store nothing from a scan. It now distinguishes the two
+halves, because only one of them changed: submitted files and logs are still
+never written down; the *result* is kept for six months. That figure is not
+restated by hand — `verify:claims` reads the `interval '6 months'` default from
+`migrations/0001_init.sql` and fails the build if the promise and the
+enforcement ever disagree.
+
+**CD was reporting success for doing no work.** The migration was a *step*
+inside the Vercel job, gated on frontend paths. `scripts/migrate.ts` and
+`migrations/` are not frontend paths — so PR #128, a fix to the migration
+runner itself, produced a green CD run in which both deploy jobs were skipped
+and `0001_init` was never applied. Migrations are now their own `migrate` job,
+triggered by changes under `migrations/` as well as by any frontend deploy,
+with `deploy-frontend` depending on it so the ordering still holds and a failed
+migration still stops the deploy.
+
+This is the fourth time today a check has passed while the work behind it did
+not happen — the same shape as `railway up --detach`, the pip-audit caps, and
+the cost harness measuring empty scans. The pattern is verifying the wrapper
+rather than the work.
+
+**Tests:** 49 new checks in `verify:persistence`, driving the real
+`@neondatabase/serverless` driver with `fetch` stubbed rather than a fake of
+it, so the SQL under test is the SQL that would be sent. They cover: silent
+no-op when unconfigured (no request, no log, not counted as a failure); every
+value bound as a parameter rather than interpolated, asserted both ways, since
+the target URL is attacker-chosen by definition; host lowercased so
+`Example.COM` and `example.com` are one site in a cohort query; cost bound in
+micros; no email address in the findings blob; and — for an unreachable
+database, an HTTP 500, and an insert returning no row — no throw, a counted
+failure, a log carrying the running count, and never the connection string,
+which holds the password.
+
+**Verified:** typecheck clean, build succeeds, `verify:scanner` passes with 326
+checks (was 277).
+
+**GHL:** No change. **Infrastructure:** No DNS record touched, no environment
+variable set. CD workflow structure changed as described.
+
 ## 2026-08-17 — Phase 1, PR 1.4 (nothing on the site claims a feature we do not have)
 
 **Code:** `lib/content.ts`, `components/LeadCapture.tsx`,

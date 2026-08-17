@@ -15,13 +15,17 @@ export const HERO = {
 };
 
 export const TRUST = {
-  headline: "We can't lose data we never keep.",
-  // Interim wording. "Nothing is persisted" is true of scan *content* today —
-  // there is no database yet — but the email you enter is sent to our CRM, and
-  // that was not stated. Phase 2 introduces storage with a stated retention
-  // period, and this copy is rewritten again there against what is actually
-  // stored. Until then it describes only what we can stand behind.
-  body: "Files and logs you submit are encrypted in transit, analyzed in memory, then discarded the moment the scan ends — we don't store them, and nothing trains a model. The email address you give us is kept so we can send your report and occasional security updates; you can unsubscribe any time.",
+  headline: "We keep the result, not your code.",
+  // Rewritten in PR 2.2, the release that made it untrue as written. The old
+  // wording said we store nothing from a scan; from this release `recordScan`
+  // writes the target, grade and findings to Postgres so a history and a peer
+  // cohort can accrue. The retention figure here is not decorative — it is the
+  // `scan.expires_at` default in migrations/0001_init.sql, and
+  // scripts/verify-claims.ts fails the build if the two ever disagree.
+  //
+  // What is still true, and is the part that matters to a customer: the files
+  // and logs themselves are never written down.
+  body: "Files and logs you submit are encrypted in transit, analyzed in memory, then discarded the moment the scan ends — we never store them, and nothing trains a model. We do keep the result of a scan — the address you gave us, the grade, and what we found — for six months, so you can see whether things improved. The email address you give us is kept so we can send your report and occasional security updates; you can unsubscribe any time.",
 };
 
 export const SCAN_SECTION = {

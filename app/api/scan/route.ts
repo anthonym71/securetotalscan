@@ -5,6 +5,7 @@ import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { assertSameOrigin } from "@/lib/security/origin";
 import { anyUnavailable, limiterUnavailable } from "@/lib/security/limits";
 import { customerRef, postAlert } from "@/lib/alerting";
+import { recordScan } from "@/lib/db/scans";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -110,15 +111,28 @@ export async function POST(req: NextRequest) {
   try {
     const report = await scan(target.toString());
 
-    // Lead capture is best effort: never fail or delay the scan because the
-    // CRM is slow or unconfigured.
-    void createLead({
-      email,
-      url: target.toString(),
-      grade: report.grade,
-      score: report.score,
-      tags: ["capture-free-scan"],
-    }).catch(() => undefined);
+    // Lead capture and scan recording are both best effort: neither may fail
+    // or delay the scan because the CRM or the database is slow, and both are
+    // normal no-ops when unconfigured.
+    //
+    // Both run inside `after()`. On Vercel an un-awaited promise may never run
+    // at all — the function can freeze the instant the response is returned —
+    // so `void promise` is not "fire and forget", it is "fire and possibly
+    // nothing". They run concurrently because neither depends on the other.
+    after(() =>
+      Promise.all([
+        createLead({
+          email,
+          url: target.toString(),
+          grade: report.grade,
+          score: report.score,
+          tags: ["capture-free-scan"],
+        }).catch(() => undefined),
+        // The free scan is a surface scan and makes no LLM calls, so its
+        // measured cost is zero rather than unknown.
+        recordScan({ report, kind: "surface", costUsdMicros: 0 }),
+      ]),
+    );
 
     return NextResponse.json(report, {
       status: 200,
