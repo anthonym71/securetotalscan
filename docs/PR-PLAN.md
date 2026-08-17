@@ -145,7 +145,7 @@ Two smaller notes:
 
 ## 4. The PR plan
 
-32 PRs across 8 phases. Each phase ends with a stop for approval.
+33 PRs across 8 phases. Each phase ends with a stop for approval.
 
 ### Phase 0 — Restore and verify infrastructure
 
@@ -155,6 +155,7 @@ Two smaller notes:
 | **0.2** | `phase0/dependabot-triage` | Triage the 19 open Dependabot PRs: merge safe patches, group the rest, **defer breaking majors** (Tailwind 4, TS 7, ESLint 10) to a post-launch window. **Freeze `openai` (#105) and `langgraph` (#104)** until PR 0.6 has measured; **delete `langchain` (#103) and `langchain-openai` (#101) from `requirements.txt`** — imported nowhere. See the note below the table. Tighten `.github/dependabot.yml` grouping. | Low; unblocks everything after it |
 | **0.3** | `phase0/ratelimit-fail-closed` | Finish PR #97: rebase onto current `master`, **remove the committed conflict markers in `docs/ACCESS_CONTROL.md`**, wire `verify:ratelimit` into CI. Merge **only after** Upstash is live in Vercel production — merging first makes every rate-limited route return 503. | Medium — ordering matters |
 | **0.4** | `phase0/cd-deploy-verification` | **New, from what item 3 uncovered on 2026-08-17.** `scripts/sync-railway-env.sh` deploys with `railway up --detach`, so the CD job reports success the instant the upload completes and never learns whether Railway built, deployed or healthchecked. Production was dead for two months behind a green pipeline. Make the deploy step wait for the outcome and fail the job when Railway fails. Also fix the misleading comment at the top of `backend/railway.toml` (it offers Root Directory **or** a full config path; setting both is what broke the build). | **High value** — this defect hid every other one |
+| **0.7** | `phase0/operational-alerting` | **New, requested by Anthony 2026-08-17; spec supplied by Viktor.** Alerting was absent from the plan and must exist **before Phase 2 puts real money through the system**. A `post_alert(severity, kind, site, customer, detail, dedupe_key)` helper posting an HMAC-signed JSON payload to Viktor's webhook. Fire-and-forget, 2s timeout, exceptions swallowed, env-guarded so local and CI runs stay silent. No secrets, tokens or request bodies in `detail`. Call sites: `/api/scan` 5xx and unhandled exceptions, deep-scan agent timeout/error, and the external health check. See the design notes below. | **High value** — today's outage was invisible for two months |
 | **0.5** | `phase0/baseline-evidence` | `docs/BASELINE-2026-08.md`: recorded self-scan grade, `/health/trivy` result, authenticated agent-proxy round trip, Railway deploy confirmation. Evidence, not claims. | None |
 
 **Note on the LLM dependencies (PR 0.2) — resolved 2026-08-17, freeze two,
@@ -340,6 +341,73 @@ are approved.
 
 | 8 | **LLM dependencies: freeze `openai` and `langgraph`, delete `langchain` and `langchain-openai`** | PR 0.2 scope settled; closes #101 and #103 rather than deferring them |
 | 9 | **Cost-measurement fixtures: 28 targets, chosen by Claude, plus Anthony's own repo and sites** | PR 0.6 scope settled — see below |
+
+### Operational alerting (PR 0.7) — design notes
+
+Routing decided by Anthony 2026-08-17: alerts go to **Viktor**, who investigates
+and reports; Anthony is alerted by Viktor and by a parallel email path so GHL
+workflows can trigger off it. Viktor supplied the transport spec. Adopted, with
+five corrections and one confirmation still outstanding.
+
+**Transport.** HMAC-signed POST of a JSON payload
+(`severity`, `kind`, `site`, `customer`, `detail`, `occurred_at`, `dedupe_key`).
+`dedupe_key` must be stable for a condition — `"stripe-checkout-500"`, never
+one containing a timestamp — because Viktor suppresses repeats within 6 hours
+and a flapping check would otherwise wake him continuously. Only
+`severity: "critical"` wakes him (5-minute cooldown, 20/day cap); everything
+else is logged. Agent runs cost money, so `critical` is reserved for payments
+broken, scanner down, or deep-scan agents erroring.
+
+**1. The webhook URL belongs in an env var, not in the source.** Viktor
+proposed storing only the signing secret. The URL embeds a token
+(`wh_…`) and is a semi-secret in its own right; hardcoding it means a repo
+leak exposes the endpoint and rotating it needs a code change. Use
+`ALERT_WEBHOOK_URL` **and** `ALERT_WEBHOOK_SECRET`.
+
+**2. Three senders, so the secret goes in three places.** Web-tier failures
+send from Next.js (Vercel), backend failures from FastAPI (Railway), and the
+health check from GitHub Actions. Per the §1 environment-variable trap, each
+must be added to the relevant sync script **and** the `cd.yml` comment block in
+the same PR, or it silently never arrives.
+
+**3. The health check cannot run inside the app.** Viktor lists "backend health
+check failing" as a call site without saying where it runs. If the alert
+depends on the application being alive, a total outage produces no alert —
+exactly the case that hid the two-month Railway failure. It runs on a GitHub
+Actions schedule, independent of both Vercel and Railway.
+
+**4. Backend-down is `critical`, not `warning`.** Viktor's spec says health
+checks are "warning or info" but also reserves `critical` for "scanner down" —
+those conflict, because a failing health check *is* the scanner being down.
+Resolution: **N consecutive failures → `critical`; a single blip → `warning`.**
+This is the exact condition that went unnoticed for two months and it must wake
+someone.
+
+**5. The alert path must not swallow its own failures silently.** Fire-and-forget
+with swallowed exceptions is right for customer-facing paths — an alert must
+never break a scan. But swallowing without counting reproduces
+`createLead`'s pathology one level up: if alerting breaks, nothing reports that
+alerting broke. Count and log send failures locally so the blind spot is
+detectable.
+
+**Sequencing note.** Viktor lists "payment/checkout failure" among the minimum
+call sites. Payments do not exist until Phase 2, so that call site is a **hook
+added in PR 2.6**, not Phase 0 work.
+
+**Email path.** Viktor's fallback address is Viktor's own and is
+unauthenticated — it must never appear on a public page or in customer-facing
+output. Anthony additionally wants alerts emailed so **GHL** can trigger
+workflows; that is a **different destination** and needs its own address.
+Neither is buildable in Phase 0 as things stand: `RESEND_API_KEY` is unset (the
+sync log shows it skipped), so there is no mailer until PR 2.5. Either pull
+Resend forward or accept webhook-only alerting until Phase 2.
+
+**Outstanding confirmation.** The webhook is `api.viktor.com`; the email
+fallback is `in.getviktor.com`. Two different domains for one service. Since
+the payload carries **customer email addresses**, this needs one explicit
+confirmation from Anthony that both endpoints are Viktor's before any alert is
+sent — a mistyped or substituted host would quietly exfiltrate customer data to
+a third party.
 
 ### Cost-measurement fixtures (PR 0.6), approved 2026-08-17
 
