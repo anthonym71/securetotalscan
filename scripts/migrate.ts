@@ -36,6 +36,90 @@ interface Migration {
   checksum: string;
 }
 
+/**
+ * Split a migration file into individual SQL statements.
+ *
+ * Neon's HTTP driver sends each query as a **prepared statement**, and
+ * Postgres refuses more than one command in one — `cannot insert multiple
+ * commands into a prepared statement`. So a file has to arrive as a list, not
+ * a blob.
+ *
+ * Splitting SQL on `;` is a classic way to corrupt a migration, so this
+ * respects the three places a semicolon is not a terminator:
+ *
+ *   * inside a single-quoted literal (`'6 months'`), including the doubled-quote
+ *     escape (`'it''s'`),
+ *   * inside a `--` line comment,
+ *   * inside a dollar-quoted block (`$$ … $$` or `$tag$ … $tag$`), which is how
+ *     functions and DO blocks are written.
+ *
+ * Block comments are left alone: they cannot contain a statement terminator
+ * that matters, and stripping them would change the checksummed text.
+ */
+export function splitStatements(sql: string): string[] {
+  const statements: string[] = [];
+  let current = "";
+  let i = 0;
+
+  while (i < sql.length) {
+    const char = sql[i]!;
+    const rest = sql.slice(i);
+
+    // Line comment — copy to end of line.
+    if (rest.startsWith("--")) {
+      const end = sql.indexOf("\n", i);
+      const stop = end === -1 ? sql.length : end + 1;
+      current += sql.slice(i, stop);
+      i = stop;
+      continue;
+    }
+
+    // Single-quoted literal, honouring '' as an escaped quote.
+    if (char === "'") {
+      let j = i + 1;
+      while (j < sql.length) {
+        if (sql[j] === "'" && sql[j + 1] === "'") {
+          j += 2;
+          continue;
+        }
+        if (sql[j] === "'") break;
+        j += 1;
+      }
+      current += sql.slice(i, j + 1);
+      i = j + 1;
+      continue;
+    }
+
+    // Dollar-quoted block: $$ … $$ or $tag$ … $tag$.
+    const dollar = /^\$([A-Za-z_][A-Za-z0-9_]*)?\$/.exec(rest);
+    if (dollar) {
+      const tag = dollar[0];
+      const end = sql.indexOf(tag, i + tag.length);
+      const stop = end === -1 ? sql.length : end + tag.length;
+      current += sql.slice(i, stop);
+      i = stop;
+      continue;
+    }
+
+    if (char === ";") {
+      const trimmed = current.trim();
+      if (trimmed) statements.push(trimmed);
+      current = "";
+      i += 1;
+      continue;
+    }
+
+    current += char;
+    i += 1;
+  }
+
+  const tail = current.trim();
+  // A trailing statement with no semicolon is still a statement — but a tail
+  // of nothing but comments is not.
+  if (tail && !/^(?:--[^\n]*\n?|\s)*$/.test(tail)) statements.push(tail);
+  return statements;
+}
+
 export function checksum(sql: string): string {
   // Line endings are normalised so a file that round-trips through a Windows
   // editor does not read as edited.
@@ -134,10 +218,13 @@ async function main() {
   await sql`SELECT pg_advisory_lock(${LOCK_ID})`;
   try {
     for (const migration of pending) {
-      console.log(`Applying ${migration.name}…`);
-      // `transaction` is Neon's batch API; every statement in the file
-      // succeeds or none of them do.
-      await sql.transaction([sql.query(migration.sql)]);
+      const statements = splitStatements(migration.sql);
+      console.log(`Applying ${migration.name} (${statements.length} statement(s))…`);
+      // `transaction` is Neon's batch API; every statement succeeds or none of
+      // them do. Each has to be its own query — Neon sends them as prepared
+      // statements, and Postgres allows only one command per prepared
+      // statement.
+      await sql.transaction(statements.map((statement) => sql.query(statement)));
       await sql`
         INSERT INTO _migration (name, checksum)
         VALUES (${migration.name}, ${migration.checksum})

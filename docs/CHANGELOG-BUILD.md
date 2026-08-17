@@ -381,6 +381,50 @@ environment secrets, no code changes:
 
 ---
 
+## 2026-08-17 — CD hotfix 3 (a migration file is a list of statements, not one)
+
+**Code:** `scripts/migrate.ts`, `scripts/verify-schema.ts`.
+
+The `||` fix got the migration connecting. It then failed on:
+
+```
+##[warning]DATABASE_URL_UNPOOLED is not set — migrating over the pooled connection…
+Found 1 migration(s) on disk.
+Pending: 0001_init.sql
+Applying 0001_init.sql…
+##[error]Migration failed: cannot insert multiple commands into a prepared statement
+```
+
+**Cause.** `sql.transaction([sql.query(migration.sql)])` sent the whole file as
+one query. Neon's HTTP driver sends each query as a **prepared statement**, and
+Postgres allows exactly one command per prepared statement. `0001_init.sql` has
+24.
+
+**Fix.** `splitStatements()` splits a file into individual statements, and the
+transaction now carries one query per statement — so the all-or-nothing
+guarantee is unchanged.
+
+**Splitting SQL on `;` is a classic way to corrupt a migration**, so the
+splitter respects the three places a semicolon is not a terminator: inside a
+single-quoted literal (including the doubled-quote escape `'it''s'`), inside a
+`--` line comment, and inside a dollar-quoted block (`$$ … $$`, `$tag$ … $tag$`)
+— which is how functions and `DO` blocks are written. Block comments are left
+intact, since stripping them would change the checksummed text.
+
+Twelve checks cover it, including four run against the real `0001_init.sql`
+rather than only synthetic input: 24 statements, none still containing a bare
+semicolon, none comment-only, every one beginning with a DDL keyword.
+
+**Correction to the standing blocker list.** `DATABASE_URL_UNPOOLED` was
+described as "unblocks CD entirely". It does not, and the run above is the
+evidence: with `||` in place, CD connects using `DATABASE_URL` and gets all the
+way to applying the migration. The blocker was this code bug. Adding
+`DATABASE_URL_UNPOOLED` is still worth doing — the pooler does not hold
+advisory locks reliably, so concurrent deploys are not fully serialised — but
+it is a correctness improvement, not a release blocker.
+
+---
+
 ## 2026-08-17 — Phase 0, PR 0.2 (dependency triage)
 
 **Code:**
