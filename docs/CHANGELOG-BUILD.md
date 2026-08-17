@@ -1,6 +1,6 @@
 # Build changelog
 
-Required by PRD v1.0 §0.1.8. Every change gets an entry: date, phase, what
+Required by PRD v1.2 §0.1.8. Every change gets an entry: date, phase, what
 changed in code, what changed in GHL (object + ID), what was verified.
 Newest first.
 
@@ -32,11 +32,16 @@ environment variable set, no deployment triggered.
 **Verified:** PR #106 CI — six checks pass; `Review dependencies` fails because
 the repository Dependency Graph is not yet enabled.
 
-**Correction:** the PRD reference reverts from v1.2 to **v1.0**. Anthony
-supplied the source document twice, hours apart; the two uploads are
-byte-identical and both carry `v1.0` in their title line. The plan is therefore
-built against the current PRD, and no requirement has been missed. Reversible
-if a document actually numbered v1.2 is produced.
+**PRD version resolved:** **v1.2** is the source of record, supplied
+2026-08-17. Two earlier copies carried a stale `v1.0` title. Verified by diff:
+v1.2's body is identical to those copies apart from the §6 amendments block,
+which restates this plan's own §3 proposals. No requirement was planned against
+outdated text.
+
+**Approved (Anthony, 2026-08-17):** all four amendments listed in PRD v1.2 §6 —
+Phase 0.5 inserted, scan recording in PR 2.2, retention enforcement moved to
+Phase 4, and `pay.securetotalscan.com` moved to Phase 2. That section's "not yet
+confirmed by Anthony" caveat is spent and the phase order in this plan governs.
 
 ---
 

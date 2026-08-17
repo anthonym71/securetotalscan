@@ -1,10 +1,11 @@
 # Secure Total Scan — PR / phase delivery plan
 
-**Derived from:** PRD v1.0 (Viktor, 2026-08-17) — the version header of the
-source document Anthony supplied, re-confirmed 2026-08-17 against a second
-upload that was byte-identical. An earlier edit changed this to "v1.2"; no
-document carrying that version number has been produced. If one exists, this
-plan has not been checked against it.
+**Derived from:** PRD **v1.2** (Viktor, 2026-08-17) — supplied 2026-08-17 and
+verified as the source of record. Two earlier copies carried a stale `v1.0`
+title; both were byte-identical to each other, and v1.2's body is identical to
+theirs apart from the §6 amendments block, which restates this plan's own §3
+proposals. **The plan therefore lost nothing to the version confusion** — it
+was built against current content throughout.
 **Prepared by:** Claude Code — 2026-08-17
 **Status:** Plan only. No product code has been written. Nothing here is
 approved for implementation until Anthony signs off phase by phase.
@@ -96,11 +97,14 @@ Three access items gate the programme. None involve product code.
 
 ---
 
-## 3. Sequencing changes — all three approved (Anthony, 2026-08-17)
+## 3. Sequencing changes — approved (Anthony, 2026-08-17)
 
 The PRD's phase order had three ordering problems. All three changes below are
-**approved** and the PR table in §4 reflects them. The reasoning is retained so
-the decision is auditable later.
+**approved**, as is the fourth amendment (moving `pay.securetotalscan.com` to
+Phase 2, §4 PR 2.7). Together they are the four listed in PRD v1.2 §6, which
+Anthony confirmed on 2026-08-17; that section's "not yet confirmed" caveat is
+now spent. The PR table in §4 reflects all four. The reasoning is retained so
+the decisions stay auditable.
 
 **3.1 — Deep-scan cost must be measured before Phase 2, not in Phase 4.**
 PRD §4 sets a decision gate: if a deep scan costs more than $0.50, the $4.99
@@ -307,15 +311,22 @@ is delayed or complicated for outreach.
 | 4 | **Defer breaking majors post-launch; pin `openai` (#105) until after Phase 0.5** | PR 0.2 unblocked — see the extension flagged under Phase 0 |
 | 5 | **GitHub App `workflows` permission** | Unblocks PRs 0.3, 2.1, 2.5, 2.6, 3.1 — see §2.1 |
 | 6 | **`pay.securetotalscan.com` moves from Phase 6 to Phase 2** | New PR 2.7; Phase 6.1 becomes verification only |
+| 7 | **PRD v1.2 confirmed as the source of record** | Body verified identical to the earlier stale-titled copies; no requirement was planned against outdated text |
+
+All four amendments listed in PRD v1.2 §6 are covered by rows 1 and 6 above and
+are approved.
 
 ### Outstanding
 
 1. **Extend the LLM-path freeze** from `openai` alone to `langchain`,
    `langchain-openai` and `langgraph` (#101, #103, #104) for the duration of
    Phase 0.5. Reasoning under Phase 0 above. *(Blocks: PR 0.2 scope.)*
-2. From PRD §9, unchanged: confirm the $4.99 deep-scan inclusion once Phase 0.5
-   reports; confirm Organization is contact-sales only at launch; legal
-   sign-off on the Extended Archive terms before go-live.
+2. From PRD §9, and genuinely open rather than merely unanswered:
+   - **$4.99 deep-scan inclusion** — cannot be decided until Phase 0.5 reports.
+     Deciding it early would defeat the gate that made Phase 0.5 necessary.
+   - **Organization contact-sales only at launch** — answerable now.
+   - **Legal sign-off on the Extended Archive terms** — needs a lawyer, not an
+     approval here, and gates go-live rather than the build.
 
 ---
 
