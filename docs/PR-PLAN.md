@@ -145,7 +145,7 @@ Two smaller notes:
 
 ## 4. The PR plan
 
-31 PRs across 8 phases. Each phase ends with a stop for approval.
+32 PRs across 8 phases. Each phase ends with a stop for approval.
 
 ### Phase 0 — Restore and verify infrastructure
 
@@ -199,6 +199,7 @@ tier's scope can be decided rather than assumed.
 | **1.1** | `phase1/pricing-tiers` | Hero CTA scrolls to `#pricing`; `PLANS` rewritten to the five tiers of PRD §3 with exact inclusions/exclusions, no-rollover wording, `$49/month` (never `$49.99`); Organization → contact sales. `lib/content.ts`, `components/Sections.tsx` | Low |
 | **1.2** | `phase1/scan-input` | Protocol selector defaulting to HTTPS; accept bare domains (drop `type="url"`, mirror `normalizeTarget()` client-side while the server stays authoritative); carry the scan email into the report form, pre-filled and editable. | Low |
 | **1.3** | `phase1/http-posture` | New probe fetching the `http://` origin: does HTTP respond, does it redirect to HTTPS, is HSTS present (with `max-age`/`preload`), mixed-content risk. Scored findings. Includes the score re-baseline and updated `verify:scanner` expectations. | **Medium** — changes grades for every target, including our own |
+| **1.0** | `phase1/dashboard-finding-render` | **New, found 2026-08-17 during Phase 0 verification.** `FindingList` (`app/dashboard/page.tsx:467`) falls back to `JSON.stringify(item)` because it never checks `name` — so every vulnerability in a deep-analysis result renders as raw JSON, while anomalies and compliance gaps render fine. Data is correct; only display is wrong. Add `name` (and surface `recommendation`) to the label chain. **Do this before PR 1.4**, since the preview dashboard mirrors this component and would inherit the bug. | Low — one-line fix, customer-visible surface |
 | **1.4** | `phase1/truthful-claims` | `/preview` read-only mock dashboard replacing the broken CTA; remove "no limits"; reconcile GitHub-repo wording (the free scanner does not scan repos); remove "Your report is on its way" until delivery is real; interim honest persistence wording (full rewrite lands in Phase 2 with actual storage). | Low |
 
 **Exit:** nothing on the site promises a feature that does not exist.

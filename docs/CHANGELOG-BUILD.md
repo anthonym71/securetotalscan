@@ -6,6 +6,49 @@ Newest first.
 
 ---
 
+## 2026-08-17 — Phase 0 (service tokens, Upstash, dashboard access — end-to-end proven)
+
+**Infrastructure, all set by Anthony and verified through the pipeline:**
+
+- `STS_SERVICE_TOKEN` (Railway) and `AGENT_SERVICE_TOKEN` (Vercel, Production,
+  Sensitive). Note the two names are **not** interchangeable and neither side
+  has a fallback: `lib/security/serviceAuth.ts` reads only `AGENT_SERVICE_TOKEN`,
+  `backend/service_auth.py` reads only `STS_SERVICE_TOKEN`. An automatic
+  copy also created `STS_SERVICE_TOKEN` entries on Vercel; they are inert and
+  can be tidied up later.
+- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` added as **secrets in
+  the `prod` GitHub environment** and delivered by the pipeline. First attempt
+  created two *environments* named after the secrets instead; the deploy job
+  only reads `prod`, so nothing was delivered and the sync log showed three
+  variables instead of five. Corrected, strays deleted.
+- `STS_ACCESS_CODES` set on Vercel Production. Dashboard login works.
+
+**Verified end to end:** signed in at `/login`, ran a Synthetic-logs deep
+analysis, and it returned live results — anomalies, OWASP-mapped
+vulnerabilities, NIST/SOC 2 compliance gaps, RAG passages and an action plan.
+This exercises browser → Vercel → authenticated `/api/agent/*` proxy → Railway
+→ five agents → GPT-4o. **The service-token handshake can only be proven this
+way** (both values are masked on both platforms), so items "token set" and
+"token correct" were tracked separately until this run. PRD Phase 0 exit
+condition — deep-agent proxy reachable by an authenticated user — is met.
+
+**Defect found, dashboard display (not data):** `FindingList` in
+`app/dashboard/page.tsx:467` derives its label from `message`, `description`,
+`title` or `type` and otherwise falls back to `JSON.stringify(item)`. The
+backend's vulnerability objects carry `category`, `name`, `severity`,
+`recommendation`, `linked_anomaly` — so every vulnerability renders as raw JSON
+while anomalies and compliance gaps render correctly. `name` is present and
+simply not consulted. Roughly a one-line fix. It matters because this dashboard
+is what the $19 and $49 tiers sell, and because the Phase 1 preview will mirror
+it — fixing it first stops the bug being copied into the mock.
+
+**Note:** logging in writes a GHL contact tagged `capture-dashboard-login`, so
+the address typed at the login screen lands in the CRM. A mistyped address was
+entered during this test and should be removed. Incidentally confirms the GHL
+credentials synced in this session are working.
+
+---
+
 ## 2026-08-17 — Phase 0 (infrastructure: GitHub access, CI, Railway restored)
 
 **Code:** `docs/PR-PLAN.md` updated — new PR 0.4 (`phase0/cd-deploy-verification`),
