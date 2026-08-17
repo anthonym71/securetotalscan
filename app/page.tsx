@@ -2,6 +2,7 @@ import { Faq } from "@/components/Faq";
 import { IntroModal } from "@/components/IntroModal";
 import { ScanForm } from "@/components/ScanForm";
 import { DemoVideo } from "@/components/DemoVideo";
+import { SampleShowcase } from "@/components/SampleShowcase";
 import {
   Agents,
   Hero,
@@ -39,6 +40,7 @@ export default function Home() {
       <WhatWeScan />
       <Agents />
       <Stats />
+      <SampleShowcase />
       <Plans />
       <Faq />
 
