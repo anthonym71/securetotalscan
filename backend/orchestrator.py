@@ -3,6 +3,7 @@
 from langgraph.graph import END, StateGraph
 import time
 
+from alerting import post_alert
 from agents.docker_scanner import run_docker_scanner
 from agents.incident_response import run_incident_response
 from agents.log_monitor import run_log_monitor
@@ -46,9 +47,19 @@ def _wrap(agent_name: str, fn):
             record_agent_latency(session_id, agent_name, latency_ms)
             emit_sync(session_id, agent_name, "done")
             return result
-        except Exception:
+        except Exception as exc:
             record_agent_error(session_id, agent_name)
             emit_sync(session_id, agent_name, "error")
+            # Critical: a failing agent is a deep scan the customer paid for
+            # that will not complete. The dedupe key is agent + exception type
+            # and carries no session id, so a burst of identical failures pages
+            # once rather than continuously.
+            post_alert(
+                severity="critical",
+                kind="deep-scan-agent-error",
+                detail=f"Agent {agent_name} raised {type(exc).__name__}.",
+                dedupe_key=f"deep-scan-agent-error:{agent_name}:{type(exc).__name__}",
+            )
             raise
 
     return node
