@@ -6,12 +6,15 @@ export function LeadCapture({
   url,
   grade,
   score,
+  defaultEmail = "",
 }: {
   url: string;
   grade: string;
   score: number;
+  /** Address the scan was run with, so it does not have to be typed twice. */
+  defaultEmail?: string;
 }) {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(defaultEmail);
   const [state, setState] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [msg, setMsg] = useState("");
 

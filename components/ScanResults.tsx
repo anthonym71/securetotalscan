@@ -19,7 +19,14 @@ const SEV_STYLE: Record<Severity, string> = {
 
 const SEV_ORDER: Severity[] = ["critical", "high", "medium", "low", "info"];
 
-export function ScanResults({ report }: { report: ScanReport }) {
+export function ScanResults({
+  report,
+  email,
+}: {
+  report: ScanReport;
+  /** Address the scan was run with, pre-filled into the report form below. */
+  email?: string;
+}) {
   const allFindings = report.categories
     .flatMap((c) => c.findings)
     .sort((a, b) => SEV_ORDER.indexOf(a.severity) - SEV_ORDER.indexOf(b.severity));
@@ -46,8 +53,17 @@ export function ScanResults({ report }: { report: ScanReport }) {
         </div>
       </div>
 
-      {/* Lead capture: email the full report (feeds GoHighLevel CRM) */}
-      <LeadCapture url={report.url} grade={report.grade} score={report.score} />
+      {/* Lead capture: email the full report (feeds GoHighLevel CRM).
+          Pre-filled with the address the scan was run under — asking for the
+          same email twice on one page reads as a form that is not paying
+          attention. Still editable, because someone may want the report sent
+          somewhere else. */}
+      <LeadCapture
+        url={report.url}
+        grade={report.grade}
+        score={report.score}
+        defaultEmail={email}
+      />
 
       {/* Severity summary */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
