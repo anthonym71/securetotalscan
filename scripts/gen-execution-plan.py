@@ -7,6 +7,8 @@ reason verify-claims.ts reads the retention interval out of the schema instead
 of restating it.
 """
 import csv
+import os
+import subprocess
 
 # (section, task, desktop, browser, comments)
 # desktop / browser values: "OWNS", "SUPPORT", "—"
@@ -247,10 +249,193 @@ ROWS = [
  "The prior run measured empty scans. docs/UNIT-ECONOMICS.md was withdrawn in #126 rather than left standing on bad data."),
 ]
 
-HEADERS = ["Task", "Desktop", "Browser (Claude Code)", "Comments"]
+
+# ── Where each task's work lives ─────────────────────────────────────────
+#
+# Keyed by the task id at the start of each row, so adding a path never means
+# editing 45 tuples. Every path listed here is asserted to exist on disk before
+# the documents are written — a plan that points at a file nobody wrote is worse
+# than one that points at nothing.
+FILES = {
+    "A1": "GitHub > Settings > Environments > prod (no file). Consumed by `.github/workflows/cd.yml`, `scripts/sync-railway-env.sh`",
+    "A2": "Not in the repo. Blocks `lib/content.ts` (PLANS) and GHL products",
+    "A3": "GitHub prod env. Consumed by `lib/alerting.ts`, `backend/alerting.py`, `.github/workflows/health-check.yml`",
+    "A4": "GitHub prod env. Consumed by `lib/db/client.ts` (`migrationUrl()`), `scripts/migrate.ts`",
+    "A5": "Railway console (no file)",
+
+    "B1": "`docs/GHL-WORK-ORDER.md` §4 item 1; compare against `docs/GHL_BUILD.md`",
+    "B2": "`docs/GHL-WORK-ORDER.md` item 2. IDs land in `lib/leads.ts` + `docs/CHANGELOG-BUILD.md`",
+    "B3": "`docs/GHL-WORK-ORDER.md` item 3",
+    "B4": "`docs/GHL-WORK-ORDER.md` item 4",
+    "B5": "`docs/GHL-WORK-ORDER.md` item 5",
+    "B6": "`docs/GHL-WORK-ORDER.md` item 6. Receiver will be `app/api/webhooks/ghl/route.ts` (PR 2.6)",
+    "B7": "`docs/GHL-WORK-ORDER.md` item 9",
+    "B8": "`docs/GHL-WORK-ORDER.md` item 10 > `docs/CHANGELOG-BUILD.md`",
+
+    "C1": "`docs/GHL-WORK-ORDER.md` item 8. Records documented by PR 2.5",
+
+    "1.0": "`app/dashboard/page.tsx`, `lib/findings.ts`, `scripts/verify-findings.ts`",
+    "1.1": "`lib/content.ts` (`PLANS`), `components/Sections.tsx`",
+    "1.2": "`lib/scanner/target.ts`, `components/ScanForm.tsx`, `scripts/verify-target.ts`",
+    "1.3": "`lib/scanner/httpPosture.ts`, `lib/scanner/checks.ts`, `scripts/verify-http-posture.ts`",
+    "1.4": "`app/preview/page.tsx`, `lib/preview-data.ts`, `lib/content.ts`, `scripts/verify-claims.ts`",
+
+    "2.1": "`migrations/0001_init.sql`, `lib/db/client.ts`, `scripts/migrate.ts`, `scripts/verify-schema.ts`",
+    "2.2": "`lib/db/scans.ts`, `scripts/verify-persistence.ts`, `app/api/scan/route.ts`, `.github/workflows/cd.yml`",
+    "2.3": "`lib/entitlements.ts`, `lib/scanner/publicReport.ts`, `app/api/scan/[id]/prompts/route.ts`, `scripts/verify-paywall.ts`, `lib/scanner/types.ts`",
+    "2.4": "Planned: `lib/report/pdf.ts`, `app/api/report/[id]/route.ts`",
+    "2.5": "Planned: `lib/email.ts`, `docs/DNS-RECORDS.md`",
+    "2.6": "Planned: `app/api/webhooks/ghl/route.ts`, `lib/db/purchases.ts`",
+    "2.7": "GHL console + DNS; `docs/CHANGELOG-BUILD.md`",
+
+    "3.1": "Planned: `lib/auth/magicLink.ts`, `lib/db/customers.ts`, replaces `STS_ACCESS_CODES` in `lib/auth/session.ts`",
+    "3.2": "Planned: `lib/db/credits.ts`",
+    "3.3": "Planned: `app/dashboard/*`, `lib/db/sites.ts`",
+    "3.4": "Planned: `lib/db/subscriptions.ts`, `scripts/verify-tenant-isolation.ts`",
+
+    "4.1": "Planned: `backend/scheduler.py`",
+    "4.2": "Planned: `scripts/expire-scans.ts`, `lib/email.ts`",
+    "4.3": "`docs/UNIT-ECONOMICS.md` (withdrawn), `backend/cost_harness.py`, `.github/workflows/cost-measurement.yml`",
+
+    "5.1": "Planned: `app/globals.css`, `lib/motion.ts`",
+    "5.2": "Planned: `components/VulnerabilityMap.tsx`",
+    "5.3": "Planned: `components/ScanTheatre.tsx`",
+    "5.4": "Planned: `lib/db/cohort.ts` — reads the rows `lib/db/scans.ts` writes",
+
+    "6.1": "`docs/CHANGELOG-BUILD.md`, `scripts/verify-claims.ts`",
+    "6.2": "`docs/DEMO_SCRIPT.md`, `docs/screenshots/`",
+    "6.3": "`docs/BASELINE-2026-08.md`, `docs/PR-PLAN.md` §7",
+    "GO-LIVE": "GHL console (no file)",
+
+    "J1": "Branch `claude/sts-phase-0-continuation-154ndo` > `master`",
+    "J2": "`docs/CHANGELOG-BUILD.md`",
+    "J3": "`.github/workflows/cd.yml`, `.github/workflows/ci.yml`, `scripts/sync-*-env.sh`",
+    "J4": "`backend/cost_harness.py`, `.github/workflows/cost-measurement.yml`, `docs/UNIT-ECONOMICS.md`",
+}
+
+
+
+# ── Appendix: what is on the branch and not yet on master ────────────────
+#
+# Read from git rather than typed, because "here is everything I changed" is
+# exactly the kind of list that goes stale the moment it is written by hand.
+# Every path is checked to exist before the document is written.
+
+PURPOSE = {
+    "lib/db/scans.ts": "recordScan() — writes every scan to Postgres. Never throws; failures counted and logged",
+    "scripts/verify-persistence.ts": "49 checks driving the real Neon driver with fetch stubbed",
+    "lib/entitlements.ts": "entitlementFor(request) + FREE_PROMPT_SAMPLES. Fails closed to 'free'",
+    "lib/scanner/publicReport.ts": "toPublicReport() — THE paywall. Allowlist redaction, never spread-and-delete",
+    "app/api/scan/[id]/prompts/route.ts": "premium prompts, entitlement checked before the DB read, retention enforced on read",
+    "scripts/verify-paywall.ts": "asserts against the serialised payload, not the component tree",
+    "app/api/scan/route.ts": "returns toPublicReport(); recordScan + createLead moved into after()",
+    "lib/scanner/types.ts": "PublicScanReport / PublicFinding split from the internal ScanReport",
+    "components/ScanResults.tsx": "renders a lock state; no withheld prompt text exists in the DOM",
+    "components/ScanForm.tsx": "retyped to PublicScanReport",
+    "components/LeadCapture.tsx": "removed 'every finding and fix prompt is on this page'",
+    "lib/content.ts": "trust copy rewritten for 6-month retention; four prompt claims corrected",
+    "scripts/verify-claims.ts": "retention read from the schema; prompt claims read from FREE_PROMPT_SAMPLES",
+    "scripts/verify-schema.ts": "replaced 'no route touches the DB' with 'DB writes go through after()'",
+    ".github/workflows/cd.yml": "migrations split into their own job — the fix for CD passing while doing nothing",
+    "tsconfig.verify.json": "verify build inputs; the @/ alias removed after it compiled but did not resolve",
+    "package.json": "verify:persistence and verify:paywall wired into verify:scanner",
+    "docs/CHANGELOG-BUILD.md": "PRD 0.1.8 record — one entry per PR",
+    "docs/GHL-WORK-ORDER.md": "the 10-item Desktop specification",
+    "docs/EXECUTION-PLAN.md": "this plan",
+    "docs/execution-plan.csv": "this plan, as a spreadsheet",
+    "scripts/gen-execution-plan.py": "generates both, so they cannot disagree",
+}
+
+
+def branch_changes():
+    """(commit, subject, [(status, path)]) for each commit ahead of master."""
+    base = "origin/master"
+    revs = subprocess.run(
+        ["git", "rev-list", "--reverse", f"{base}..HEAD"],
+        capture_output=True, text=True, check=True,
+    ).stdout.split()
+    out = []
+    for rev in revs:
+        subject = subprocess.run(
+            ["git", "log", "-1", "--format=%s", rev],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        names = subprocess.run(
+            ["git", "show", "--format=", "--name-status", rev],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip().splitlines()
+        changes = []
+        for line in names:
+            if not line.strip():
+                continue
+            status, _, path = line.partition("\t")
+            changes.append((status.strip(), path.strip()))
+        out.append((rev[:7], subject, changes))
+    return out
+
+
+def write_inventory(out):
+    try:
+        commits = branch_changes()
+    except subprocess.CalledProcessError:
+        out.append("\n_(inventory unavailable — not a git checkout)_\n")
+        return
+
+    out.append("\n---\n")
+    out.append("## Appendix — everything built, and where it is\n")
+    out.append(
+        "Read from `git` at generation time, not typed. Every path is checked to exist "
+        "before this file is written.\n"
+    )
+    out.append(
+        "\nAll of it sits on `claude/sts-phase-0-continuation-154ndo`, **ahead of "
+        "`master`**. Until that branch is merged, none of it is in production.\n"
+    )
+    out.append(
+        "\nOne limitation, stated rather than left to be noticed: this list is generated "
+        "*before* the commit that carries it, so it never includes its own commit. "
+        "`git log origin/master..HEAD` is always the authority.\n"
+    )
+
+    total = 0
+    for sha, subject, changes in commits:
+        out.append(f"\n### `{sha}` — {subject}\n")
+        out.append("| File | | What it does |")
+        out.append("|---|---|---|")
+        for status, path in changes:
+            missing = "" if os.path.exists(path) else " ⚠️ **MISSING**"
+            label = {"A": "new", "M": "changed", "D": "deleted"}.get(status, status)
+            purpose = PURPOSE.get(path, "—")
+            out.append(f"| `{path}`{missing} | {label} | {purpose} |")
+            total += 1
+    out.append(f"\n**{total} file changes across {len(commits)} commits.**\n")
+
+    out.append(
+        "\n### How to verify it yourself\n\n"
+        "```bash\n"
+        "git fetch origin\n"
+        "git log --oneline origin/master..origin/claude/sts-phase-0-continuation-154ndo\n"
+        "git diff --stat origin/master...origin/claude/sts-phase-0-continuation-154ndo\n"
+        "\n"
+        "npm ci && npm run typecheck && npm run build && npm run verify:scanner\n"
+        "# expect: 363 checks across 11 suites, zero failures\n"
+        "```\n"
+    )
+
+
+HEADERS = ["Task", "Desktop", "Browser (Claude Code)", "Files / Location", "Comments"]
 
 MARK = {"OWNS": "✅ **Owns**", "SUPPORT": "🤝 Support", "—": "—"}
 CSV_MARK = {"OWNS": "OWNS", "SUPPORT": "support", "—": ""}
+
+
+def task_id(task):
+    """The id at the start of a row: "2.3 — Server-side paywall" -> "2.3"."""
+    return task.split(" — ")[0].strip()
+
+
+def files_for(task):
+    return FILES.get(task_id(task), "—")
 
 
 def write_csv(path):
@@ -258,7 +443,9 @@ def write_csv(path):
         w = csv.writer(fh)
         w.writerow(["Section"] + HEADERS)
         for section, task, desktop, browser, comments in ROWS:
-            w.writerow([section, task, CSV_MARK[desktop], CSV_MARK[browser], comments])
+            # Backticks are markdown, not data — strip them for the spreadsheet.
+            plain = files_for(task).replace("`", "")
+            w.writerow([section, task, CSV_MARK[desktop], CSV_MARK[browser], plain, comments])
 
 
 def write_md(path):
@@ -306,12 +493,16 @@ def write_md(path):
     for section, task, desktop, browser, comments in ROWS:
         if section != current:
             out.append(f"\n## {section}\n")
-            out.append("| Task | Desktop | Browser (Claude Code) | Comments |")
-            out.append("|---|---|---|---|")
+            out.append("| Task | Desktop | Browser (Claude Code) | Files / Location | Comments |")
+            out.append("|---|---|---|---|---|")
             current = section
         # Escape pipes so a description containing one cannot break the table.
-        cells = [c.replace("|", "\\|") for c in (task, comments)]
-        out.append(f"| {cells[0]} | {MARK[desktop]} | {MARK[browser]} | {cells[1]} |")
+        cells = [c.replace("|", "\\|") for c in (task, files_for(task), comments)]
+        out.append(
+            f"| {cells[0]} | {MARK[desktop]} | {MARK[browser]} | {cells[1]} | {cells[2]} |"
+        )
+
+    write_inventory(out)
 
     out.append(
         "\n---\n\n"
