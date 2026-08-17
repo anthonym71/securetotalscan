@@ -1,7 +1,16 @@
 # Unit economics — deep scan
 
-**Status: measured. The $0.50 gate passes with two orders of magnitude to
-spare — a deep scan costs well under one cent.**
+**Status: WITHDRAWN. The 2026-08-17 run measured scans that read nothing.**
+
+`GIT_TOKEN` on the Railway backend was returning **HTTP 401**, so every one of
+the 26 repository fixtures scanned zero files. `scan_github_repo_safe()`
+catches the failure and returns `{"error": …}`; `run_vuln_scanner()` turns that
+into `code_findings: []` with a `scan_error` string and returns normally — so
+no agent errored, the pipeline completed, `/evals` recorded a run, and the
+harness marked all 26 successful.
+
+**The numbers in §5 are the cost of a deep scan that found nothing.** They are
+a floor, not a price. Re-run once `GIT_TOKEN` is replaced.
 
 This document has one job before Phase 2: turn "what does a deep scan cost?"
 into a number, so the $4.99 tier's scope can be **decided** rather than
@@ -162,7 +171,35 @@ and the p95 is unchanged. The harness now classifies cache hits from the
 `/evals` counters rather than the fixture's label, so a later run reports this
 correctly without anyone having to notice it.
 
-### What the numbers establish
+### ⚠️ Why these numbers are withdrawn
+
+**The tell was in the data and I read it the wrong way round.**
+
+`large` (Linux kernel, Kubernetes, TensorFlow) has the *identical* median and
+maximum as `deliberately-vulnerable` (juice-shop, DVWA, NodeGoat): $0.0040 and
+$0.0042. I took that as confirmation that `build_prompt()`'s caps bind and
+repository size does not move cost.
+
+But juice-shop is constructed to fill all ten code-finding prompt slots, and
+`jonschlinkert/is-number` is five lines. **Those two cannot legitimately cost
+the same.** The real explanation is that both scanned nothing, so both produced
+an empty prompt.
+
+Everything else fits: 434–516 tokens is far too few for a prompt carrying ten
+findings, and `docker-image` — the one group that does not touch the GitHub
+API — is the only one that stands apart at $0.0068 and 15.5s, because Trivy was
+doing real work.
+
+**What survives:** the Docker figures, the log figures, and the cache-hit
+result. What does not: every repository number, and the conclusion drawn from
+them.
+
+**Harness fix:** a run whose report carries a `scan_error`, or which scanned
+zero files on a `github`/`docker` fixture, is now recorded as a **failure**.
+Previously only an agent *exception* counted, and this failure mode never
+raised one.
+
+### What the numbers appeared to establish
 
 **The prompt really is bounded by construction.** `large` — seven repositories
 including the Linux kernel, Kubernetes and TensorFlow — has the *same* median
@@ -206,8 +243,14 @@ gate that made this phase necessary. The rule was:
 - p95 ≤ $0.50 → the tier can include a deep scan.
 - p95 > $0.50 → it cannot, and Phase 2 ships the $4.99 tier without one.
 
-**Measured p95 is $0.0070. The tier can include a deep scan**, at a marginal
-cost of roughly 0.14% of the sale price. Phase 2 is unblocked on this point.
+**Not yet answered.** Measured p95 was $0.0070, but over scans that read
+nothing, so it cannot carry the decision.
+
+**The direction is probably still favourable** — `build_prompt()` caps the
+prompt at 10 code findings, 10 Docker findings and 3 CVEs, each truncated, so a
+full prompt is bounded and cannot plausibly add the $0.49 needed to breach the
+gate. But "probably" is exactly the word Phase 0.5 existed to remove. **Re-run
+the measurement once `GIT_TOKEN` is replaced, and decide from that.**
 
 Two caveats worth carrying into Phase 4 rather than treating as settled:
 

@@ -70,6 +70,10 @@ class RunResult:
     agent_errors: list[str] = field(default_factory=list)
     agent_latency_ms: dict[str, float] = field(default_factory=dict)
     used_fallback: bool = False
+    #: Non-fatal error the scanner reported — e.g. a GitHub 401. The pipeline
+    #: completes and /evals records a run, but nothing was actually scanned.
+    scan_error: str = ""
+    files_scanned: int = 0
     #: Surface scans only — the graded result, which the self-scan needs
     #: because grade A is a release gate (PRD §7).
     grade: str = ""
@@ -251,7 +255,10 @@ def run_fixture(
             time.sleep(POLL_INTERVAL_SECONDS)
 
         result.wall_clock_s = round(time.perf_counter() - started, 2)
-        result.used_fallback = bool(report.json().get("used_fallback", False))
+        report_body = report.json()
+        result.used_fallback = bool(report_body.get("used_fallback", False))
+        result.scan_error = str(report_body.get("scan_error", "") or "")
+        result.files_scanned = int(report_body.get("files_scanned", 0) or 0)
 
         evals = client.get(f"/evals/{session_id}", timeout=30)
         if evals.status_code != 200:
@@ -274,9 +281,36 @@ def run_fixture(
         # An agent that errored still produces an eval record, and its cost is
         # real, but the run did not deliver what a customer would have paid
         # for. Recorded as a failure so it cannot quietly lower the median.
-        result.ok = not result.agent_errors
         if result.agent_errors:
             result.error = f"agents errored: {', '.join(result.agent_errors)}"
+            return result
+
+        # A scanner error is NOT an agent error. `scan_github_repo_safe`
+        # catches an HTTP failure and returns {"error": …}; `run_vuln_scanner`
+        # turns that into `code_findings: []` plus a `scan_error` string and
+        # returns normally. So the pipeline completes, /evals records a run,
+        # and the whole thing looks successful — while the repository was never
+        # read.
+        #
+        # This is exactly how the 2026-08-17 measurement went wrong: a GitHub
+        # 401 meant all 26 repository fixtures scanned nothing, and juice-shop
+        # cost the same as a five-line utility library. A cost measured over an
+        # empty prompt is a floor, not a price.
+        if result.scan_error:
+            result.error = f"scanner reported: {result.scan_error}"
+            return result
+
+        # A repository or image scan that read zero files did no work, whether
+        # or not it said so. Log fixtures legitimately scan no files, so this
+        # only applies to the kinds that should have.
+        if fixture["kind"] in ("github", "docker") and result.files_scanned == 0:
+            result.error = (
+                "scanned 0 files — the target was reached but nothing was read, "
+                "so this measures an empty prompt rather than a scan"
+            )
+            return result
+
+        result.ok = True
         return result
     except Exception as exc:  # noqa: BLE001 — one bad fixture must not stop the run.
         result.error = f"{type(exc).__name__}: {exc}"
@@ -335,6 +369,8 @@ def dry_run_result(fixture: dict[str, Any]) -> RunResult:
         output_tokens=200,
         cost_usd=0.0 if fixture["group"] == "cache-hit" else 0.01,
         cost_if_uncached_usd=0.01,
+        files_scanned=42,
+        cache_misses=3,
     )
 
 

@@ -527,6 +527,19 @@ def scan_github_repo_safe(repo_url: str) -> dict[str, Any]:
             return {
                 "error": "GitHub API rate limit exceeded — set GIT_TOKEN on the Railway backend (GitHub PAT with repo read access)"
             }
+        if status == 401:
+            # 401 is a different problem from 404 and 403, and the generic
+            # message sent people to check whether the token was *set*. A 401
+            # means it is set and GitHub rejected it: expired, revoked, or
+            # malformed. Fine-grained PATs expire by default, so this is the
+            # failure a working deployment drifts into over time.
+            return {
+                "error": (
+                    "GitHub rejected the credentials (401) — GIT_TOKEN on the "
+                    "Railway backend is expired, revoked or malformed. Issue a "
+                    "new PAT with repo read access and update it."
+                )
+            }
         return {"error": f"GitHub API error: {status}"}
     except Exception as e:
         return {"error": str(e)}
