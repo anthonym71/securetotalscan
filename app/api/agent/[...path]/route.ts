@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { postAlert } from "@/lib/alerting";
 import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { assertSameOrigin } from "@/lib/security/origin";
@@ -94,6 +95,17 @@ async function forward(
       ...init,
       cache: "no-store",
     });
+    if (upstream.status >= 500) {
+      after(() =>
+        postAlert({
+          severity: "warning",
+          kind: "agent-backend-5xx",
+          detail: `Deep-agent backend returned ${upstream.status} for /${path}.`,
+          dedupeKey: `agent-backend-5xx:${upstream.status}`,
+        }),
+      );
+    }
+
     const headers = new Headers();
     const contentType = upstream.headers.get("content-type");
     if (contentType) headers.set("content-type", contentType);
@@ -104,6 +116,19 @@ async function forward(
     }) as NextResponse;
   } catch (err) {
     console.error("agent proxy error:", err);
+
+    // Critical: the deep-agent backend is not answering at all. This is the
+    // signature of the outage that ran from 14 June to 17 August unnoticed,
+    // and it is what the $19 and $49 tiers sell.
+    after(() =>
+      postAlert({
+        severity: "critical",
+        kind: "agent-backend-unreachable",
+        detail: "Deep-agent backend did not respond to the authenticated proxy.",
+        dedupeKey: "agent-backend-unreachable",
+      }),
+    );
+
     return NextResponse.json(
       { error: "The analysis backend is unreachable." },
       { status: 502 },
