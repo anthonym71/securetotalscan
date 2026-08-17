@@ -38,6 +38,59 @@ still need closing or merging in line with this policy.
 
 ---
 
+## 2026-08-17 — Phase 0.5 (deep-scan cost measurement harness)
+
+**Code:** `backend/cost_harness.py`, `backend/cost_fixtures.json`,
+`backend/tests/test_cost_harness.py`, `.github/workflows/cost-measurement.yml`,
+`docs/UNIT-ECONOMICS.md` (draft).
+
+Runs the approved fixture set against the deployed backend and records tokens,
+USD, wall-clock, per-agent latency and cache behaviour from `/evals`. **Manual
+trigger only** — every deep run makes live OpenRouter calls, so a schedule
+would be an invoice rather than a regression. It runs in GitHub Actions
+because the measurement must be repeatable and re-runnable when Railway moves
+off Hobby, and because the Phase 0 build environment could reach neither
+production host.
+
+**Fixture count corrected: 28 deep runs, not 26.** `docs/PR-PLAN.md` says "26
+deep scans" in one place and enumerates a list summing to 28 in another. The
+enumeration is what is implemented, since it is the one that names each
+fixture. Plus 4 surface scans.
+
+**Three decisions worth recording, each enforced by a test:**
+
+- **The gate is applied to p95, not the median.** A cheap median with an
+  expensive tail means one scan in twenty loses money on a $4.99 sale, and the
+  median is the statistic that hides exactly that.
+- **Cache-hit runs are excluded from the median.** A repeat scan is near-free;
+  including it would price something other than a customer's first scan. It is
+  measured separately, because "repeat scans cost near nothing" is a marketing
+  claim that should be evidenced.
+- **An agent error counts as a failure** even though the run still produced an
+  eval record and still spent money — it did not deliver what a customer would
+  have paid for. Failed runs are excluded from the median but included in the
+  total spend.
+
+**Two things the harness deliberately cannot do**, recorded rather than faked:
+peak Railway RAM/CPU (not in `/evals`; read from the dashboard for the printed
+window) and exactly reproducible dependency versions (no lockfile under
+`backend/`, so the transitive LangGraph tree can move between runs).
+
+**Environment variables Anthony must set:** none new. `STS_SERVICE_TOKEN` is
+already a secret in the `prod` environment.
+
+**Verified:** backend suite **110 passed** (7 new for the harness on top of the
+alerting PR's 15); dry run produces the full 32-run report offline; the
+workflow YAML parses. **No paid run has been made yet** — `docs/UNIT-ECONOMICS.md`
+§5 is empty on purpose, and the first run should use `groups: small` to prove
+the path for a few cents before committing to the full set.
+
+**GHL:** No change — but note that surface scans create contacts, so the
+workflow defaults to skipping them and uses an obviously-harness address when
+they are enabled.
+
+---
+
 ## 2026-08-17 — Phase 0 (service tokens, Upstash, dashboard access — end-to-end proven)
 
 **Infrastructure, all set by Anthony and verified through the pipeline:**

@@ -1,0 +1,123 @@
+# Deep-scan cost measurement (docs/PR-PLAN.md, PR 0.6).
+#
+# MANUAL ONLY. Every deep run makes live OpenRouter calls and spends real
+# money, so there is no schedule and no push trigger — an accidental nightly
+# run of 28 deep scans would be an invoice, not a regression.
+#
+# It runs here rather than from a developer machine for two reasons: the
+# measurement must be repeatable and versioned so it can be re-run when
+# Railway moves off Hobby (which changes the numbers), and the Phase 0 build
+# environment could not reach either production host.
+#
+# Secrets required in the `prod` environment:
+#   STS_SERVICE_TOKEN   — same value as Railway's, so the harness can
+#                         authenticate to the backend the way the web proxy does.
+
+name: Cost measurement
+
+on:
+  workflow_dispatch:
+    inputs:
+      groups:
+        description: >-
+          Comma-separated fixture groups (small, mid-with-docker, large,
+          deliberately-vulnerable, docker-image, logs, our-own, cache-hit,
+          surface). Empty runs everything — 28 deep scans, so start with one
+          group before committing to a full run.
+        required: false
+        default: "small"
+      skip_surface:
+        description: "Skip the four surface scans (they create CRM contacts)."
+        type: boolean
+        required: false
+        default: true
+      run_timeout_seconds:
+        description: "Per-fixture timeout before a run is recorded as stuck."
+        required: false
+        default: "900"
+
+concurrency:
+  group: cost-measurement
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    name: Measure
+    runs-on: ubuntu-latest
+    # Generous: 28 sequential deep scans against a Hobby-tier backend is slow
+    # by design. Sequential is the point — concurrent runs would share the
+    # backend's CPU and memory and describe a load pattern no customer creates.
+    timeout-minutes: 360
+    environment: prod
+    env:
+      STS_BACKEND_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://securetotalscan-api-production.up.railway.app' }}
+      STS_SITE_URL: ${{ vars.SITE_URL || 'https://securetotalscan.com' }}
+      STS_SERVICE_TOKEN: ${{ secrets.STS_SERVICE_TOKEN }}
+      # Surface scans create a GHL contact. An obviously-harness address keeps
+      # those entries identifiable instead of polluting real lead data.
+      STS_SURFACE_SCAN_EMAIL: ${{ vars.COST_HARNESS_EMAIL || 'cost-harness@securetotalscan.com' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install
+        run: pip install -r backend/requirements.txt
+
+      - name: Check the backend is healthy before spending anything
+        run: |
+          url="${STS_BACKEND_URL%/}/health/trivy"
+          body="$(curl -fsS --max-time 20 "$url")" || {
+            echo "::error::Backend is not answering at ${url}. Not starting a paid run."
+            exit 1
+          }
+          echo "$body"
+          case "$body" in
+            *'"available":true'*) ;;
+            *)
+              echo "::error::Backend is reachable but unhealthy. Docker fixtures would fail, so the run is not worth paying for."
+              exit 1
+              ;;
+          esac
+
+      - name: Confirm the service token is present
+        run: |
+          if [ -z "$STS_SERVICE_TOKEN" ]; then
+            echo "::error::STS_SERVICE_TOKEN is not set in the prod environment. Every fixture would 401 and the run would cost nothing but prove nothing."
+            exit 1
+          fi
+
+      - name: Run the fixture set
+        run: |
+          python backend/cost_harness.py \
+            --only "${{ inputs.groups }}" \
+            ${{ inputs.skip_surface && '--skip-surface' || '' }} \
+            --timeout "${{ inputs.run_timeout_seconds }}" \
+            --out cost-results.json \
+            --markdown-out cost-results.md
+
+      - name: Publish the summary
+        if: always()
+        run: |
+          {
+            echo "## Deep-scan cost measurement"
+            echo
+            cat cost-results.md 2>/dev/null || echo "No results were produced."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cost-results
+          path: |
+            cost-results.json
+            cost-results.md
+          retention-days: 90

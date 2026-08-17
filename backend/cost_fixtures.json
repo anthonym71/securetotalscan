@@ -1,0 +1,240 @@
+{
+  "_comment": [
+    "Fixture set for the deep-scan cost measurement (docs/PR-PLAN.md, PR 0.6).",
+    "Each entry is one run. `group` drives the breakdown in the report; `why`",
+    "records what the fixture is there to prove, so a future reader can tell a",
+    "deliberate choice from an arbitrary one.",
+    "",
+    "Order matters in exactly one place: the `cache-hit` fixture must come",
+    "after the run it repeats, because llm_cache.py means a repeated target",
+    "measures a cache hit rather than a scan. That is measured on purpose —",
+    "'repeat scans cost near zero' is a marketing claim and should be",
+    "evidenced, not asserted — but it must not be mistaken for a fresh scan,",
+    "which is why every other fixture is distinct."
+  ],
+  "deep": [
+    {
+      "id": "small-slugify",
+      "group": "small",
+      "kind": "github",
+      "target": "https://github.com/sindresorhus/slugify",
+      "why": "Small single-purpose library — the floor of the cost range."
+    },
+    {
+      "id": "small-ansi-styles",
+      "group": "small",
+      "kind": "github",
+      "target": "https://github.com/chalk/ansi-styles",
+      "why": "Small, few files, no framework."
+    },
+    {
+      "id": "small-cors",
+      "group": "small",
+      "kind": "github",
+      "target": "https://github.com/expressjs/cors",
+      "why": "Small middleware with real request handling."
+    },
+    {
+      "id": "small-debug",
+      "group": "small",
+      "kind": "github",
+      "target": "https://github.com/debug-js/debug",
+      "why": "Small but widely depended on; typical of a transitive dependency."
+    },
+    {
+      "id": "small-is-number",
+      "group": "small",
+      "kind": "github",
+      "target": "https://github.com/jonschlinkert/is-number",
+      "why": "Near-minimal repo — establishes the fixed overhead per run."
+    },
+    {
+      "id": "mid-fastapi-template",
+      "group": "mid-with-docker",
+      "kind": "github",
+      "target": "https://github.com/fastapi/full-stack-fastapi-template",
+      "why": "Mid-size app with a Dockerfile — exercises the Docker path alongside code."
+    },
+    {
+      "id": "mid-realworld-node",
+      "group": "mid-with-docker",
+      "kind": "github",
+      "target": "https://github.com/gothinkster/node-express-realworld-example-app",
+      "why": "Mid-size Express app; representative of a customer's product repo."
+    },
+    {
+      "id": "mid-awesome-compose",
+      "group": "mid-with-docker",
+      "kind": "github",
+      "target": "https://github.com/docker/awesome-compose",
+      "why": "Many small Compose stacks — many files, little code per file."
+    },
+    {
+      "id": "mid-docker-node",
+      "group": "mid-with-docker",
+      "kind": "github",
+      "target": "https://github.com/nodejs/docker-node",
+      "why": "Dockerfile-heavy repository with almost no application code."
+    },
+    {
+      "id": "mid-docker-postgres",
+      "group": "mid-with-docker",
+      "kind": "github",
+      "target": "https://github.com/docker-library/postgres",
+      "why": "Official image source — shell and Dockerfiles rather than an app."
+    },
+    {
+      "id": "large-kubernetes",
+      "group": "large",
+      "kind": "github",
+      "target": "https://github.com/kubernetes/kubernetes",
+      "why": "Very large Go repo — should prove the 60-file cap binds."
+    },
+    {
+      "id": "large-tensorflow",
+      "group": "large",
+      "kind": "github",
+      "target": "https://github.com/tensorflow/tensorflow",
+      "why": "Very large mixed-language repo."
+    },
+    {
+      "id": "large-vscode",
+      "group": "large",
+      "kind": "github",
+      "target": "https://github.com/microsoft/vscode",
+      "why": "Very large TypeScript repo — the language the scanner knows best."
+    },
+    {
+      "id": "large-react",
+      "group": "large",
+      "kind": "github",
+      "target": "https://github.com/facebook/react",
+      "why": "Large JS repo with heavy build tooling."
+    },
+    {
+      "id": "large-rust",
+      "group": "large",
+      "kind": "github",
+      "target": "https://github.com/rust-lang/rust",
+      "why": "Very large repo in a language with few OWASP patterns — checks that cost is bounded by the cap, not by findings."
+    },
+    {
+      "id": "large-go",
+      "group": "large",
+      "kind": "github",
+      "target": "https://github.com/golang/go",
+      "why": "Very large standard library."
+    },
+    {
+      "id": "large-linux",
+      "group": "large",
+      "kind": "github",
+      "target": "https://github.com/torvalds/linux",
+      "why": "The largest realistic input. If cost is flat here, it is flat everywhere."
+    },
+    {
+      "id": "vuln-juice-shop",
+      "group": "deliberately-vulnerable",
+      "kind": "github",
+      "target": "https://github.com/juice-shop/juice-shop",
+      "why": "Fills all 10 code-finding prompt slots — measures worst-case token cost, which clean repos understate."
+    },
+    {
+      "id": "vuln-dvwa",
+      "group": "deliberately-vulnerable",
+      "kind": "github",
+      "target": "https://github.com/digininja/DVWA",
+      "why": "Classic vulnerable PHP app — worst case in a second language."
+    },
+    {
+      "id": "vuln-nodegoat",
+      "group": "deliberately-vulnerable",
+      "kind": "github",
+      "target": "https://github.com/OWASP/NodeGoat",
+      "why": "OWASP Top 10 by construction — worst case for the prompt builder."
+    },
+    {
+      "id": "docker-nginx",
+      "group": "docker-image",
+      "kind": "docker",
+      "target": "nginx:latest",
+      "why": "Common base image with a long CVE list — exercises Trivy at volume."
+    },
+    {
+      "id": "docker-python-slim",
+      "group": "docker-image",
+      "kind": "docker",
+      "target": "python:3.11-slim",
+      "why": "Slim image — fewer CVEs, shows the spread across image sizes."
+    },
+    {
+      "id": "docker-node-alpine",
+      "group": "docker-image",
+      "kind": "docker",
+      "target": "node:20-alpine",
+      "why": "Alpine base — different package ecosystem for Trivy."
+    },
+    {
+      "id": "logs-synthetic",
+      "group": "logs",
+      "kind": "logs",
+      "target": "synthetic",
+      "why": "Bundled synthetic logs — the deterministic baseline for the log path."
+    },
+    {
+      "id": "logs-system",
+      "group": "logs",
+      "kind": "logs",
+      "target": "system",
+      "why": "System logs, falling back to synthetic on a container without readable log files. Recorded either way; `used_fallback` says which."
+    },
+    {
+      "id": "own-securetotalscan",
+      "group": "our-own",
+      "kind": "github",
+      "target": "https://github.com/anthonym71/securetotalscan",
+      "why": "Our own repo. PRIVATE — if GIT_TOKEN's scope excludes private repo read this returns 404 or a rate limit rather than results, which is itself worth knowing."
+    },
+    {
+      "id": "own-vibe-coding-tools",
+      "group": "our-own",
+      "kind": "github",
+      "target": "https://github.com/legioncodeinc/vibe-coding-tools",
+      "why": "Anthony's second repository."
+    },
+    {
+      "id": "repeat-juice-shop",
+      "group": "cache-hit",
+      "kind": "github",
+      "target": "https://github.com/juice-shop/juice-shop",
+      "why": "Deliberate repeat of vuln-juice-shop. Measures the cache-hit cost, not a scan — must run after it.",
+      "repeat_of": "vuln-juice-shop"
+    }
+  ],
+  "surface": [
+    {
+      "id": "surface-self",
+      "group": "surface",
+      "target": "https://securetotalscan.com",
+      "why": "Self-scan. The release gate is grade A (PRD §7), so the grade is recorded as well as the timing."
+    },
+    {
+      "id": "surface-ospry",
+      "group": "surface",
+      "target": "https://ospry.ai",
+      "why": "Anthony's site."
+    },
+    {
+      "id": "surface-hellofreedom",
+      "group": "surface",
+      "target": "https://hellofreedom.co",
+      "why": "Anthony's site."
+    },
+    {
+      "id": "surface-myghlcoach",
+      "group": "surface",
+      "target": "https://myghlcoach.com",
+      "why": "Anthony's site."
+    }
+  ]
+}
