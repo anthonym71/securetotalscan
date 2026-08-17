@@ -6,6 +6,55 @@ Newest first.
 
 ---
 
+## 2026-08-17 — Phase 1, PR 1.3 (HTTP posture check, and a transport re-baseline)
+
+**Code:** new `lib/scanner/httpPosture.ts` and `scripts/verify-http-posture.ts`;
+`lib/scanner/checks.ts`, `index.ts`, `fetcher.ts`, `scripts/verify-scanner.ts`.
+
+**The gap this closes.** `checkSsl()` only reported a problem when the *target
+itself* was requested over `http:`. Scanning `https://example.com` therefore
+reported clean transport even when `http://example.com` served the entire
+application unencrypted — and the bare domain is what people type, so that
+plaintext request is usually the **first one of the session**, the one carrying
+a saved credential.
+
+The scanner now probes port 80 directly with `redirect: "manual"` and grades
+what it finds: content served without a redirect (**high**), a redirect that
+does not reach HTTPS (**high**), a temporary rather than permanent redirect
+(**low**), a redirect to another host (**low**), and nothing listening at all
+(**info** — the strongest posture, since there is no plaintext entry point to
+intercept).
+
+**HSTS is now read, not merely counted.** It was previously one entry in the
+generic missing-header list: present or absent. The check now parses the
+policy — `max-age`, `includeSubDomains`, `preload` — and reports a header sent
+with `max-age=0` as *disabled* rather than present, which is the case the old
+check got exactly backwards.
+
+**Defect found and fixed while re-baselining:** HSTS was being reported
+**twice** — once by the generic header list and once by the new transport
+check — so a single missing header cost the score 16 points instead of 8.
+`strict-transport-security` is removed from the generic list; the transport
+check owns it. `verify:scanner` now asserts exactly one HSTS finding exists, so
+the duplicate cannot come back.
+
+**Score re-baseline.** Two changes cancel out on the demo fixture: the
+transport check adds findings, the de-duplication removes one. The fixture
+still grades **F** on leaked credentials alone. Real targets will move: a site
+with good HTTPS and no HSTS loses 8 points as before, one serving plaintext on
+port 80 now loses 20 it previously did not.
+
+**`info` findings do not fail a category.** A site with a closed port 80 gets
+an informational finding saying so, and still passes — otherwise telling
+someone they are doing well would count against them.
+
+**Verified:** typecheck clean, build succeeds, `verify:scanner` passes
+including **40 new posture checks** — HSTS parsing (quoted values, spacing,
+case, ordering, lookalike directives such as `includeSubDomainsExtra`), every
+redirect shape, and an assertion that each finding carries usable detail and a
+fix prompt.
+
+**GHL:** No change. **Infrastructure:** No change.
 ## 2026-08-17 — Phase 0.5, PR 0.6 follow-up (the deep-scan cost is measured)
 
 **Code:** `backend/cost_harness.py`, `backend/tests/test_cost_harness.py`,
