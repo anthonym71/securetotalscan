@@ -68,13 +68,35 @@ Derived from PRD §0.1, made concrete for this repo.
 - DNS: never touch `MX`, SPF/`TXT`, or the `imap`/`mail`/`pop3`/`smtp` CNAMEs.
 - Blocked by a platform limit → stop, report, provide the manual alternative.
 
+### 2.1 Repository prerequisites (Anthony, 2026-08-17)
+
+Three access items gate the programme. None involve product code.
+
+1. **Dependency graph enabled.** The `Review dependencies` check on PR #106 is
+   currently failing for this reason while every other check passes. Until it
+   is on, `.github/workflows/dependency-review.yml` fails on every PR in this
+   plan, so the failure carries no signal and a real dependency problem would
+   be invisible. This is the single highest-leverage unblock.
+2. **`contents: write`** for the GitHub App — without it no branch can be
+   created and no commit pushed.
+3. **`workflows: write`** for the GitHub App — separate from `contents`, and
+   needed more often than it first appears. A push whose diff touches
+   `.github/workflows/` is rejected **whole**, not partially, so any PR below
+   that adds an environment variable is blocked without it:
+   **0.3** (`ci.yml`, adds `verify:ratelimit`), **2.1** (`DATABASE_URL`),
+   **2.5** (Resend keys), **2.6** (GHL webhook secret), **3.1** (auth secrets).
+   PR **0.2** edits `.github/dependabot.yml`, which sits outside
+   `.github/workflows/` and needs only `contents: write`.
+   Worth proving on a scratch branch before Phase 0 rather than discovering it
+   mid-PR.
+
 ---
 
-## 3. Sequencing changes I recommend, with reasons
+## 3. Sequencing changes — all three approved (Anthony, 2026-08-17)
 
-The PRD's phase order has three ordering problems. I have not changed the
-plan unilaterally — each is a decision for Anthony, and the PR table below
-assumes the recommended answer.
+The PRD's phase order had three ordering problems. All three changes below are
+**approved** and the PR table in §4 reflects them. The reasoning is retained so
+the decision is auditable later.
 
 **3.1 — Deep-scan cost must be measured before Phase 2, not in Phase 4.**
 PRD §4 sets a decision gate: if a deep scan costs more than $0.50, the $4.99
@@ -82,21 +104,21 @@ tier must not include one. But the $4.99 tier ships in **Phase 2**, and the
 measurement sits in **Phase 4**. As written, Phase 2 would ship a tier whose
 scope is not yet decided. The backend already tracks per-session cost at
 `/evals/{session_id}`, so measuring is a scripted run, not a build.
-→ **Recommend: insert Phase 0.5 (one PR) to measure, before Phase 2 scope is
+→ **Approved: insert Phase 0.5 (one PR) to measure, before Phase 2 scope is
 frozen.** Full `docs/UNIT-ECONOMICS.md` still lands in Phase 4.
 
 **3.2 — Scan persistence should start in Phase 2, for a Phase 5 feature.**
 The peer-comparison chart (§5.8.3) may only use real recorded scans, hidden
 below a 100-scan cohort. Nothing is recorded today. If recording starts when
 Phase 5 begins, the chart ships permanently hidden.
-→ **Recommend: land scan recording early in Phase 2 (PR 2.2) so a cohort
+→ **Approved: land scan recording early in Phase 2 (PR 2.2) so a cohort
 accrues while Phases 3–4 are built.** No extra work, only ordering.
 
 **3.3 — Retention enforcement cannot complete in Phase 2.**
 PRD §5.7 requires expiry warning emails at 30/7 days and a durable deletion
 job — both need the scheduler, which is Phase 4. Phase 2 can store and display
 the expiry date honestly; it cannot enforce it.
-→ **Recommend: Phase 2 stores and shows expiry; Phase 4 enforces deletion and
+→ **Approved: Phase 2 stores and shows expiry; Phase 4 enforces deletion and
 sends warnings.** The Extended Archive product must not be sellable until the
 enforcement job exists, or we would be charging for a retention change nothing
 implements.
@@ -115,16 +137,27 @@ Two smaller notes:
 
 ## 4. The PR plan
 
-29 PRs across 8 phases. Each phase ends with a stop for approval.
+30 PRs across 8 phases. Each phase ends with a stop for approval.
 
 ### Phase 0 — Restore and verify infrastructure
 
 | PR | Branch | Scope | Risk |
 |---|---|---|---|
 | **0.1** | `phase0/build-docs` | This plan + `docs/CHANGELOG-BUILD.md` + `docs/RUNBOOK-ENV.md` (every env var: exact name, where set, which sync script carries it). **Docs only, no product code.** | None |
-| **0.2** | `phase0/dependabot-triage` | Triage the 20 open Dependabot PRs: merge safe patches, group the rest, defer breaking majors (Tailwind 4, TS 7, ESLint 10, LangChain 1.x) to a named window. Tighten `.github/dependabot.yml` grouping. | Low; unblocks everything after it |
+| **0.2** | `phase0/dependabot-triage` | Triage the 19 open Dependabot PRs: merge safe patches, group the rest, **defer breaking majors** (Tailwind 4, TS 7, ESLint 10) to a post-launch window per Anthony's decision. **Freeze the LLM code path until Phase 0.5 is measured** — see the note below the table. Tighten `.github/dependabot.yml` grouping. | Low; unblocks everything after it |
 | **0.3** | `phase0/ratelimit-fail-closed` | Finish PR #97: rebase onto current `master`, **remove the committed conflict markers in `docs/ACCESS_CONTROL.md`**, wire `verify:ratelimit` into CI. Merge **only after** Upstash is live in Vercel production — merging first makes every rate-limited route return 503. | Medium — ordering matters |
 | **0.4** | `phase0/baseline-evidence` | `docs/BASELINE-2026-08.md`: recorded self-scan grade, `/health/trivy` result, authenticated agent-proxy round trip, Railway redeploy confirmation. Evidence, not claims. | None |
+
+**Note on the dependency freeze (PR 0.2).** Anthony's decision is to pin
+`openai` (#105) until after Phase 0.5. That pin is right, and on the same
+reasoning it is incomplete: **#101 `langchain-openai`, #103 `langchain` and
+#104 `langgraph` sit on the same measured code path.** `incident_response.py`
+reaches GPT-4o through the LangChain/LangGraph stack, so a major bump to any of
+those four changes token accounting, retry behaviour or prompt assembly — and
+would invalidate a cost baseline measured before it. **Recommend freezing all
+four until Phase 0.5 records its numbers**, then taking them together as one
+reviewed batch with a re-measurement. Flagged rather than applied: it extends
+Anthony's decision, so it needs his yes.
 
 **Anthony's manual actions (blocking):** Railway Hobby redeploy; set
 `AGENT_SERVICE_TOKEN` (Vercel) == `STS_SERVICE_TOKEN` (Railway), 32+ chars;
@@ -156,20 +189,30 @@ tier's scope can be decided rather than assumed.
 
 ### Phase 2 — Persistence, server-side paywall, reports
 
-The largest phase. Six PRs, deliberately small.
+The largest phase. Seven PRs, deliberately small.
 
 | PR | Branch | Scope | Risk |
 |---|---|---|---|
-| **2.1** | `phase2/db-foundation` | Database choice + migration tooling + schema only: `customer`, `subscription`, `site`, `scan`, `report`, `purchase`, `event_log`. `DATABASE_URL` added to `cd.yml` **and** `scripts/sync-vercel-env.sh`. No behaviour change. | **High** — first runtime dependency; needs Anthony's hosting decision |
+| **2.1** | `phase2/db-foundation` | **Neon Postgres** (decided 2026-08-17) + migration tooling + schema only: `customer`, `subscription`, `site`, `scan`, `report`, `purchase`, `event_log`. `DATABASE_URL` added to `cd.yml` **and** `scripts/sync-vercel-env.sh`. No behaviour change. | **High** — first runtime dependency; needs `workflows: write` |
 | **2.2** | `phase2/scan-persistence` | Record every scan (target, grade, score, findings JSON, cost, `created_at`, `expires_at` = +6 months). Starts the peer-comparison cohort (§3.2). | Medium |
 | **2.3** | `phase2/server-side-paywall` | Split the report type into public vs premium. `/api/scan` returns grade, score, finding titles + severities, and exactly **one** medium-severity sample prompt. Premium prompts served only from an entitlement-checked route. Adds a CI verify script asserting no premium prompt appears in the free payload, page source or RSC stream. | **High** — hard review item; type change ripples through `ScanResults` and `verify:scanner` |
 | **2.4** | `phase2/report-pdf` | Branded PDF: target, timestamp, grade/score, findings with evidence, prompts per entitlement, HTTP/HTTPS posture section, methodology and limitations. Authenticated download route. | Medium — must fit Vercel's function limits |
-| **2.5** | `phase2/email-delivery` | Resend wiring on a dedicated sending subdomain, **plus a reserved and documented separate subdomain for future outreach** (PRD §10.7 — retrofitting sender separation after a reputation problem is expensive). Exact DNS records documented for Anthony; MX/SPF untouched. Deliverability evidence for Gmail, Outlook and one corporate domain. | **High** — DNS adjacent to live email |
+| **2.5** | `phase2/email-delivery` | Resend wiring on **`send.securetotalscan.com`** (transactional), **plus `outreach.securetotalscan.com` reserved and documented** for Phase 7 (PRD §10.7 — retrofitting sender separation after a reputation problem is expensive). Both subdomains decided 2026-08-17. Exact DNS records documented for Anthony; MX/SPF untouched. Deliverability evidence for Gmail, Outlook and one corporate domain. | **High** — DNS adjacent to live email |
 | **2.6** | `phase2/ghl-entitlement-webhook` | Webhook-verified entitlement grant bound to (scan, customer) — never a redirect to a success URL. CRM tags and pipeline moves. Retention/privacy copy rewritten to match what is now actually stored, with expiry dates shown. | **High** |
+| **2.7** | `phase2/branded-checkout` | **Moved here from Phase 6** (Anthony, 2026-08-17). `pay.securetotalscan.com` branded checkout domain; apex and `www` stay on Vercel; payment link renamed from "New Link"; customer-visible branding standardised to "Secure Total Scan". Exact DNS record documented; email records untouched and mail verified after. Lands after 2.6 (products and links must exist to brand). | **High** — DNS |
+
+**Why the branded domain moves to Phase 2.** The first paid tier ships in this
+phase. Left in Phase 6, every customer of the $1.99 and $4.99 tiers would pay
+through `link.ifactoryusa.com` for the whole life of Phases 2–5 — an unfamiliar
+domain at the exact moment a first-time buyer decides whether to trust us, on
+the product whose entire pitch is web security. Moving it also **batches all
+three DNS additions — `send.`, `outreach.` and `pay.` — into one documented
+change window** on a zone that carries live email, so mail is verified once
+after a single reviewed set of records rather than on two separate occasions.
 
 **Anthony's manual actions:** create the GHL one-time products and payment
-links; add the documented DNS records for the sending subdomain; provide the
-webhook signing secret.
+links; add the documented DNS records for `send.`, `outreach.` and `pay.`;
+configure the GHL branded domain; provide the webhook signing secret.
 
 **Exit:** a paid customer receives a real PDF in a real inbox; a free visitor
 cannot extract premium prompts from the API, page source, RSC payload or any
@@ -217,7 +260,7 @@ isitsecure.ai.
 
 | PR | Branch | Scope | Risk |
 |---|---|---|---|
-| **6.1** | `phase6/branded-checkout` | `pay.securetotalscan.com` branded checkout domain; apex and `www` stay on Vercel; branding standardised to "Secure Total Scan" everywhere; the payment link renamed from "New Link". Exact DNS record documented; email records untouched and verified after. | **High** — DNS |
+| **6.1** | `phase6/branding-verification` | **Verification only** — the branded checkout domain itself now ships in PR 2.7. Confirm `pay.securetotalscan.com` still resolves to GHL, apex and `www` still serve the app, mail still flows, and branding reads "Secure Total Scan" consistently across all five tiers and every customer-visible surface. Fix any drift. | Low — no DNS change, only checks |
 | **6.2** | `phase6/qa-matrix` | Full journey QA across all five tiers on mobile and desktop; failure, cancellation and revocation tests; deliverability re-test; fixes arising. | Medium |
 | **6.3** | `phase6/release-gate` | Acceptance-test evidence pack against PRD §7, self-scan back to **A** as a release blocker, documented rollback procedure. | Medium |
 
@@ -248,23 +291,26 @@ is delayed or complicated for outreach.
 
 ---
 
-## 6. Decisions needed from Anthony before implementation starts
+## 6. Decisions — resolved and outstanding
 
-Blocking the phase named against each.
+### Resolved (Anthony, 2026-08-17)
 
-1. **Approve or reject the three sequencing changes in §3** — cost measurement
-   moved before Phase 2, scan recording started early, retention enforcement
-   moved to Phase 4. *(Blocks: Phase 0.5 and Phase 2 scope.)*
-2. **Database hosting** — Neon, Supabase or Railway Postgres. Railway keeps
-   billing in one place; Neon/Supabase are closer to Vercel's serverless
-   model. *(Blocks: PR 2.1.)*
-3. **Sending subdomain names** — the transactional sender and the reserved
-   outreach sender, e.g. `mail.` and `outreach.`. *(Blocks: PR 2.5.)*
-4. **Dependabot majors** — defer Tailwind 4 / TypeScript 7 / ESLint 10 to a
-   post-launch window, or take them now? Deferring is my recommendation.
-   *(Blocks: PR 0.2.)*
-5. Still open from PRD §9: confirm the $4.99 deep-scan inclusion after
-   measurement; confirm Organization is contact-sales only at launch; legal
+| # | Decision | Effect |
+|---|---|---|
+| 1 | **All three §3 sequencing changes approved** | Phase 0.5 inserted; scan recording lands in PR 2.2; retention enforcement moves to Phase 4 |
+| 2 | **Neon Postgres** | PR 2.1 unblocked |
+| 3 | **`send.` transactional, `outreach.` reserved** | PR 2.5 unblocked |
+| 4 | **Defer breaking majors post-launch; pin `openai` (#105) until after Phase 0.5** | PR 0.2 unblocked — see the extension flagged under Phase 0 |
+| 5 | **GitHub App `workflows` permission** | Unblocks PRs 0.3, 2.1, 2.5, 2.6, 3.1 — see §2.1 |
+| 6 | **`pay.securetotalscan.com` moves from Phase 6 to Phase 2** | New PR 2.7; Phase 6.1 becomes verification only |
+
+### Outstanding
+
+1. **Extend the LLM-path freeze** from `openai` alone to `langchain`,
+   `langchain-openai` and `langgraph` (#101, #103, #104) for the duration of
+   Phase 0.5. Reasoning under Phase 0 above. *(Blocks: PR 0.2 scope.)*
+2. From PRD §9, unchanged: confirm the $4.99 deep-scan inclusion once Phase 0.5
+   reports; confirm Organization is contact-sales only at launch; legal
    sign-off on the Extended Archive terms before go-live.
 
 ---

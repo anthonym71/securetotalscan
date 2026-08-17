@@ -6,6 +6,34 @@ Newest first.
 
 ---
 
+## 2026-08-17 — Phase 0 (planning, decisions recorded)
+
+**Code:** `docs/PR-PLAN.md` updated to record Anthony's decisions. No product
+code, configuration or dependency changes.
+
+**Decisions (Anthony, 2026-08-17):** all three §3 sequencing changes approved;
+Neon Postgres for PR 2.1; `send.` transactional and `outreach.` reserved for
+PR 2.5; breaking Dependabot majors deferred post-launch with `openai` (#105)
+pinned until after Phase 0.5; GitHub App `workflows` permission to be granted;
+`pay.securetotalscan.com` moved from Phase 6 to Phase 2.
+
+**Plan changes:** new PR 2.7 (`phase2/branded-checkout`); Phase 6.1 reduced to
+branding verification with no DNS change; new §2.1 recording the three
+repository access prerequisites; PR count 29 → 30.
+
+**Flagged for decision:** the LLM-path freeze should extend from `openai` to
+`langchain`, `langchain-openai` and `langgraph` (#101, #103, #104), which sit
+on the same measured code path and would invalidate the Phase 0.5 cost
+baseline.
+
+**GHL:** No change. **Infrastructure:** No change. No DNS record touched, no
+environment variable set, no deployment triggered.
+
+**Verified:** PR #106 CI — six checks pass; `Review dependencies` fails because
+the repository Dependency Graph is not yet enabled.
+
+---
+
 ## 2026-08-17 — Phase 0 (planning)
 
 **Code:** `docs/PR-PLAN.md` and this changelog added. Plan authored by Claude
