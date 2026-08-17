@@ -3,6 +3,7 @@ import { ScanError, normalizeTarget, scan } from "@/lib/scanner";
 import { EMAIL_RE, createLead } from "@/lib/leads";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { assertSameOrigin } from "@/lib/security/origin";
+import { anyUnavailable, limiterUnavailable } from "@/lib/security/limits";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -84,6 +85,9 @@ export async function POST(req: NextRequest) {
     rateLimit(`scan:email:d:${email}`, LIMITS.emailPerDay.max, LIMITS.emailPerDay.window),
     rateLimit(`scan:target:h:${domain}`, LIMITS.targetPerHour.max, LIMITS.targetPerHour.window),
   ]);
+  // No trustworthy counter (no durable store, or it is unreachable) → refuse.
+  if (anyUnavailable(checks)) return limiterUnavailable();
+
   const blocked = checks.find((check) => !check.ok);
   if (blocked) return tooMany(blocked.resetIn);
 

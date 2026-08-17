@@ -29,11 +29,22 @@ Revoking access = remove or change the code in `STS_ACCESS_CODES` and redeploy.
 
 ## Rate limits (free scan)
 
-Fixed windows, Upstash Redis when configured, in-memory per instance otherwise:
+Fixed windows, counted in Upstash Redis:
 
 - 5 scans/hour and 20/day per IP
 - 10 scans/day per email
 - 10 scans/hour per target domain (stops the scanner being used to hammer one site)
+
+`/api/lead` (10/hour per IP), `/api/auth/login` (10 per 15 min per IP) and the
+deep-agent proxy (30/hour per account, 60/hour per IP) use the same limiter.
+
+**Production requires `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`.**
+Serverless instances do not share memory, so a per-instance counter is bypassed
+by simply sending concurrent requests. If the durable store is missing or
+unreachable in production, the limiter retries once and then reports
+`available: false`, and every rate-limited route answers `503` with
+`Retry-After` — it never serves the endpoint unmetered. Development and preview
+deployments still fall back to an in-memory window.
 
 ## Service-to-service authentication (proxy → backend)
 

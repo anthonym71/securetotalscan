@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { assertSameOrigin } from "@/lib/security/origin";
+import { anyUnavailable, limiterUnavailable } from "@/lib/security/limits";
 import { SERVICE_AUTH_HEADER, serviceToken } from "@/lib/security/serviceAuth";
 
 export const runtime = "nodejs";
@@ -59,6 +60,8 @@ async function guard(req: NextRequest, path: string) {
     rateLimit(`agent:email:${session.email}`, 30, 60 * 60),
     rateLimit(`agent:ip:${clientIp(req.headers)}`, 60, 60 * 60),
   ]);
+  if (anyUnavailable(limits)) return limiterUnavailable();
+
   const blocked = limits.find((limit) => !limit.ok);
   if (blocked) {
     return NextResponse.json(
