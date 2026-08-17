@@ -1,6 +1,10 @@
 # Secure Total Scan — PR / phase delivery plan
 
-**Derived from:** PRD v1.2 (Viktor, 2026-08-17)
+**Derived from:** PRD v1.0 (Viktor, 2026-08-17) — the version header of the
+source document Anthony supplied, re-confirmed 2026-08-17 against a second
+upload that was byte-identical. An earlier edit changed this to "v1.2"; no
+document carrying that version number has been produced. If one exists, this
+plan has not been checked against it.
 **Prepared by:** Claude Code — 2026-08-17
 **Status:** Plan only. No product code has been written. Nothing here is
 approved for implementation until Anthony signs off phase by phase.
