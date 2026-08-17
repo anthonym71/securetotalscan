@@ -10,7 +10,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { checksum, loadMigrations } from "./migrate";
+import { checksum, loadMigrations, splitStatements } from "./migrate";
 
 let failures = 0;
 
@@ -200,6 +200,67 @@ console.log("\nEnvironment fallbacks tolerate an empty string:");
   const emptyThenReal = (a: string, b: string) => a || b;
   check("|| falls through an empty string", emptyThenReal("", "real") === "real");
   check("|| keeps a real value", emptyThenReal("first", "second") === "first");
+}
+
+// ── 10. Statement splitting ─────────────────────────────────────────────
+//
+// Neon's HTTP driver sends each query as a prepared statement, and Postgres
+// refuses more than one command in one. A migration file therefore has to
+// arrive as a list of statements — and splitting SQL on `;` is a classic way
+// to corrupt a migration, so the splitter is tested rather than trusted.
+
+console.log("\nMigration files split into individual statements:");
+{
+  for (const migration of migrations) {
+    const statements = splitStatements(migration.sql);
+    check(
+      `${migration.name} yields ${statements.length} statement(s)`,
+      statements.length > 1,
+    );
+    check(
+      `${migration.name}: no statement still contains a bare semicolon`,
+      statements.every((st) => !/;\s*\S/.test(st.replace(/--[^\n]*/g, ""))),
+    );
+    check(
+      `${migration.name}: no statement is only a comment`,
+      statements.every((st) => !/^(?:--[^\n]*\n?|\s)*$/.test(st)),
+    );
+    check(
+      `${migration.name}: every statement starts with a keyword`,
+      statements.every((st) =>
+        /^(CREATE|ALTER|DROP|INSERT|UPDATE|DELETE|COMMENT|GRANT|SET|--)/i.test(st.trim()),
+      ),
+    );
+  }
+
+  // The three places a semicolon is not a terminator.
+  check(
+    "a semicolon inside a string literal does not split",
+    splitStatements("SELECT 'a;b'; SELECT 2;").length === 2,
+  );
+  check(
+    "a doubled quote inside a literal is handled",
+    splitStatements("SELECT 'it''s; fine'; SELECT 2;").length === 2,
+  );
+  check(
+    "a semicolon inside a line comment does not split",
+    splitStatements("SELECT 1; -- trailing; comment\nSELECT 2;").length === 2,
+  );
+  check(
+    "a dollar-quoted block does not split",
+    splitStatements("CREATE FUNCTION f() RETURNS void AS $$ BEGIN a; b; END $$ LANGUAGE plpgsql; SELECT 1;")
+      .length === 2,
+  );
+  check(
+    "a tagged dollar quote does not split",
+    splitStatements("DO $mig$ BEGIN x; END $mig$; SELECT 1;").length === 2,
+  );
+  check(
+    "a final statement without a semicolon is kept",
+    splitStatements("SELECT 1; SELECT 2").length === 2,
+  );
+  check("a comment-only tail is dropped", splitStatements("SELECT 1;\n-- done\n").length === 1);
+  check("empty input yields nothing", splitStatements("   \n  ").length === 0);
 }
 
 console.log(
