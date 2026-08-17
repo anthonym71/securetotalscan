@@ -19,12 +19,11 @@ const REQUIRED_HEADERS: {
     why: "No Content-Security-Policy. CSP is the primary defense against XSS and data injection.",
     fix: "Add a Content-Security-Policy header. Start with a report-only policy like \"default-src 'self'\" and tighten script-src, then enforce it.",
   },
-  {
-    name: "strict-transport-security",
-    severity: "medium",
-    why: "No HSTS. Browsers may connect over plain HTTP, exposing traffic to downgrade attacks.",
-    fix: "Add \"Strict-Transport-Security: max-age=63072000; includeSubDomains; preload\" so browsers always use HTTPS.",
-  },
+  // strict-transport-security is NOT listed here. It is graded by
+  // checkHttpPosture, which reads the policy rather than only its presence —
+  // max-age, includeSubDomains, preload — and reports it alongside what port
+  // 80 actually does, where it belongs. Listing it in both places produced two
+  // findings for one missing header and charged the score twice for it.
   {
     name: "x-frame-options",
     severity: "medium",
@@ -212,46 +211,11 @@ export function checkDebugArtifacts(ctx: ScanContext): CategoryResult {
 
 /* ─────────────────────────── SSL / TLS ─────────────────────────── */
 
-export function checkSsl(ctx: ScanContext): CategoryResult {
-  const findings: Finding[] = [];
-
-  if (ctx.target.protocol !== "https:") {
-    findings.push({
-      category: "ssl-tls",
-      severity: "high",
-      title: "Site not served over HTTPS",
-      detail:
-        "The target was reachable over plain HTTP. All traffic — including credentials — can be intercepted.",
-      evidence: `Scheme: ${ctx.target.protocol}`,
-      fixPrompt:
-        "Serve the site exclusively over HTTPS and redirect all HTTP traffic to HTTPS. Most hosts (Vercel, Netlify) provision free certificates automatically.",
-    });
-  }
-
-  // Mixed content: HTTPS page referencing http:// resources.
-  if (ctx.target.protocol === "https:") {
-    const mixed = ctx.html.match(/(?:src|href)=["']http:\/\/[^"']+["']/gi);
-    if (mixed) {
-      findings.push({
-        category: "ssl-tls",
-        severity: "medium",
-        title: "Mixed content (HTTP resources on HTTPS page)",
-        detail:
-          "The HTTPS page loads resources over plain HTTP. Browsers may block these or attackers may tamper with them.",
-        evidence: [...new Set(mixed)].slice(0, 3).join(", "),
-        fixPrompt:
-          "Update all resource URLs to use https:// (or protocol-relative // ) so the page has no insecure subresources.",
-      });
-    }
-  }
-
-  return {
-    id: "ssl-tls",
-    label: "SSL/TLS Issues",
-    passed: findings.length === 0,
-    findings,
-  };
-}
+// checkSsl moved to ./httpPosture as checkHttpPosture, which additionally
+// probes what port 80 actually does. The old check could only report a problem
+// when the target itself was requested over http:, so scanning
+// https://example.com reported clean transport even when http://example.com
+// served the whole site unencrypted.
 
 /* ─────────────────────── Input Validation (heuristic) ─────────────────────── */
 
