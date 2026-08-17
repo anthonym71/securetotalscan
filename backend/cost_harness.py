@@ -103,6 +103,22 @@ def percentile(values: list[float], p: float) -> float:
     return ordered[low] * (1 - weight) + ordered[high] * weight
 
 
+def was_cache_hit(result: RunResult) -> bool:
+    """True when this run was served entirely from the LLM cache.
+
+    Classified from what `/evals` observed, not from the fixture's label. The
+    first full run proved why: the `small` group had already been scanned by an
+    earlier run, `llm_cache.py` is process-global and the backend had not
+    restarted, so five fixtures labelled "fresh" reported $0.0000 and pulled
+    the median down. A group name records what a fixture was *for*; only the
+    cache counters record what actually happened.
+
+    A run with no LLM calls at all (a surface scan) is not a cache hit — it had
+    nothing to cache.
+    """
+    return result.cache_hits > 0 and result.cache_misses == 0
+
+
 def summarize(results: Iterable[RunResult]) -> dict[str, Any]:
     """Aggregate run results into the figures the pricing decision needs.
 
@@ -113,8 +129,10 @@ def summarize(results: Iterable[RunResult]) -> dict[str, Any]:
     """
     everything = list(results)
     ok = [r for r in everything if r.ok]
-    fresh = [r for r in ok if r.group != "cache-hit"]
-    cached = [r for r in ok if r.group == "cache-hit"]
+    # `cache-hit` is the label for the *deliberate* repeat; `was_cache_hit`
+    # catches the accidental ones too, which is what makes the median honest.
+    cached = [r for r in ok if r.group == "cache-hit" or was_cache_hit(r)]
+    fresh = [r for r in ok if r not in cached]
 
     costs = [r.cost_usd for r in fresh]
     durations = [r.wall_clock_s for r in fresh]
@@ -155,6 +173,9 @@ def summarize(results: Iterable[RunResult]) -> dict[str, Any]:
         "median_cache_hit_cost_usd": round(
             percentile([r.cost_usd for r in cached], 50), 6
         ),
+        # Named so a reader can tell a deliberate repeat from a run that hit a
+        # warm cache by accident, which changes how the median should be read.
+        "cache_hit_fixtures": sorted(r.id for r in cached),
         "gate_usd": DEEP_SCAN_COST_GATE_USD,
         # The gate is applied to p95, not the median. Half the customers
         # costing more than the tier price is not a business, and the median
@@ -334,7 +355,9 @@ def render_markdown(payload: dict[str, Any]) -> str:
         f"- Most expensive single scan: ${s['max_cost_usd']:.4f}",
         f"- Median wall-clock: {s['median_duration_s']}s (p95 {s['p95_duration_s']}s)",
         f"- Median tokens: {s['median_total_tokens']:,} (p95 {s['p95_total_tokens']:,})",
-        f"- Median cost of a repeat (cache hit): ${s['median_cache_hit_cost_usd']:.4f}",
+        f"- Median cost of a repeat (cache hit): ${s['median_cache_hit_cost_usd']:.4f}"
+        + (f" — served from cache: {', '.join(s['cache_hit_fixtures'])}"
+           if s.get("cache_hit_fixtures") else ""),
         f"- Total spent on this run: ${s['total_cost_usd']:.4f}",
         "",
         f"**PRD §4 gate (${s['gate_usd']:.2f} per deep scan), applied to p95: "
