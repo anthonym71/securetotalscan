@@ -2,21 +2,24 @@
   "name": "securetotalscan",
   "version": "2.0.0",
   "private": true,
-  "description": "Secure Total Scan \u2014 security for anything exposed to the internet. Free surface scan plus a five-agent deep analysis engine. Next.js web + FastAPI/LangGraph backend.",
+  "description": "Secure Total Scan — security for anything exposed to the internet. Free surface scan plus a five-agent deep analysis engine. Next.js web + FastAPI/LangGraph backend.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "verify:scanner": "tsc -p tsconfig.verify.json && node .verify/scripts/verify-scanner.js && npm run verify:input-validation && npm run verify:ratelimit && npm run verify:alerting && npm run verify:findings && npm run verify:target",
+    "verify:scanner": "tsc -p tsconfig.verify.json && node .verify/scripts/verify-scanner.js && npm run verify:input-validation && npm run verify:ratelimit && npm run verify:alerting && npm run verify:findings && npm run verify:target && npm run verify:schema",
     "verify:input-validation": "node .verify/scripts/verify-input-validation.js",
     "verify:ratelimit": "node .verify/scripts/verify-ratelimit.js",
     "verify:alerting": "node .verify/scripts/verify-alerting.js",
     "verify:findings": "node .verify/scripts/verify-findings.js",
-    "verify:target": "node .verify/scripts/verify-target.js"
+    "verify:target": "node .verify/scripts/verify-target.js",
+    "verify:schema": "node .verify/scripts/verify-schema.js",
+    "migrate": "tsc -p tsconfig.verify.json && node .verify/scripts/migrate.js"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "next": "15.5.23",
     "react": "19.0.0",
     "react-dom": "19.0.0"

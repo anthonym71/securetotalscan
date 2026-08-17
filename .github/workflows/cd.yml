@@ -18,7 +18,15 @@
 # Frontend API keys (synced to Vercel production on each frontend deploy):
 #   GHL_API_TOKEN, GHL_LOCATION_ID, RESEND_API_KEY, REPORT_FROM_EMAIL,
 #   UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN,
-#   ALERT_WEBHOOK_URL, ALERT_WEBHOOK_SECRET
+#   ALERT_WEBHOOK_URL, ALERT_WEBHOOK_SECRET,
+#   DATABASE_URL, DATABASE_URL_UNPOOLED
+#
+# Neon issues two connection strings and both are needed. DATABASE_URL is the
+# pooled one used at runtime; DATABASE_URL_UNPOOLED is the direct one that
+# migrations use, because the pooler does not carry DDL or advisory locks
+# reliably. Migrations run as their own CD step before the frontend deploys —
+# a build that ships code expecting a column the database does not have yet is
+# an outage, so the order matters.
 #
 # Alerting (docs/ALERTING.md) has three senders and therefore needs the same
 # pair in three places: Vercel (web-tier failures), Railway (backend failures)
@@ -162,6 +170,8 @@ jobs:
           UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
           ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
           ALERT_WEBHOOK_SECRET: ${{ secrets.ALERT_WEBHOOK_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "::error::Missing VERCEL_TOKEN — add it to Settings → Environments → prod → Secrets"
@@ -169,9 +179,23 @@ jobs:
           fi
           bash scripts/sync-vercel-env.sh
 
+      # Migrations run before the deploy, never after. Code that expects a
+      # column the database does not have yet is an outage; a database that has
+      # a column the code does not use yet is nothing at all.
+      - name: Apply database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+        run: |
+          if [ -z "${DATABASE_URL_UNPOOLED}${DATABASE_URL}" ]; then
+            echo "::warning::No database connection string in this environment — skipping migrations. Set DATABASE_URL and DATABASE_URL_UNPOOLED as secrets in the GitHub 'prod' environment."
+            exit 0
+          fi
+          npm ci
+          npm run migrate
+
       - name: Deploy frontend to Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          npm ci
           npx --yes vercel@54.13.0 deploy --prod --yes --force --token="$VERCEL_TOKEN"
