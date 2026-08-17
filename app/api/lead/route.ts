@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { EMAIL_RE, createLead } from "@/lib/leads";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { assertSameOrigin } from "@/lib/security/origin";
+import { limiterUnavailable } from "@/lib/security/limits";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,7 @@ export async function POST(req: NextRequest) {
 
   const ip = clientIp(req.headers);
   const ipLimit = await rateLimit(`lead:ip:${ip}`, 10, 60 * 60);
+  if (!ipLimit.available) return limiterUnavailable();
   if (!ipLimit.ok) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
