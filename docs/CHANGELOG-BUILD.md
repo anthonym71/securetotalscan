@@ -95,6 +95,45 @@ still need closing or merging in line with this policy.
 
 ---
 
+## 2026-08-17 — Phase 0, PR 0.5 (baseline evidence)
+
+**Code:** `docs/BASELINE-2026-08.md`. Documentation only.
+
+Phase 0 exit evidence against `master` @ `3048ba4`. Every claim either links to
+a run whose log says so, or is marked **not captured** with the way to capture
+it — a baseline made of assertions would repeat the exact failure Phase 0
+existed to fix. Three states are used and kept distinct: **verified**
+(machine-readable artefact, linked), **hand-verified** (a person did it, no
+artefact), **not captured**.
+
+**Verified:** Railway deploy and health from CD run 32011834941, including the
+`/health/trivy` payload and the 43-second deploy step that used to take one
+second; the package versions Railway actually installed
+(langgraph 1.2.11, openai 3.1.0, and the unpinned transitive tree); CI green on
+`3048ba4`; rate limiting by its 17 offline checks.
+
+**Hand-verified, and labelled as such:** the authenticated deep-agent round
+trip. No artefact exists — both halves of the shared secret are masked on both
+platforms, so only a real round trip settles "the token is correct" as opposed
+to "the token is set". Phase 3 should replace this with an automated
+authenticated smoke test.
+
+**Not captured: the self-scan grade**, which is the release gate. The Phase 0
+build environment cannot reach either production host — `curl` returns HTTP 000
+for both, which is also why the cost harness runs in Actions. The document
+records the exact commands and their output rather than an estimate, and states
+how to capture the grade: the PR 0.6 workflow with `groups: surface` and
+`skip_surface: false`. Also noted: the grade will move when PR 1.3 adds the
+HTTP-posture check, so the figure captured now is the before-number for that
+comparison.
+
+**Seven known gaps recorded** at the Phase 0 boundary, including one still
+unanswered from before PR 0.4 — whether Railway's own GitHub auto-deploy is
+still enabled alongside CD. Two deploy paths on one service race each other and
+make "what is running" unanswerable.
+
+**GHL:** No change. **Infrastructure:** No change. No DNS record touched, no
+environment variable set, no deployment triggered.
 ## 2026-08-17 — Phase 1, PR 1.0 (dashboard findings render as text, not JSON)
 
 **Code:** new `lib/findings.ts`, new `scripts/verify-findings.ts` (wired into
