@@ -6,6 +6,77 @@ Newest first.
 
 ---
 
+## 2026-08-17 — Phase 2, PR 2.4 (the branded report PDF, and the second place the paywall has to hold)
+
+**Code:** new `lib/report/pdf.ts`, `lib/report/reportDoc.ts`,
+`app/api/report/[id]/route.ts`, `scripts/verify-report.ts`; changed
+`package.json`, `tsconfig.verify.json`.
+
+**No new dependency.** The PDF is written directly. This project has four
+runtime dependencies and PR 2.1 treated adding the fourth as a supply-chain
+decision worth a paragraph; the PDF options are worse than that trade suggests.
+Headless Chrome is far past Vercel's function size limit, and the lighter
+renderers still pull tens of megabytes of font and layout code to produce what
+this report needs, which is text in two weights, filled rectangles and rules.
+The base-14 fonts are on every reader and need no embedding, so a full report
+is **12–13 KB**.
+
+**The important design decision: `renderReportPdf` takes a `PublicScanReport`,
+never the internal one.** A PDF is the *second* way a scan report leaves the
+server, and PR 2.3 spent its entire length making the first way safe. A
+generator that accepted the internal report would quietly undo that, in the
+format least likely to be inspected — nobody greps a binary attachment. Taking
+the redacted type means the paywall is enforced by the function signature rather
+than by remembering. This file cannot show a withheld prompt because it never
+receives one.
+
+`verify:report` proves it the only way that counts: it searches the **generated
+PDF bytes** for each withheld prompt, exactly as `verify:paywall` searches the
+JSON. The document is written uncompressed partly for that reason — a compressed
+content stream would hide a leak from the test that exists to catch it.
+
+**Structural validity is tested, not assumed.** The failure mode of a
+hand-written PDF generator is a file that opens in a forgiving reader and is
+rejected by a strict one, and the xref table is where that happens: every entry
+is a byte offset, so one multi-byte character earlier in the file puts all of
+them out. The file is therefore assembled as buffers with a running byte offset,
+and the tests check that **every xref offset lands exactly on its object** and
+that every stream's declared `/Length` matches its real byte count.
+
+**Pagination owns its own breaks.** A `Flow` cursor asks for vertical space
+before using it, so a finding never starts three points above the footer and
+continues invisibly off the page. Footers are written last, because "page 2 of
+6" needs a total that does not exist until the final page does. Tested with a
+40-finding report: 6 pages, every page in the tree, correct totals, no text
+positioned off the bottom.
+
+**Typographic punctuation is transliterated.** The site copy is full of em
+dashes and curly quotes because they read better on a web page; in a PDF an
+unmapped character is a wrong glyph or a blank, which looks like a broken
+document rather than a missing feature.
+
+**The clean-scan report does not claim the site is secure.** A passive scan
+finding nothing is not a clean bill of health, and the methodology and
+limitations sections say so in the report itself — the same rule the site copy
+has been held to all day. There is a check asserting the phrase "is secure"
+never appears.
+
+**Access control, stated because it is weaker than "authenticated download
+route" implies.** The scan id is an unguessable v4 UUID and holding it is what
+grants access to the file; entitlement gates the *content*. It cannot be
+ownership-based yet: there are no accounts until PR 3.1, and a session today
+proves someone paid rather than *which* customer they are. Requiring a session
+would block every free visitor from the report PR 2.5 is meant to email them
+while still not proving the report was theirs. **Flagged for the Captain as a
+decision to confirm rather than one I should make alone.**
+
+**Verified:** typecheck clean, build succeeds with `/api/report/[id]`
+registered, `verify:scanner` passes with **411 checks across 12 suites** (was
+363). Sample renders produced for both tiers — 12,384 bytes free, 13,409 bytes
+member — and the byte-level difference is the withheld prompts.
+
+**GHL:** No change. **Infrastructure:** No change.
+
 ## 2026-08-17 — Phase 2, PR 2.3 (the paywall, moved from the browser to the server)
 
 **Code:** new `lib/entitlements.ts`, `lib/scanner/publicReport.ts`,

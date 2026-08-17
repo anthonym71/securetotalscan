@@ -26,6 +26,8 @@
     "scripts/migrate.ts",
     "scripts/verify-persistence.ts",
     "scripts/verify-paywall.ts",
+    "scripts/verify-report.ts",
+    "lib/report/**/*.ts",
     "lib/entitlements.ts",
     "scripts/verify-claims.ts",
     "scripts/verify-schema.ts",

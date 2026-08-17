@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "verify:scanner": "tsc -p tsconfig.verify.json && node .verify/scripts/verify-scanner.js && npm run verify:input-validation && npm run verify:ratelimit && npm run verify:alerting && npm run verify:findings && npm run verify:target && npm run verify:http-posture && npm run verify:claims && npm run verify:schema && npm run verify:persistence && npm run verify:paywall",
+    "verify:scanner": "tsc -p tsconfig.verify.json && node .verify/scripts/verify-scanner.js && npm run verify:input-validation && npm run verify:ratelimit && npm run verify:alerting && npm run verify:findings && npm run verify:target && npm run verify:http-posture && npm run verify:claims && npm run verify:schema && npm run verify:persistence && npm run verify:paywall && npm run verify:report",
     "verify:input-validation": "node .verify/scripts/verify-input-validation.js",
     "verify:ratelimit": "node .verify/scripts/verify-ratelimit.js",
     "verify:alerting": "node .verify/scripts/verify-alerting.js",
@@ -20,6 +20,7 @@
     "verify:schema": "node .verify/scripts/verify-schema.js",
     "verify:persistence": "node .verify/scripts/verify-persistence.js",
     "verify:paywall": "node .verify/scripts/verify-paywall.js",
+    "verify:report": "node .verify/scripts/verify-report.js",
     "migrate": "tsc -p tsconfig.verify.json && node .verify/scripts/migrate.js"
   },
   "dependencies": {
