@@ -23,6 +23,7 @@
     "scripts/verify-target.ts",
     "scripts/verify-alerting.ts",
     "scripts/verify-findings.ts",
+    "scripts/verify-http-posture.ts",
     "scripts/verify-input-validation.ts",
     "scripts/verify-ratelimit.ts",
     "scripts/verify-scanner.ts"

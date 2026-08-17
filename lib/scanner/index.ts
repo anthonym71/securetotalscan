@@ -5,8 +5,8 @@ import {
   checkHeaders,
   checkInfoDisclosure,
   checkInputValidation,
-  checkSsl,
 } from "./checks";
+import { checkHttpPosture, probeHttpOrigin } from "./httpPosture";
 import { safeFetch } from "./fetcher";
 import { runProbes } from "./probes";
 import { buildReport } from "./score";
@@ -79,10 +79,13 @@ export async function scan(input: string): Promise<ScanReport> {
     notes,
   };
 
+  // Port 80 is probed alongside the file probes rather than before them —
+  // both are network work and neither depends on the other.
+  const httpOriginProbe = target.protocol === "https:" ? probeHttpOrigin(target) : null;
+
   // Passive, content-based checks (synchronous).
   const headers = checkHeaders(ctx);
   const cors = checkCors(ctx);
-  const ssl = checkSsl(ctx);
   const debug = checkDebugArtifacts(ctx);
   const input_ = checkInputValidation(ctx);
   const auth = checkAuth(ctx);
@@ -90,6 +93,7 @@ export async function scan(input: string): Promise<ScanReport> {
 
   // Active probes for exposed files/paths (network).
   const probes = await runProbes(ctx);
+  const transport = checkHttpPosture(ctx, httpOriginProbe ? await httpOriginProbe : null);
 
   // Merge cross-cutting findings into their canonical categories.
   const database: CategoryResult = {
@@ -131,7 +135,7 @@ export async function scan(input: string): Promise<ScanReport> {
     debug,
     input_,
     auth,
-    ssl,
+    transport,
     probes.exposed,
     ai,
   ];
