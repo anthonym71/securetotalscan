@@ -6,21 +6,32 @@ export const HERO = {
   eyebrow: "Security for anything exposed to the internet",
   title: ["If it's online, it can leak.", "Find out before someone else does."],
   subtitle: "Your AI shipped it. We make sure it's safe to ship.",
-  body: "Vibe-coded or hand-built, any website, app, or file on the internet can expose you. Scan a URL, a GitHub repo, or your logs. Autonomous agents find what's open and hand you the exact fix, in under a minute.",
+  // The free scanner takes a URL. Repo and log analysis is the deep agent
+  // pipeline behind the dashboard, which is a paid tier — saying "scan a URL,
+  // a GitHub repo, or your logs" in the hero promised the free scan could do
+  // all three.
+  body: "Vibe-coded or hand-built, any website or app on the internet can expose you. Scan a public URL free in under a minute — autonomous agents find what's open and hand you the exact fix. Repo and log analysis runs in the deep agent dashboard.",
   cta: "Run a free scan",
 };
 
 export const TRUST = {
   headline: "We can't lose data we never keep.",
-  body: "Every file and log you upload is encrypted in transit, analyzed in memory, then discarded the moment the scan ends. Nothing is persisted. Nothing trains a model. Your data stays yours, and our service stays accountable. That's the contract.",
+  // Interim wording. "Nothing is persisted" is true of scan *content* today —
+  // there is no database yet — but the email you enter is sent to our CRM, and
+  // that was not stated. Phase 2 introduces storage with a stated retention
+  // period, and this copy is rewritten again there against what is actually
+  // stored. Until then it describes only what we can stand behind.
+  body: "Files and logs you submit are encrypted in transit, analyzed in memory, then discarded the moment the scan ends — we don't store them, and nothing trains a model. The email address you give us is kept so we can send your report and occasional security updates; you can unsubscribe any time.",
 };
 
 export const SCAN_SECTION = {
   title: "Scan it now",
-  body: "Paste a public URL or GitHub repo. We'll tell you exactly what's exposed, for free.",
+  body: "Paste a public URL. We'll tell you exactly what's exposed, for free.",
   button: "Run scan",
-  placeholder: "https://your-app.com  ·  or  github.com/you/repo",
-  supports: "Works with any public URL or repo. Lovable, Bolt, Replit, Cursor, Vercel, Netlify, or your own domain.",
+  // A GitHub URL typed here is scanned as a web page, not as a repository —
+  // the placeholder was inviting an input the free scanner cannot honour.
+  placeholder: "https://your-app.com  ·  or  your-app.com",
+  supports: "Works with any public URL. Lovable, Bolt, Replit, Cursor, Vercel, Netlify, or your own domain.",
 };
 
 export interface Step {
@@ -131,11 +142,11 @@ export interface FaqItem {
 export const FAQS: FaqItem[] = [
   {
     q: "Is this only for AI-built apps?",
-    a: "No. Vibe-coded apps tend to leak more because AI tools optimize for working output, not secure output, but the scanner works against any public URL, repo, or log file. If it's exposed to the internet, we can check it.",
+    a: "No. Vibe-coded apps tend to leak more because AI tools optimize for working output, not secure output, but the free scanner works against any public URL, and the deep agent analysis covers repos, container images and log files. If it's exposed to the internet, we can check it.",
   },
   {
     q: "Do you store my data or train models on it?",
-    a: "Never. Files and logs are encrypted in transit, analyzed in memory, and discarded the moment the scan ends. Nothing is persisted, and nothing is used to train any model. Detected secrets are redacted before they're shown back to you.",
+    a: "We never train models on your data. Files and logs are encrypted in transit, analyzed in memory, and discarded the moment the scan ends — scan contents are not stored. Detected secrets are redacted before they're shown back to you. The email address you provide is stored so we can send your report and occasional security updates.",
   },
   {
     q: "How does the scan actually work?",
@@ -151,7 +162,11 @@ export const FAQS: FaqItem[] = [
   },
   {
     q: "Is the free scan really free?",
-    a: "Yes. The free scan gives you a complete surface assessment with every finding and a fix prompt. No credit card, no limits. The agents and continuous monitoring are the paid tiers.",
+    // "No limits" was false: /api/scan enforces 5 scans/hour and 20/day per IP,
+    // 10/day per email, and 10/hour per target domain. Stating them is also
+    // better product — a visitor who hits a limit unexpectedly assumes we are
+    // broken.
+    a: "Yes, no credit card. The free scan gives you a complete surface assessment with every finding and a fix prompt. Fair-use limits apply — 5 scans an hour and 20 a day — so the scanner stays available for everyone. The agents and continuous monitoring are the paid tiers.",
   },
 ];
 
