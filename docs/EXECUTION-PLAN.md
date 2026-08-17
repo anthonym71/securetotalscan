@@ -182,19 +182,38 @@ One limitation, stated rather than left to be noticed: this list is generated *b
 | `docs/execution-plan.csv` | new | this plan, as a spreadsheet |
 | `scripts/gen-execution-plan.py` | new | generates both, so they cannot disagree |
 
-**29 file changes across 4 commits.**
+### `f8bd45a` — docs: add file locations and a git-derived artefact inventory to the plan
+
+| File | | What it does |
+|---|---|---|
+| `docs/EXECUTION-PLAN.md` | changed | this plan |
+| `docs/execution-plan.csv` | changed | this plan, as a spreadsheet |
+| `scripts/gen-execution-plan.py` | changed | generates both, so they cannot disagree |
+
+**32 file changes across 5 commits.**
 
 
 ### How to verify it yourself
 
 ```bash
 git fetch origin
-git log --oneline origin/master..origin/claude/sts-phase-0-continuation-154ndo
-git diff --stat origin/master...origin/claude/sts-phase-0-continuation-154ndo
+git checkout claude/sts-phase-0-continuation-154ndo   # <- without this you verify master
+
+# Prove you are actually on the branch. This file exists only here.
+test -f lib/scanner/publicReport.ts && echo "on the branch" || echo "WRONG BRANCH"
+
+git log --oneline origin/master..HEAD
+git diff --stat origin/master...HEAD
 
 npm ci && npm run typecheck && npm run build && npm run verify:scanner
-# expect: 363 checks across 11 suites, zero failures
+# expect: 363 checks across 11 suites, zero failures, ~8s for verify:scanner
 ```
+
+
+The checkout line is not optional and was missing from the first version of this block — caught by the Desktop session on 2026-08-17. Running the npm steps while sitting on `master` verifies `master`, passes, and tells you nothing about this branch. The `test -f` line exists so a wrong branch is loud rather than silently green.
+
+
+**Egress:** `npm ci` needs `registry.npmjs.org`; `npm run build` needs nothing. The verify suites themselves are **fully offline by construction** — `verify-persistence` and `verify-paywall` stub `fetch`, and `verify-http-posture` exercises the pure parsing and grading functions while deliberately leaving `probeHttpOrigin()` (the only network call) untested. The whole chain completes in about 8 seconds in a container whose egress reaches GitHub and nothing else. If it stalls, suspect the package install rather than the tests.
 
 
 ---

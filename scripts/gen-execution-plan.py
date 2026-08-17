@@ -414,12 +414,33 @@ def write_inventory(out):
         "\n### How to verify it yourself\n\n"
         "```bash\n"
         "git fetch origin\n"
-        "git log --oneline origin/master..origin/claude/sts-phase-0-continuation-154ndo\n"
-        "git diff --stat origin/master...origin/claude/sts-phase-0-continuation-154ndo\n"
+        "git checkout claude/sts-phase-0-continuation-154ndo   # <- without this you verify master\n"
+        "\n"
+        "# Prove you are actually on the branch. This file exists only here.\n"
+        "test -f lib/scanner/publicReport.ts && echo \"on the branch\" || echo \"WRONG BRANCH\"\n"
+        "\n"
+        "git log --oneline origin/master..HEAD\n"
+        "git diff --stat origin/master...HEAD\n"
         "\n"
         "npm ci && npm run typecheck && npm run build && npm run verify:scanner\n"
-        "# expect: 363 checks across 11 suites, zero failures\n"
+        "# expect: 363 checks across 11 suites, zero failures, ~8s for verify:scanner\n"
         "```\n"
+    )
+    out.append(
+        "\nThe checkout line is not optional and was missing from the first version of "
+        "this block — caught by the Desktop session on 2026-08-17. Running the npm steps "
+        "while sitting on `master` verifies `master`, passes, and tells you nothing about "
+        "this branch. The `test -f` line exists so a wrong branch is loud rather than "
+        "silently green.\n"
+    )
+    out.append(
+        "\n**Egress:** `npm ci` needs `registry.npmjs.org`; `npm run build` needs nothing. "
+        "The verify suites themselves are **fully offline by construction** — "
+        "`verify-persistence` and `verify-paywall` stub `fetch`, and `verify-http-posture` "
+        "exercises the pure parsing and grading functions while deliberately leaving "
+        "`probeHttpOrigin()` (the only network call) untested. The whole chain completes in "
+        "about 8 seconds in a container whose egress reaches GitHub and nothing else. If it "
+        "stalls, suspect the package install rather than the tests.\n"
     )
 
 
