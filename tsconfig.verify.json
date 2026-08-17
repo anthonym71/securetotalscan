@@ -18,9 +18,12 @@
   "include": [
     "lib/alerting.ts",
     "lib/findings.ts",
+    "lib/content.ts",
+    "lib/brand.ts",
     "lib/ratelimit.ts",
     "lib/scanner/**/*.ts",
     "scripts/migrate.ts",
+    "scripts/verify-claims.ts",
     "scripts/verify-schema.ts",
     "scripts/verify-target.ts",
     "scripts/verify-alerting.ts",

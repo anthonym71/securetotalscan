@@ -165,11 +165,15 @@ export function Agents() {
         ))}
       </div>
       <div className="mt-8 text-center">
+        {/* Was href="/dashboard", which middleware.ts protects — every
+            prospect who clicked it was redirected to /login. It now points at
+            the read-only sample, which is what the button was trying to show
+            in the first place. */}
         <a
-          href="/dashboard"
+          href="/preview"
           className="inline-block rounded-xl border border-brand/50 px-8 py-4 font-semibold text-brand-light transition hover:bg-brand/10"
         >
-          Open the agent dashboard →
+          See a sample analysis →
         </a>
       </div>
     </section>

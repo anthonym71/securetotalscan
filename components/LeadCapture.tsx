@@ -45,9 +45,15 @@ export function LeadCapture({
   if (state === "done") {
     return (
       <div className="rounded-2xl border border-grade-a/30 bg-grade-a/10 p-5 text-center">
-        <p className="font-semibold text-grade-a">Your report is on its way.</p>
+        {/* This said "Your report is on its way. Check your inbox." No email
+            is sent — /api/lead creates a CRM contact and nothing else. Report
+            delivery ships in PR 2.5; until then the confirmation says what
+            actually happened. */}
+        <p className="font-semibold text-grade-a">You&apos;re on the list.</p>
         <p className="mt-1 text-sm text-white/60">
-          Check your inbox, we&apos;ll send the full breakdown and fix steps shortly.
+          Emailed PDF reports are launching shortly and you&apos;ll be among the
+          first to get one. In the meantime every finding and fix prompt is on
+          this page — copy anything you need before you close it.
         </p>
       </div>
     );
@@ -55,10 +61,11 @@ export function LeadCapture({
 
   return (
     <div className="rounded-2xl border border-brand/30 bg-brand/10 p-5">
-      <p className="font-semibold">Get the full report as a PDF</p>
+      <p className="font-semibold">Get the PDF report when it launches</p>
       <p className="mt-1 text-sm text-white/60">
-        We&apos;ll email you the complete breakdown with every finding and a fix
-        prompt for each. No spam.
+        Emailed PDF reports are not live yet. Leave your address and we&apos;ll
+        send yours as soon as they are, along with occasional security updates.
+        No spam, unsubscribe any time.
       </p>
       <form onSubmit={submit} className="mt-3 flex flex-col gap-2 sm:flex-row">
         <input
@@ -75,7 +82,7 @@ export function LeadCapture({
           disabled={state === "sending"}
           className="rounded-xl bg-brand-gradient px-6 py-3 font-semibold transition hover:opacity-90 disabled:opacity-60"
         >
-          {state === "sending" ? "Sending…" : "Email me the report"}
+          {state === "sending" ? "Saving…" : "Notify me"}
         </button>
       </form>
       {state === "error" && (

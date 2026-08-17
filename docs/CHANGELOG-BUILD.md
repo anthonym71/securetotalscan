@@ -6,6 +6,55 @@ Newest first.
 
 ---
 
+## 2026-08-17 — Phase 1, PR 1.4 (nothing on the site claims a feature we do not have)
+
+**Code:** `lib/content.ts`, `components/LeadCapture.tsx`,
+`components/Sections.tsx`; new `app/preview/page.tsx`, `lib/preview-data.ts`,
+`scripts/verify-claims.ts` (wired into `verify:scanner`).
+
+Working rule 4 of the plan — *no copy may claim a feature that is not verified
+working in the same release* — was broken in five places. Each is now either
+true or gone:
+
+| Claim | Reality | Now |
+|---|---|---|
+| "No credit card, **no limits**" | 5 scans/hour, 20/day per IP, 10/day per email, 10/hour per target | States the limits. A visitor who hits one unexpectedly assumes we are broken |
+| "**Nothing is persisted**" | True of scan content; the email goes to the CRM and stays there | Says what happens to the address. Rewritten again in Phase 2 against real storage |
+| "**Your report is on its way.** Check your inbox" | No email is sent — `/api/lead` creates a CRM contact and nothing else | "You're on the list", and the form says delivery is not live yet |
+| "Scan a URL, **a GitHub repo**, or your logs" (hero, scan section, placeholder) | The free scan fetches a URL as a web page. A GitHub URL is scanned as a page | Free scan = URLs; repo, image and log analysis attributed to the deep agents |
+| "Open the agent dashboard →" | `/dashboard` is behind `middleware.ts`; every prospect was redirected to `/login` | Points at `/preview` |
+
+**`/preview` — read-only sample dashboard.** At `/preview`, **not**
+`/dashboard/preview`: middleware protects the whole `/dashboard` prefix, so a
+preview underneath it would reproduce the exact bug it replaces.
+
+It renders through the same `lib/findings.ts` helpers as the real dashboard, so
+the marketing preview cannot drift from the product it advertises — and it
+inherits PR 1.0's fix rather than the raw-JSON bug, which is why that PR went
+first. The sample data uses **real backend shapes**, the same ones
+`verify-findings.ts` tests against. It is labelled a sample in the banner, in
+the page copy and in the data file.
+
+**`verify:claims` — the rule is now enforced by CI rather than by whether
+someone rereads the copy.** Each banned pattern carries the claim, why it is
+false, and the PR that makes it true, so whoever ships the feature can see it
+is safe to remove the rule. It also asserts `/preview` is not under a protected
+prefix, and that no marketing section links to `/dashboard`.
+
+Two things the check caught on its first run, both worth keeping: the comment
+explaining *why* a false claim was removed quotes the claim, so comments must
+be stripped before matching; and JSX wraps a sentence across lines, so
+whitespace must be flattened or a phrase split by a newline slips through.
+
+**Verified:** typecheck clean, build succeeds (`/preview` prerenders static),
+`verify:scanner` passes including 12 new claims checks.
+
+**Still missing:** PR 1.1 (five pricing tiers) is **blocked** — the exact
+inclusions, exclusions and prices come from PRD §3, which is not in the
+repository. Writing them from memory would invent customer-facing pricing
+commitments, which is the thing this PR exists to stop.
+
+**GHL:** No change. **Infrastructure:** No change.
 ## 2026-08-17 — Phase 1, PR 1.3 (HTTP posture check, and a transport re-baseline)
 
 **Code:** new `lib/scanner/httpPosture.ts` and `scripts/verify-http-posture.ts`;
