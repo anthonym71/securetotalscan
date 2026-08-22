@@ -26,7 +26,7 @@ fastapi>=0.115.0
 # Lift both together after PR 0.6, as one reviewed batch with a
 # re-measurement. Dependabot PRs #104 and #105 are already satisfied by
 # these floors and can be closed.
-openai>=3.1.0,<4
+openai>=3.3.1,<4
 langgraph>=1.2.11,<2
 
 python-dotenv>=1.0.0
