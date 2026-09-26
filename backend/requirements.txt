@@ -27,7 +27,7 @@ fastapi>=0.115.0
 # re-measurement. Dependabot PRs #104 and #105 are already satisfied by
 # these floors and can be closed.
 openai>=3.1.0,<4
-langgraph>=1.2.11,<2
+langgraph>=1.2.12,<2
 
 python-dotenv>=1.0.0
 httpx>=0.27.0
