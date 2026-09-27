@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 export function LoginForm({ next }: { next: string }) {
@@ -76,9 +77,9 @@ export function LoginForm({ next }: { next: string }) {
       </button>
       <p className="text-center text-xs text-white/40">
         Deep-agent analysis is a paid capability. Don&apos;t have a code?{" "}
-        <a href="/#pricing" className="underline hover:text-white/70">
+        <Link href="/#pricing" className="underline hover:text-white/70">
           See plans
-        </a>
+        </Link>
         .
       </p>
     </form>
