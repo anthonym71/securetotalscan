@@ -303,18 +303,36 @@ def _is_scanner_meta_line(line: str, matched_name: str) -> bool:
     return False
 
 
+# GitHub's own naming rules. owner/repo are interpolated into api.github.com
+# paths that carry our GitHub token, so anything outside the grammar ("..",
+# extra slashes, "?", "#", "%") is refused: otherwise a crafted "repo" could
+# steer an authenticated request to a different API endpoint.
+_OWNER_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$")
+_REPO_RE = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
+_GITHUB_HOSTS = {"github.com", "www.github.com"}
+
+
+def _validated(owner: str, name: str) -> tuple[str, str]:
+    name = name.removesuffix(".git")
+    if not _OWNER_RE.match(owner) or not _REPO_RE.match(name) or name in (".", ".."):
+        raise ValueError("Invalid repo — use owner/repo or full GitHub URL")
+    return owner, name
+
+
 def parse_github_url(repo: str) -> tuple[str, str]:
     """Return (owner, repo_name) from URL or owner/repo string."""
     repo = repo.strip().rstrip("/")
     if repo.startswith("http"):
         parsed = urlparse(repo)
+        if (parsed.hostname or "").lower() not in _GITHUB_HOSTS:
+            raise ValueError("Invalid GitHub URL — expected github.com/owner/repo")
         parts = [p for p in parsed.path.strip("/").split("/") if p]
         if len(parts) < 2:
             raise ValueError("Invalid GitHub URL — expected github.com/owner/repo")
-        return parts[0], parts[1].replace(".git", "")
-    if "/" in repo:
+        return _validated(parts[0], parts[1])
+    if repo.count("/") == 1:
         owner, name = repo.split("/", 1)
-        return owner, name.replace(".git", "")
+        return _validated(owner, name)
     raise ValueError("Invalid repo — use owner/repo or full GitHub URL")
 
 
