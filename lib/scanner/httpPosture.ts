@@ -18,6 +18,7 @@
 // ──────────────────────────────────────────────────────────────
 
 import { safeFetch } from "./fetcher";
+import type { GuardOptions } from "./netguard";
 import type { CategoryResult, Finding, ScanContext } from "./types";
 
 /** Chrome's preload list requires at least a year. */
@@ -75,14 +76,17 @@ export function parseHsts(value: string | undefined): HstsPolicy {
  * would land on the HTTPS site and tell us nothing about whether a redirect
  * happened at all.
  */
-export async function probeHttpOrigin(target: URL): Promise<HttpOriginProbe> {
+export async function probeHttpOrigin(
+  target: URL,
+  guard: GuardOptions = {},
+): Promise<HttpOriginProbe> {
   const httpUrl = new URL(target.toString());
   httpUrl.protocol = "http:";
   // Explicit port 80: if the original URL named a port (e.g. :8443), reusing
   // it would probe a different service rather than the HTTP origin.
   httpUrl.port = "";
 
-  const res = await safeFetch(httpUrl.toString(), { redirect: "manual" });
+  const res = await safeFetch(httpUrl.toString(), { redirect: "manual" }, guard);
 
   if (res.status === 0) {
     return {

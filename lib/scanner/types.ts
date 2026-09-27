@@ -59,6 +59,8 @@ export interface ScanReport {
 /** Shared context passed to every check so each can reuse fetched data. */
 export interface ScanContext {
   target: URL;
+  /** SSRF policy for every follow-up request (probes, bundles, port 80). */
+  guard?: import("./netguard").GuardOptions;
   /** Final URL after redirects. */
   finalUrl: string;
   status: number;

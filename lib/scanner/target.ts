@@ -13,27 +13,45 @@
 // boundary.
 // ──────────────────────────────────────────────────────────────
 
+import { classifyIp } from "./ipguard";
+
 export class ScanError extends Error {}
 
 export type Protocol = "https:" | "http:";
 
+export interface TargetOptions {
+  /**
+   * Permit loopback targets (localhost, 127.0.0.0/8, ::1). Only for a local
+   * developer run of the scanner CLI; the public API route never sets it.
+   * Private, link-local and metadata addresses stay blocked regardless.
+   */
+  allowLoopback?: boolean;
+}
+
 /**
  * Hosts we refuse to scan, because the scanner fetches whatever it is given
- * from inside our own network. Loopback, link-local, RFC 1918 ranges, and
- * anything without a dot (a bare hostname resolves against internal DNS).
+ * from inside our own network. IP literals are classified by ./ipguard
+ * (loopback, RFC 1918, CGNAT, link-local, reserved, IPv6 equivalents). Names
+ * are refused when they are internal by convention, or have no dot (a bare
+ * hostname resolves against internal DNS). A trailing dot is stripped first:
+ * `localhost.` is the same host as `localhost`.
+ *
+ * This is a static check on the text. The server additionally resolves the
+ * name and checks every address it resolves to (./netguard), on every
+ * redirect hop, because a public-looking name can point anywhere.
  */
-function isBlockedHost(host: string): boolean {
+export function isBlockedHost(rawHost: string, opts: TargetOptions = {}): boolean {
+  const host = rawHost.toLowerCase().replace(/\.+$/, "");
+  const ipClass = classifyIp(host);
+  if (ipClass !== null) {
+    return !(ipClass === "public" || (opts.allowLoopback && ipClass === "loopback"));
+  }
+  if (host === "localhost" || host.endsWith(".localhost")) return !opts.allowLoopback;
   return (
-    host === "localhost" ||
-    host === "0.0.0.0" ||
     host.endsWith(".local") ||
     host.endsWith(".internal") ||
-    /^127\./.test(host) ||
-    /^10\./.test(host) ||
-    /^192\.168\./.test(host) ||
-    /^169\.254\./.test(host) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
-    host === "[::1]" ||
+    host.endsWith(".localdomain") ||
+    host.endsWith(".home.arpa") ||
     !host.includes(".")
   );
 }
@@ -51,6 +69,7 @@ function isBlockedHost(host: string): boolean {
 export function normalizeTarget(
   input: string,
   defaultProtocol: Protocol = "https:",
+  opts: TargetOptions = {},
 ): URL {
   const trimmed = input.trim();
   let url: URL;
@@ -64,7 +83,7 @@ export function normalizeTarget(
   if (url.protocol !== "https:" && url.protocol !== "http:") {
     throw new ScanError("Only http and https URLs can be scanned.");
   }
-  if (isBlockedHost(url.hostname.toLowerCase())) {
+  if (isBlockedHost(url.hostname, opts)) {
     throw new ScanError("For safety, internal and private addresses cannot be scanned.");
   }
   return url;
