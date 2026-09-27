@@ -198,7 +198,7 @@ def summarize(results: Iterable[RunResult]) -> dict[str, Any]:
 
 
 def load_fixtures(path: Path = FIXTURES_PATH) -> dict[str, Any]:
-    return json.loads(path.read_text())
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _start_payload(fixture: dict[str, Any]) -> tuple[str, dict[str, Any]]:
@@ -508,8 +508,8 @@ def main(argv: list[str] | None = None) -> int:
         "runs": [asdict(r) for r in results],
     }
 
-    Path(args.out).write_text(json.dumps(payload, indent=2))
-    Path(args.markdown_out).write_text(render_markdown(payload))
+    Path(args.out).write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    Path(args.markdown_out).write_text(render_markdown(payload), encoding="utf-8")
     print("\n" + render_markdown(payload))
 
     # A failed fixture is a finding, not a broken job — a private repo that
