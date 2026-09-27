@@ -13,7 +13,12 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { classifyIp } from "../lib/scanner/ipguard";
-import { checkDestination, type Resolver } from "../lib/scanner/netguard";
+import {
+  checkDestination,
+  pinnedLookup,
+  resolveDestination,
+  type Resolver,
+} from "../lib/scanner/netguard";
 import { safeFetch } from "../lib/scanner/fetcher";
 import { ScanError, normalizeTarget } from "../lib/scanner/target";
 import { scan } from "../lib/scanner";
@@ -70,6 +75,17 @@ async function main() {
     ["ff02::1", "private"],
     ["2001:db8::1", "private"],
     ["2606:4700:4700::1111", "public"],
+    ["::127.0.0.1", "loopback"],
+    ["::a9fe:a9fe", "private"],
+    ["::ffff:0:7f00:1", "private"],
+    ["::ffff:0:808:808", "private"],
+    ["64:ff9b:1::a9fe:a9fe", "private"],
+    ["64:ff9b:1:ffff::1", "private"],
+    ["64:ff9b::808:808", "public"],
+    ["3fff::1", "private"],
+    ["3fff:fff::1", "private"],
+    ["2001:10::1", "private"],
+    ["2001:20::1", "private"],
     ["example.com", null],
   ];
   for (const [ip, expected] of cases) {
@@ -152,6 +168,57 @@ async function main() {
     (await checkDestination(new URL("file:///etc/passwd"))) !== null,
   );
 
+  // Fail closed (review R2): no answer is not permission.
+  const throwing: Resolver = async () => {
+    throw Object.assign(new Error("queryA ENOTFOUND"), { code: "ENOTFOUND" });
+  };
+  check(
+    "a resolver error refuses the request",
+    (await checkDestination(url, { resolve: throwing })) !== null,
+  );
+  check(
+    "an empty DNS answer refuses the request",
+    (await checkDestination(url, { resolve: fixed([]) })) !== null,
+  );
+  const unresolved = await safeFetch("http://rebind.example/", {}, { resolve: throwing });
+  check(
+    "safeFetch does not fall back to its own DNS when the check could not resolve",
+    unresolved.blocked === true && unresolved.status === 0,
+  );
+
+  // The pinned lookup (review R1): answers only for the checked host, only
+  // with the checked addresses, and re-applies the policy itself.
+  const lookupOnce = (fn: ReturnType<typeof pinnedLookup>, host: string, all = false) =>
+    new Promise<{ err: string | null; address: unknown }>((resolve) =>
+      fn(host, { all }, (err, address) => resolve({ err: err?.message ?? null, address })),
+    );
+  const pinned = pinnedLookup("site.example", ["93.184.215.14"]);
+  const hit = await lookupOnce(pinned, "site.example");
+  check("the pinned lookup returns the checked address", hit.err === null && hit.address === "93.184.215.14");
+  const hitAll = await lookupOnce(pinned, "SITE.example.", true);
+  check(
+    "the pinned lookup answers all:true queries with only the checked address",
+    hitAll.err === null &&
+      JSON.stringify(hitAll.address) === JSON.stringify([{ address: "93.184.215.14", family: 4 }]),
+  );
+  check(
+    "the pinned lookup refuses a host that was not checked",
+    (await lookupOnce(pinned, "other.example")).err !== null,
+  );
+  check(
+    "the pinned lookup re-checks: a private address slipped into the pin is refused",
+    (await lookupOnce(pinnedLookup("site.example", ["169.254.169.254"]), "site.example")).err !== null,
+  );
+  check(
+    "the pinned lookup re-checks: loopback is refused without the opt-in",
+    (await lookupOnce(pinnedLookup("site.example", ["127.0.0.1"]), "site.example")).err !== null,
+  );
+  const mixed = await resolveDestination(url, { resolve: fixed(["93.184.215.14", "2606:2800:21f:cb07::1"]) });
+  check(
+    "resolveDestination hands back the full checked set to pin",
+    "addresses" in mixed && mixed.addresses.length === 2,
+  );
+
   // ── 4. Real requests against a loopback server ───────────────────────
   console.log("\nFetch and redirects (loopback server):");
   let hits = 0;
@@ -187,6 +254,10 @@ async function main() {
         res.end();
       };
       return pump();
+    }
+    if (path === "/whoami") {
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      return res.end(`host=${req.headers.host}`);
     }
     if (path === "/.env") {
       res.writeHead(200, { "Content-Type": "text/plain" });
@@ -236,6 +307,57 @@ async function main() {
     check(
       "a body without Content-Length is capped at 2.5 MB",
       huge.status === 200 && huge.body.length === 2_500_000,
+    );
+
+    // ── Rebinding: the check and the connection get different answers ───
+    // A stub resolver answers differently on each call. With the connection
+    // pinned, only the first (checked) answer is ever used and DNS is asked
+    // exactly once per hop. 127.0.0.2 is loopback but nothing listens there,
+    // so a connection that used the wrong answer would be visible either way.
+    const port = (server.address() as AddressInfo).port;
+    const sequence = (...answers: string[][]): Resolver & { calls: number } => {
+      const fn = (async () => {
+        fn.calls += 1;
+        return answers[Math.min(fn.calls - 1, answers.length - 1)]!;
+      }) as unknown as Resolver & { calls: number };
+      fn.calls = 0;
+      return fn;
+    };
+
+    const goodFirst = sequence(["127.0.0.1"], ["127.0.0.2"]);
+    const pinnedOk = await safeFetch(`http://rebind.test:${port}/whoami`, {}, {
+      allowLoopback: true,
+      resolve: goodFirst,
+    });
+    check(
+      "checked answer 127.0.0.1, later answer 127.0.0.2: connects to the checked one",
+      pinnedOk.status === 200,
+    );
+    check("DNS is asked exactly once for that request", goodFirst.calls === 1);
+    check(
+      "the Host header keeps the original hostname",
+      pinnedOk.body === `host=rebind.test:${port}`,
+    );
+
+    const hitsBefore = hits;
+    const badFirst = sequence(["127.0.0.2"], ["127.0.0.1"]);
+    const pinnedMiss = await safeFetch(`http://rebind.test:${port}/whoami`, {}, {
+      allowLoopback: true,
+      resolve: badFirst,
+    });
+    check(
+      "checked answer 127.0.0.2, later answer 127.0.0.1: never reaches the 127.0.0.1 server",
+      pinnedMiss.status === 0 && hits === hitsBefore && badFirst.calls === 1,
+    );
+
+    const hitsBeforeRebind = hits;
+    const rebindToLoopback = sequence(["127.0.0.1"]);
+    const noOptIn = await safeFetch(`http://rebind.test:${port}/whoami`, {}, {
+      resolve: rebindToLoopback,
+    });
+    check(
+      "a public-looking name answering loopback is refused without the opt-in",
+      noOptIn.blocked === true && hits === hitsBeforeRebind,
     );
 
     // ── 5. End to end: the real scan() against the sample app ──────────

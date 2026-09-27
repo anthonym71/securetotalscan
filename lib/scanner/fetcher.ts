@@ -1,4 +1,5 @@
-import { checkDestination, type GuardOptions } from "./netguard";
+import { fetch as undiciFetch, type Dispatcher, type Response } from "undici";
+import { pinnedDispatcher, resolveDestination, type GuardOptions } from "./netguard";
 
 const TIMEOUT_MS = Number(process.env.SCAN_FETCH_TIMEOUT_MS ?? 8000);
 const MAX_BODY_BYTES = 2_500_000; // 2.5 MB cap per resource
@@ -48,7 +49,7 @@ function failed(url: string, error: string): FetchedResource {
   return { ok: false, status: 0, url, headers: {}, body: "", error };
 }
 
-function headersToObject(headers: Headers): Record<string, string> {
+function headersToObject(headers: Response["headers"]): Record<string, string> {
   const out: Record<string, string> = {};
   headers.forEach((value, key) => {
     out[key.toLowerCase()] = value;
@@ -62,12 +63,14 @@ function headersToObject(headers: Headers): Record<string, string> {
  *
  * Redirects are followed here, one hop at a time, rather than by fetch():
  * fetch would follow a public site's redirect to 169.254.169.254 without
- * asking. Every hop, including the first, goes through checkDestination().
- * A refused hop comes back as status 0 with `blocked: true`.
+ * asking. Every hop, including the first, is resolved once by
+ * resolveDestination(), and its connection is pinned to exactly the addresses
+ * that were checked (pinnedDispatcher), so a second DNS answer can never be
+ * used. A refused hop comes back as status 0 with `blocked: true`.
  */
 export async function safeFetch(
   url: string,
-  init: RequestInit = {},
+  init: Pick<RequestInit, "method" | "headers" | "redirect"> = {},
   guard: GuardOptions = {},
 ): Promise<FetchedResource> {
   const controller = new AbortController();
@@ -76,6 +79,7 @@ export async function safeFetch(
   // on the HTTPS site and tell us nothing about whether a redirect happened.
   const follow = (init.redirect ?? "follow") === "follow";
   let current = url;
+  const dispatchers: Dispatcher[] = [];
   try {
     let res: Response;
     for (let hop = 0; ; hop += 1) {
@@ -85,17 +89,20 @@ export async function safeFetch(
       } catch {
         return failed(current, "Invalid redirect target.");
       }
-      const refused = await checkDestination(parsed, guard);
-      if (refused) return { ...failed(current, refused), blocked: true };
+      const destination = await resolveDestination(parsed, guard);
+      if ("reason" in destination) return { ...failed(current, destination.reason), blocked: true };
+      const dispatcher = pinnedDispatcher(destination, guard.allowLoopback);
+      dispatchers.push(dispatcher);
 
-      res = await fetch(current, {
-        ...init,
+      res = await undiciFetch(current, {
+        method: init.method,
         redirect: "manual",
         signal: controller.signal,
+        dispatcher,
         headers: {
           "User-Agent": UA,
           Accept: "*/*",
-          ...(init.headers ?? {}),
+          ...((init.headers as Record<string, string> | undefined) ?? {}),
         },
       });
 
@@ -131,5 +138,6 @@ export async function safeFetch(
     return failed(current, err instanceof Error ? err.message : String(err));
   } finally {
     clearTimeout(timer);
+    for (const dispatcher of dispatchers) void dispatcher.destroy().catch(() => undefined);
   }
 }

@@ -53,7 +53,9 @@ export async function scan(input: string, guard: GuardOptions = {}): Promise<Sca
   const notes: string[] = [];
 
   const root = await safeFetch(target.toString(), {}, guard);
-  if (root.blocked) throw new ScanError(BLOCKED_MESSAGE);
+  // Refused by the SSRF guard. A name that does not resolve is refused too
+  // (fail closed), and falls through to the "could not reach" message below.
+  if (root.blocked && root.error === BLOCKED_MESSAGE) throw new ScanError(BLOCKED_MESSAGE);
   if (root.status === 0) {
     throw new ScanError(
       `Could not reach ${target.hostname}. Check the URL is public and online.`,

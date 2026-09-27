@@ -110,6 +110,11 @@ export function classifyIPv6(g: number[]): IpClass {
   if (allZero(0, 5) && (g[5] === 0xffff || g[5] === 0)) {
     return classifyIPv4(embeddedV4(g[6]!, g[7]!));
   }
+  // IPv4-translated ::ffff:0:a.b.c.d (::ffff:0:0/96, RFC 2765). Refused
+  // outright: it only has meaning to a translator on the local network.
+  if (allZero(0, 4) && g[4] === 0xffff && g[5] === 0) return "private";
+  // Local-use NAT64 64:ff9b:1::/48 (RFC 8215): a site's own translator.
+  if (g[0] === 0x64 && g[1] === 0xff9b && g[2] === 1) return "private";
   // NAT64 64:ff9b::/96 embeds an IPv4 address in the last 32 bits.
   if (g[0] === 0x64 && g[1] === 0xff9b && allZero(2, 6)) {
     return classifyIPv4(embeddedV4(g[6]!, g[7]!));
@@ -125,6 +130,10 @@ export function classifyIPv6(g: number[]): IpClass {
   if ((first & 0xff00) === 0xff00) return "private"; // ff00::/8 multicast
   if (first === 0x2001 && g[1] === 0x0db8) return "private"; // documentation
   if (first === 0x2001 && g[1] === 0) return "private"; // Teredo tunnels to arbitrary IPv4
+  if (first === 0x3fff && (g[1]! & 0xf000) === 0) return "private"; // 3fff::/20 documentation
+  if (first === 0x2001 && (g[1]! & 0xfff0) === 0x0010) return "private"; // ORCHID 2001:10::/28
+  if (first === 0x2001 && (g[1]! & 0xfff0) === 0x0020) return "private"; // ORCHIDv2 2001:20::/28
+  if (first === 0x2001 && g[1]! < 0x0200) return "private"; // rest of IETF 2001::/23 special-purpose
   if (first === 0x0100 && allZero(1, 4)) return "private"; // discard-only
   return "public";
 }
