@@ -46,9 +46,25 @@ The 13 open Dependabot PRs were not merged. `requirements.txt` has no lockfile, 
 - Slack notifications: the user-supplied webhook must match `https://hooks.slack.com/services/...` and httpx does not follow redirects by default.
 - Existing controls look sound: same-origin check on POST routes, fail-closed rate limiting, service-token auth between web and backend, HMAC session cookie, security headers in `middleware.ts`.
 
+## 3a. Round 2: independent review of PR #148
+
+The review (`docs/reviews/PR148-REVIEW-2026-09-27.md` on `review/pr148-2026-09-27`) returned FAIL on R1 to R3. Every finding is fixed below.
+
+| ID | Finding | Fix | Test |
+| --- | --- | --- | --- |
+| R1 | Web: the check and `fetch()` resolved separately (DNS rebinding) | `resolveDestination()` resolves once. `safeFetch` uses undici's `fetch` with a per-hop `Agent` whose `connect.lookup` (`pinnedLookup`) returns only the checked addresses, re-checks them, and answers for no other host. Host and SNI keep the real hostname. | `verify-ssrf`: checked 127.0.0.1 then 127.0.0.2 connects to the first and asks DNS once; checked 127.0.0.2 then 127.0.0.1 never reaches the 127.0.0.1 server; the pinned lookup refuses unchecked hosts and re-refuses private or loopback pins |
+| R2 | Web: a resolver error or empty answer was allowed | Both now refuse the request (fail closed) | `verify-ssrf`: resolver error, empty answer, and no fallback DNS in `safeFetch` |
+| R3 | Backend: the check and httpx resolved separately | `PinnedBackend` replaces httpcore's network layer: sockets open only to pinned, re-checked addresses; TLS still uses the hostname | `test_url_guard.py`: both rebinding orders, loopback refused by default, backend re-check, unchecked host refused, transport swap still in effect |
+| R4 | Backend honoured proxy variables and `.netrc` | `trust_env=False` on the client and its SSL context | `test_proxy_environment_is_ignored` |
+| R5 | Backend read whole bodies; timeout was per operation | Streamed and cut at 64 KB; one deadline (20 s) across all hops and the body | `test_the_body_is_capped`, `test_a_slow_drip_body_hits_the_overall_deadline` |
+| R6 | Gaps: `64:ff9b:1::/48`, `::ffff:0:0:0/96`, `3fff::/20`, ORCHID, backend `::a.b.c.d` | Blocked in both runtimes; backend also blocks the rest of `2001::/23` | New cases in `verify-ssrf` and `test_non_public_addresses_are_refused` |
+| R7 | Branch names and file paths from the scanned repo went unencoded into token-bearing GitHub URLs | Percent-encoded (`/` kept), with empty, `.`, `..` segments and control characters refused | `test_file_paths_cannot_add_a_query_or_fragment`, `test_branch_names_cannot_add_a_query`, traversal cases |
+| R8 | `re.match` with `$` accepted a trailing newline | `re.fullmatch` for GitHub and Docker names | newline cases for both |
+| R9 | gitleaks image pinned by tag only | Pinned by digest | CI |
+
 ## 4. Residual risk
 
-- **DNS rebinding window.** The name is resolved and checked, then `fetch()` resolves it again to connect. A hostile DNS server with a zero TTL could answer differently the second time. Closing this fully means pinning the checked address into the connection (a custom `undici` dispatcher `lookup`, or `node:https` with a guarded `lookup`). Tracked as a follow-up; the redirect and literal-address paths, which are the easy attacks, are closed.
+- **DNS rebinding: closed in round 2.** Round 1 checked the DNS answer and then let `fetch()` and httpx resolve again, which the independent review (R1, R3) showed could be bypassed. Both runtimes now connect only to the addresses that were checked (section 3a).
 - Run the scanner (Vercel function) and backend (Railway) with no route to internal services where possible. Egress controls are the backstop for any guard bug.
 - `README.md` still links the CI badge to `dheerajrvanteru/securetotalscan`.
 
