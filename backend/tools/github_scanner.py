@@ -8,7 +8,7 @@ import base64
 import os
 import re
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import httpx
 
@@ -314,7 +314,8 @@ _GITHUB_HOSTS = {"github.com", "www.github.com"}
 
 def _validated(owner: str, name: str) -> tuple[str, str]:
     name = name.removesuffix(".git")
-    if not _OWNER_RE.match(owner) or not _REPO_RE.match(name) or name in (".", ".."):
+    # fullmatch, not match: "$" also matches before a trailing newline.
+    if not _OWNER_RE.fullmatch(owner) or not _REPO_RE.fullmatch(name) or name in (".", ".."):
         raise ValueError("Invalid repo — use owner/repo or full GitHub URL")
     return owner, name
 
@@ -386,7 +387,7 @@ def list_scannable_files(
 
     Prioritizes Terraform/HCL files when the repo is IaC-heavy.
     """
-    tree = _get(client, f"/repos/{owner}/{repo}/git/trees/{branch}?recursive=1")
+    tree = _get(client, f"/repos/{owner}/{repo}/git/trees/{_quote_ref(branch)}?recursive=1")
     candidates: list[str] = []
     langs = languages or {}
     hcl_repo = "HCL" in langs and langs.get("HCL", 0) >= 10
@@ -417,9 +418,35 @@ def list_scannable_files(
     return candidates[:MAX_FILES]
 
 
+def _check_segments(value: str, what: str) -> None:
+    if not value or any(ord(c) < 0x20 or c == "\x7f" for c in value):
+        raise ValueError(f"Invalid {what}")
+    if any(part in ("", ".", "..") for part in value.split("/")):
+        raise ValueError(f"Invalid {what}")
+
+
+def _quote_ref(branch: str) -> str:
+    """Encode a branch name from the scanned repo for a token-bearing API URL.
+
+    Branch and file names come from the repository being scanned, so a hostile
+    repo chooses them. Git allows ?, # and % in both; unencoded they would
+    add a query or fragment to our authenticated request. "/" is kept, since
+    branch names such as feature/x are normal; empty, "." and ".." segments
+    are refused.
+    """
+    _check_segments(branch, "branch name")
+    return quote(branch, safe="/")
+
+
+def _quote_path(path: str) -> str:
+    """Encode a file path from the scanned repo for a token-bearing API URL."""
+    _check_segments(path, "file path")
+    return quote(path, safe="/")
+
+
 def fetch_file_content(client: httpx.Client, owner: str, repo: str, path: str) -> str:
     """Download and decode a single file from the GitHub contents API."""
-    data = _get(client, f"/repos/{owner}/{repo}/contents/{path}")
+    data = _get(client, f"/repos/{owner}/{repo}/contents/{_quote_path(path)}")
     if isinstance(data, list):
         return ""
     content = data.get("content", "")

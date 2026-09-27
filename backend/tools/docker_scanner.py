@@ -231,11 +231,12 @@ _TAG_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$")
 
 
 def _validate_image_parts(namespace: str, repo: str, tag: str) -> None:
-    if len(namespace) > 255 or not _NAME_RE.match(namespace):
+    # fullmatch, not match: "$" also matches before a trailing newline.
+    if len(namespace) > 255 or not _NAME_RE.fullmatch(namespace):
         raise ValueError("Invalid Docker Hub namespace")
-    if len(repo) > 255 or not _NAME_RE.match(repo):
+    if len(repo) > 255 or not _NAME_RE.fullmatch(repo):
         raise ValueError("Invalid Docker Hub repository name")
-    if not _TAG_RE.match(tag):
+    if not _TAG_RE.fullmatch(tag):
         raise ValueError("Invalid Docker image tag")
 
 
