@@ -6,6 +6,183 @@ Newest first.
 
 ---
 
+## 2026-09-28 — ChatGPT takeover — security gate blocked
+
+Engine: ChatGPT. Result: BLOCKED on credential revocation; evidence reconciliation completed for the initial security gate. No Claude work or capacity used. This entry is the current pulse and machine-readable state, retained inside the existing ledger to avoid competing status documents.
+
+**Verified remote baseline:** master `3d3e030661498559966e54b8a3407abca34d0f9e`.
+PR #149 remains OPEN at `f299028b4d074bf3709a346b8dca25c4efd36dec`: Web, Backend, both CodeQL languages, npm audit, pip-audit and dependency review all success.
+PR #148 remains OPEN at `7792fddcaade11076bd73a538116f9e82404a533`: those seven checks pass; gitleaks fails.
+
+**Credential evidence:** inspected historical source without outputting credential values. Commit `de06dded7330da020df64ced2c9c081cfeb7e6e0` contains one Slack webhook for workspace `T0BAEM7C7DY`; `706453fc662d1261719844043253a39a268e510e`, current master, and #148 head contain no literal webhook in that dashboard file. Secret Scan job `108606800555` scanned 129 commits and found one leak at that historical commit/file/line 53. Removal does not prove revocation. Connected Slack reports only Viktor workspace `T0BLZSRT7AQ`; do not revoke an unrelated credential. No revocation, ignore-list change, merge, force push, or deployment performed in this checkpoint.
+
+**Historical work reconciled against GitHub:**
+
+| Work | Verified outcome |
+| --- | --- |
+| #95 dashboard access, headers, free-scan controls | Merged: `706453fc662d1261719844043253a39a268e510e` |
+| #96 backend service auth | Merged: `147d439b00a88e59f4cf9e2a6b260f81358069ec`; authenticated runtime remains to verify |
+| #97 durable rate limiting | Closed without merge; superseded by #109 |
+| #109 durable rate limiting | Merged: `8b7fe0434b3f5feabb7ed034e84d8defa3c3423d`; production counting not yet exercised here |
+| #98 earlier dependency patch | Merged: `9bb946f3d2a6c5cae7bfa130a67f3c99b898f45d`; its clean-audit claim is historical |
+| #99 / #100 false-positive fixes | Merged: `1a39d2360b7c118987f0b84daebbef2d9a1b33ec` / `eb00940d2b97b9646a38442c17856ad42665dc75` |
+| Railway reported offline | Stale: direct live health read returns available=true and db_ready=true |
+| Commercial launch | Not verified. Existing plan records pricing/entitlements, scan/report persistence, delivery, accounts and later phases. Database schema alone is not paid-product completion |
+
+**Current runtime:** direct unauthenticated GET checks found the homepage responding 200 with security headers, dashboard redirecting to login, and Railway Trivy health responding 200. Health-check run `36484696047` also passed. No scan submitted and no customer message sent. These observations do not prove the deployed SHA, customer entitlement enforcement, billing, alert delivery, or a successful authenticated deep scan.
+
+**Correction to the handoff:** never configure a replacement webhook in `NEXT_PUBLIC_DEFAULT_SLACK_WEBHOOK_URL`; the public prefix makes it client-visible. Keep replacement secrets server-side. Historical "still valid until revoked" statements establish exposure, not present credential validity.
+
+**Unfinished NEXT:** resolve the matching Slack credential gate; recheck and merge #149 under the authorized sequence; bring current master into #148 with a normal merge; review hardening and rerun tests/security; only then add the exact revoked historical fingerprint if justified; release #148 and verify deployment/runtime. Thereafter resume the product plan using source-backed prices and live integration evidence. No new payment plan or paid resource is authorized by this record.
+
+**Canonical machine-readable checkpoint:**
+
+```json
+{
+  "schema_version": "1.1",
+  "project": {
+    "id": "securetotalscan",
+    "name": "SecureTotalScan",
+    "repo": "anthonym71/securetotalscan",
+    "branch": "docs/chatgpt-takeover-2026-09-28",
+    "worktree": ""
+  },
+  "objective": "Take over Viktor's unfinished work; resolve the published credential incident, verify and release security PRs, then reconcile the product delivery backlog.",
+  "phase": "hardening",
+  "rag_status": "RED",
+  "status_summary": "Revocation unverified; master Security Audit failing; security fixes remain unmerged.",
+  "latest_verified_milestone": {
+    "description": "Remote PR heads/checks and live unauthenticated health verified.",
+    "verified_at": "2026-09-28T21:47:04.906Z",
+    "evidence_refs": [
+      "https://github.com/anthonym71/securetotalscan/pull/149",
+      "https://github.com/anthonym71/securetotalscan/pull/148"
+    ]
+  },
+  "blockers": [
+    "No evidence that the historical Slack webhook was revoked.",
+    "Connected Slack workspace is T0BLZSRT7AQ; leaked webhook workspace is T0BAEM7C7DY."
+  ],
+  "risks": [
+    "Current master has a failing dependency Security Audit.",
+    "Production commit identity and authenticated deep-scan functionality are unverified.",
+    "Do not use the historical NEXT_PUBLIC webhook replacement advice; replacement secrets must stay server-side."
+  ],
+  "tests": {
+    "state": "partial",
+    "summary": "#149: 7/7 checks pass; #148: 7 pass, full-history gitleaks fails with one historical Slack webhook. No new local suite run in this takeover checkpoint.",
+    "last_run_at": "2026-09-27",
+    "evidence_refs": [
+      "https://github.com/anthonym71/securetotalscan/actions/runs/36313512260",
+      "https://github.com/anthonym71/securetotalscan/actions/runs/36314598881",
+      "https://github.com/anthonym71/securetotalscan/actions/runs/36314598872",
+      "https://github.com/anthonym71/securetotalscan/actions/runs/36440506912"
+    ]
+  },
+  "deployment": {
+    "state": "unknown",
+    "environment": "production",
+    "verified_at": "2026-09-28T21:47:04.906Z",
+    "evidence_refs": [
+      "https://securetotalscan.com/",
+      "https://securetotalscan.com/dashboard",
+      "https://securetotalscan-api-production.up.railway.app/health/trivy"
+    ],
+    "note": "Web responds 200 with CSP/HSTS/nosniff/DENY. Dashboard redirects to login. Trivy health returns available=true and db_ready=true. This is limited liveness evidence, not release or authenticated scan proof."
+  },
+  "acceptance": {
+    "total": 4,
+    "verified": 1,
+    "failed": 1,
+    "unknown": 2,
+    "criteria": [
+      {
+        "id": "AC-01",
+        "criterion": "Current PR heads and CI inspected",
+        "state": "verified"
+      },
+      {
+        "id": "AC-02",
+        "criterion": "Compromised webhook revoked",
+        "state": "unknown"
+      },
+      {
+        "id": "AC-03",
+        "criterion": "Security changes merged with passing required checks",
+        "state": "failed"
+      },
+      {
+        "id": "AC-04",
+        "criterion": "Deployment SHA and authenticated runtime verified",
+        "state": "unknown"
+      }
+    ]
+  },
+  "conflicts": [
+    "Historical #97 held claim is stale: closed unmerged, replaced by merged #109.",
+    "Historical Railway offline claim is stale: live Trivy health responds.",
+    "Historical zero-vulnerability claim is stale: master's 2026-09-28 Security Audit fails."
+  ],
+  "unknowns": [
+    "Slack revocation and incident channel impact",
+    "Branch-protection requirements: integration received HTTP 403; ruleset list was empty, which does not prove no branch protection.",
+    "Production billing mode, payment entitlements, email delivery, persistence and alert delivery",
+    "Actual production commit SHA and authenticated GitHub scan token health"
+  ],
+  "decisions_pending": [],
+  "next_actions": [
+    {
+      "action": "Identify the Slack app/workspace in the configuration Anthony located, without sharing the webhook URL; revoke only the matching compromised credential and retain evidence.",
+      "owner": "Anthony / ChatGPT",
+      "evidence_expected": "Matching workspace/app plus revocation confirmation, no credential values"
+    },
+    {
+      "action": "Recheck #149 exact head/checks and release under the controlled sequence, then merge master into #148 without rewriting branch history.",
+      "owner": "ChatGPT",
+      "evidence_expected": "Merge SHAs, required checks, CD and runtime evidence"
+    },
+    {
+      "action": "Allowlist only the exact historical fingerprint after revocation is confirmed; rerun full-history scanning and independent hardening review.",
+      "owner": "ChatGPT",
+      "evidence_expected": "Revocation record and green gitleaks at the resulting head"
+    },
+    {
+      "action": "Reconcile docs/PR-PLAN.md remaining product phases against code and integrations; recover source PRD pricing before making commercial commitments.",
+      "owner": "ChatGPT",
+      "evidence_expected": "Verified unfinished backlog"
+    }
+  ],
+  "owners": [
+    "Anthony Mallett"
+  ],
+  "agents_active": [
+    {
+      "engine": "ChatGPT",
+      "agent_role": "takeover and verification",
+      "task": "SecureTotalScan security lane",
+      "status": "blocked",
+      "branch": "docs/chatgpt-takeover-2026-09-28",
+      "worktree": "",
+      "starting_sha": "3d3e030661498559966e54b8a3407abca34d0f9e",
+      "current_sha": "3d3e030661498559966e54b8a3407abca34d0f9e",
+      "latest_evidence_ref": "https://github.com/anthonym71/securetotalscan/actions/runs/36314598872",
+      "updated_at": "2026-09-28T21:47:04.906Z"
+    }
+  ],
+  "confidence": "high",
+  "source_of_truth": {
+    "canonical_system": "github",
+    "build_state_path": "docs/CHANGELOG-BUILD.md#2026-09-28--chatgpt-takeover--security-gate-blocked",
+    "build_pulse_path": "docs/CHANGELOG-BUILD.md#2026-09-28--chatgpt-takeover--security-gate-blocked",
+    "build_ledger_path": "docs/CHANGELOG-BUILD.md",
+    "dashboard_projection": ""
+  },
+  "last_reconciled_at": "2026-09-28T21:47:04.906Z"
+}
+```
+
+---
+
 ## 2026-08-17 — Phase 1, PR 1.4 (nothing on the site claims a feature we do not have)
 
 **Code:** `lib/content.ts`, `components/LeadCapture.tsx`,
