@@ -6,6 +6,29 @@ Newest first.
 
 ---
 
+## 2026-09-28 — Historical Slack webhook rejected by Slack
+
+Engine: ChatGPT / Codex. Workstream: SecureTotalScan credential incident. Result: PARTIAL — current non-usability verified; permanent revocation and actor/time not independently confirmed.
+
+**Evidence collected at 2026-09-28T22:15:06.675916Z:** the exact historical URL was extracted in memory from `de06dded7330da020df64ced2c9c081cfeb7e6e0:app/dashboard/page.tsx`. An HTTPS GET with no body returned HTTP 404 / `no_service`. A POST with deliberately malformed JSON and no message content also returned HTTP 404 / `no_service`. Redirects were disabled; TLS verification remained enabled. No Slack message was sent. The URL was not printed or copied into this record.
+
+Credential SHA-256 for matching evidence only: `5fa9c0472089a56602e8f2a8f711283e6e6d8e2dbd5f177a318a8a1dac24a075`.
+
+Slack's documentation defines `no_service` as disabled, removed, or invalid:
+https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/#handling-errors
+
+**Attribution:** GitHub PR #27 was authored by `dheerajrvanteru`, from `dheerajrvanteru/securetotalscan`, with head `de06dded7330da020df64ced2c9c081cfeb7e6e0`; merged 2026-06-14T04:13:38Z. Local Git identifies the author as Dheeraj Vanteru; Anthony confirmed he helped build the project and is currently unreachable. This identifies introduction of the credential, not Slack ownership. The connected Lovable workspace contains nine projects and no named SecureTotalScan project; the contemporaneous Env Fetcher project's full message history contains no Slack or SecureTotalScan references. This does not exclude another unconnected account.
+
+**Interpretation and remaining gate:** supersedes the earlier assumption that the credential might currently accept alerts. Slack rejects it now. Do not claim who revoked it, when, whether it was abused, or that it cannot be re-enabled. Under Anthony's explicit actual-revocation requirement, leave the historical gitleaks exception unchanged until permanent revocation is confirmed by the owning administrator or Slack.
+
+**Rechecked repository:** #149 remains open at `f299028b4d074bf3709a346b8dca25c4efd36dec`; its CodeQL, CI, Security Audit and Dependency Review workflow runs all conclude success. #148 remains open at `7792fddcaade11076bd73a538116f9e82404a533`. No merge or deployment occurred in this checkpoint.
+
+**NEXT:** request permanent-revocation confirmation from Slack support if the owner remains unavailable; use repository/commit/file/workspace identifiers without disclosing the credential in chat. A replacement, if required for alerts, must belong to Anthony's controlled workspace and remain server-side. Replacement does not establish revocation of the old credential. Preserve public Git history.
+
+Current pulse: security release BLOCKED on the explicit permanent-revocation gate; user does not need to continue guessing Slack sign-in emails.
+
+---
+
 ## 2026-09-28 — ChatGPT takeover — security gate blocked
 
 Engine: ChatGPT. Result: BLOCKED on credential revocation; evidence reconciliation completed for the initial security gate. No Claude work or capacity used. This entry is the current pulse and machine-readable state, retained inside the existing ledger to avoid competing status documents.
