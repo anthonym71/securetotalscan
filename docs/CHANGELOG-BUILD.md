@@ -6,6 +6,14 @@ Newest first.
 
 ---
 
+## 2026-09-28 — Provider support escalation submitted
+
+Engine: ChatGPT / Codex. Result: PARTIAL. With Anthony's explicit authorization, the provider support escalation was submitted and its completion acknowledgement was observed. No duplicate submission was made. The acknowledgement is not evidence of permanent revocation; the existing security-release gate and historical secret-scanning exception remain unchanged pending the provider's substantive response.
+
+NEXT: obtain permanent-revocation confirmation, then resume the previously documented release checks. The private receipt is retained outside this public repository.
+
+---
+
 ## 2026-09-28 — Historical Slack webhook rejected by Slack
 
 Engine: ChatGPT / Codex. Workstream: SecureTotalScan credential incident. Result: PARTIAL — current non-usability verified; permanent revocation and actor/time not independently confirmed.
