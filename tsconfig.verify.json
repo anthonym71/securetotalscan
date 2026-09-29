@@ -37,6 +37,9 @@
     "scripts/verify-ssrf.ts",
     "scripts/scan-local.ts",
     "scripts/verify-scan-storage.ts",
-    "scripts/verify-live-storage.ts"
+    "scripts/verify-live-storage.ts",
+    "scripts/verify-report.ts",
+    "scripts/verify-report-access.ts",
+    "scripts/verify-paywall.ts"
   ]
 }

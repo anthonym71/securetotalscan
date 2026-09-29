@@ -113,7 +113,7 @@ export const PLANS: Plan[] = [
   {
     name: "Free",
     price: "$0",
-    features: ["Surface scan", "A–F security grade", "Copy-paste fix prompts"],
+    features: ["Surface scan", "A–F security grade", "One medium-severity fix sample when available", "Downloadable PDF after a saved scan"],
   },
   {
     name: "Pro",
@@ -149,7 +149,7 @@ export const FAQS: FaqItem[] = [
   },
   {
     q: "What do I do with the findings?",
-    a: "Start with anything marked critical. Every finding ships with a copy-paste fix prompt you can hand straight to your AI tool. After fixing, rotate any exposed credentials and re-scan to confirm.",
+    a: "Start with anything marked critical. A free scan includes a medium-severity fix sample when available. Members receive the full fix prompts. After fixing, rotate any exposed credentials and re-scan to confirm.",
   },
   {
     q: "How long does it take?",
@@ -161,7 +161,7 @@ export const FAQS: FaqItem[] = [
     // 10/day per email, and 10/hour per target domain. Stating them is also
     // better product — a visitor who hits a limit unexpectedly assumes we are
     // broken.
-    a: "Yes, no credit card. The free scan gives you a complete surface assessment with every finding and a fix prompt. Fair-use limits apply — 5 scans an hour and 20 a day — so the scanner stays available for everyone. Paid plans, automated monitoring and report delivery are still in development.",
+    a: "Yes, no credit card. The free scan gives you the findings and one medium-severity fix sample when available. Fair-use limits apply — 5 scans an hour and 20 a day — so the scanner stays available for everyone. Paid checkout, automated monitoring and emailed reports are still in development.",
   },
 ];
 

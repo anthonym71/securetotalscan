@@ -6,6 +6,20 @@ Newest first.
 
 ---
 
+## 2026-09-29 — Secure report downloads and server-side prompt projection
+
+Reused the public-report projection and dependency-free PDF renderer from the unmerged `claude/sts-phase-0-continuation-154ndo` branch (head 7376cd7), adapting them to current security fixes and verified persistence. Did not adopt its UUID-only report access or shared-member cross-report access.
+
+**Code:** Free API responses and PDFs contain at most one medium-severity prompt. Full prompts require current valid membership. Reports require a scan-specific HMAC bearer capability in an Authorization header; scan A's token cannot access B, and membership cannot bypass that check. Tokens are issued only for saved reports with a strong signing secret, never persisted or put in URLs. Reads expire, are rate limited, and return sanitized errors. The result page downloads the actual stored report as a branded PDF. Existing auth, DNS/request guards and quotas stay in force.
+
+**Verification:** Local typecheck, production build and lint pass (one existing font warning). PDF checks prove withheld prompt text is absent, member prompts present, xref/stream integrity, pagination and escaping. Token/read tests cover cross-scan refusal before database access, invalid/expired records, rotation and limits. A generated report was rendered and visually inspected. Final exact-head CI and deployment are still required. No production PDF success is claimed here.
+
+**Earlier milestone:** PR #153 merged as 3033b0be450422e30045c335b60b7f5142e7fda0. CD 36640879372 passed both deployments. Its real Neon gate passed insert/readback, six-month retention, anonymous ownership and atomic cleanup. Owner login works per Anthony's correction.
+
+**Configuration / external changes:** Reuses existing STS_AUTH_SECRET and DATABASE_URL. No new secrets, schema, GHL, DNS, messages or payments. Paid checkout, exact five-tier pricing, real accounts/credits, emailed reports and monitoring remain unfinished. The old execution plan on the recovered branch independently confirms the pricing-table dependency.
+
+---
+
 ## 2026-09-29 — Storage deployment gate and login correction
 
 Anthony clarified that owner login **is working** (user-confirmed, not an independent live sign-in test). It is no longer a blocker. Full local web verification now passes after updating the obsolete schema-only assertion that prohibited the new scan writer. CD adds a real Neon gate: the same insert statement as the runtime, report readback, six-month retention/anonymous ownership assertions, and removal of the synthetic row in one atomic transaction. It logs only pass/fail, never database credentials or error objects. A failed SQL transaction rolls back; a successful transaction leaves no fixture behind. This gate must pass before the frontend deploys. No new secrets or schema changes.

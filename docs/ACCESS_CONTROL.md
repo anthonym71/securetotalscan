@@ -100,3 +100,12 @@ The FastAPI backend only serves callers that present a shared secret in the
    nonce-based CSP makes every page dynamic; do it deliberately.
 2. **Rate limits are per-instance without Upstash.** Set
    `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` for durable limits.
+
+
+## Saved report downloads and premium prompts (2026-09-29)
+
+A scan ID alone does not authorize retrieval. After a successful write, the scan response includes a report-read capability derived with HMAC-SHA256 from a domain-separated scan ID and the existing 32+ character STS_AUTH_SECRET. The browser holds it in the current scan result and sends it only in an Authorization header when downloading; it is never put in a URL, database row or log. Treat it as a bearer credential: anyone it is deliberately shared with can read that scan at their own entitlement level. It is not a verified customer account. Signing-secret rotation invalidates previously issued capabilities.
+
+Both PDF and premium JSON retrieval verify the capability before reading the database, enforce the stored expiration date and use a shared IP download limit. A member session alone does not grant access to another report. The PDF receives the same public projection as the scan API: one medium-severity fix sample at most for free visitors, all prompts for current valid access-code sessions. This is existing access-code membership, not payment verification. Paid checkout remains unavailable until webhook-backed entitlement and real accounts ship.
+
+No new environment variables: STS_AUTH_SECRET is already wired into CD and Vercel sync. No scan history UI or durable browser report-token recovery is supplied by this change; download the PDF while the scan result is open. Email delivery and automatic record deletion remain unfinished.

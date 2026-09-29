@@ -51,7 +51,7 @@ export function LeadCapture({
             actually happened. */}
         <p className="font-semibold text-grade-a">You&apos;re on the list.</p>
         <p className="mt-1 text-sm text-white/60">
-          Your interest has been recorded. PDF delivery is not available yet.
+          Your interest has been recorded. Email delivery is not available yet.
           Keep a copy of the findings on this page.
         </p>
       </div>
@@ -60,7 +60,7 @@ export function LeadCapture({
 
   return (
     <div className="rounded-2xl border border-brand/30 bg-brand/10 p-5">
-      <p className="font-semibold">Register interest in PDF reports</p>
+      <p className="font-semibold">Register interest in emailed reports</p>
       <p className="mt-1 text-sm text-white/60">
         Emailed PDF reports are not live yet. Leave your address for product
         news and occasional security updates.
