@@ -6,6 +6,20 @@ Newest first.
 
 ---
 
+## 2026-09-29 — Storage and secure PDF release: live verification
+
+**Milestone status: CONDITIONALLY CLOSED** for scan storage, server-side prompt projection and secure PDF downloads. **Full commercial launch: BLOCKED**, not complete.
+
+PR153 merged as 3033b0b; PR154 merged as 92013f693c15f45cfd5ed23b540b813bbe469ebd. Exact PR154 head db1a547 passed CI (web/backend), CodeQL, Security Audit and Dependency Review. Secret Scan reports exactly the previously accepted historical Slack webhook fingerprint, no new findings or suppression. CD36641707562 deployed Vercel successfully, including real Neon insert/readback/retention/atomic-cleanup gate; Railway correctly skipped because backend was unchanged.
+
+Live checks after deployment: self-scan returned HTTP200, **A / 100**, and confirmed saved storage; free PDF returned a valid PDF (6,847 bytes); missing/wrong tokens returned401; anonymous premium JSON returned403; owner login returned200; owner premium JSON and PDF returned200; member cookie without the report capability still returned401. No report tokens, cookies or signing keys were printed or saved to files. The test scanned our own site under the owner's supplied email using the normal scan/CRM flow. No report email or payment was sent.
+
+Remaining: exact five-tier specification, payment-verified entitlement and lifecycle, verified customer accounts/credits, email delivery, monitoring, automatic deletion and full launch QA. Retention expiration is enforced on reads; physical deletion is still unfinished. Historical webhook exception remains open. Rollback is a normal revert of PR154/153 through CI/CD; no schema migration was introduced by either PR.
+
+**Next verification:** A separate, read-only integration-readiness workflow uses existing prod credentials against fixed HighLevel/Resend provider hosts. It reports only HTTP status, first-page product count, expected sender-domain match and verification booleans. No credentials, customer data or product metadata are printed. It sends no messages, makes no payment/DNS changes and does not alter provider accounts. Local syntax and missing-configuration paths checked; actual provider results are pending. Provider success must not be inferred merely from a successful diagnostic job.
+
+---
+
 ## 2026-09-29 — Secure report downloads and server-side prompt projection
 
 Reused the public-report projection and dependency-free PDF renderer from the unmerged `claude/sts-phase-0-continuation-154ndo` branch (head 7376cd7), adapting them to current security fixes and verified persistence. Did not adopt its UUID-only report access or shared-member cross-report access.

@@ -4,43 +4,43 @@
     "id": "securetotalscan",
     "name": "Secure Total Scan",
     "repo": "https://github.com/anthonym71/securetotalscan",
-    "branch": "phase2/secure-reports-2026-09-29"
+    "branch": "phase2/integration-readiness-2026-09-29"
   },
   "objective": "Complete commercial launch per docs/PR-PLAN.md",
   "phase": "build",
   "rag_status": "RED",
-  "status_summary": "Storage deployed and database-verified; secure PDF and server-side prompt projection under release review. Owner login user-confirmed.",
+  "status_summary": "Storage, secure PDF downloads and prompt paywall deployed and live-verified. Commercial launch remains blocked by pricing and unverified integrations/accounts.",
   "blockers": [
     "Exact PRD v1.2 section 3 five-tier specification missing",
     "Deep-scan cost benchmark withdrawn"
   ],
   "tests": {
     "state": "partial",
-    "summary": "Full local web suite passes, including PDF byte checks, report-token isolation, storage and paywall tests. Production build passes. Exact-head CI pending."
+    "summary": "PR154 exact-head CI, CodeQL, audit and dependency review pass. Live A/100 scan saved; free and owner PDFs, owner login, premium authorization and missing/wrong-token refusal pass."
   },
   "deployment": {
     "state": "healthy",
     "environment": "production",
     "evidence_refs": [
-      "https://github.com/anthonym71/securetotalscan/actions/runs/36640879372"
+      "https://github.com/anthonym71/securetotalscan/actions/runs/36641707562"
     ]
   },
   "unknowns": [
-    "Exact pricing table",
-    "Payment product configuration (connected HighLevel returned a different location)",
-    "Transactional email configuration and delivery",
-    "Post-deployment PDF journey"
+    "Exact five-tier table",
+    "HighLevel product API access under deployment integration",
+    "Resend sender verification and actual delivery",
+    "Payment webhook, accounts/credits, monitoring and retention enforcement"
   ],
   "next_actions": [
     {
-      "action": "Review PR and exact-head CI; validate runtime storage",
+      "action": "Run read-only integration readiness audit through existing prod credentials",
       "owner": "Codex",
-      "evidence_expected": "CI plus database receipt and readback"
+      "evidence_expected": "Provider HTTP status and sender verification; no messages or payment changes"
     },
     {
-      "action": "Recover PRD section 3; implement pricing and payment products",
+      "action": "Recover exact pricing table; complete payment, verified accounts and email workflows",
       "owner": "Anthony / Codex",
-      "evidence_expected": "Exact approved tier table"
+      "evidence_expected": "Approved tier table and end-to-end test purchases and delivery"
     }
   ],
   "source_of_truth": {
@@ -49,12 +49,13 @@
     "build_pulse_path": "docs/BUILD_STATE.json",
     "build_ledger_path": "docs/CHANGELOG-BUILD.md"
   },
-  "last_reconciled_at": "2026-09-29T22:45:06.308979+00:00",
+  "last_reconciled_at": "2026-09-29T22:53:30.630904+00:00",
   "confidence": "high",
   "latest_verified_milestone": {
-    "description": "PR153 deployed; atomic Neon storage gate passed",
+    "description": "PR154 deployed; live self-scan A/100, saved result, free/owner PDF and access boundaries pass; owner login independently verified",
+    "verified_at": "2026-09-29T22:53:30.630885+00:00",
     "evidence_refs": [
-      "https://github.com/anthonym71/securetotalscan/actions/runs/36640879372"
+      "https://github.com/anthonym71/securetotalscan/actions/runs/36641707562"
     ]
   }
 }
