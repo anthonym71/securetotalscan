@@ -6,6 +6,7 @@ import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { assertSameOrigin } from "@/lib/security/origin";
 import { anyUnavailable, limiterUnavailable } from "@/lib/security/limits";
 import { customerRef, postAlert } from "@/lib/alerting";
+import { recordSurfaceScan } from "@/lib/db/scans";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -104,6 +105,20 @@ export async function POST(req: NextRequest) {
 
   try {
     const report = await scan(target.toString());
+    // Await the write: never tell a visitor their result was saved when the
+    // database rejected it. Scanning remains useful during a storage outage.
+    try {
+      report.storage = { status: "saved", ...await recordSurfaceScan(report) };
+    } catch {
+      report.storage = { status: "unavailable" };
+      report.notes.push("This result could not be saved. Copy the findings before closing this page.");
+      after(() => postAlert({
+        severity: "warning",
+        kind: "scan-storage-unavailable",
+        detail: "A surface scan completed but its database write failed.",
+        dedupeKey: "scan-storage-unavailable",
+      }));
+    }
 
     // Lead capture is best effort: never fail or delay the scan because the
     // CRM is slow or unconfigured.

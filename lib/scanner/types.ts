@@ -37,6 +37,9 @@ export interface CategoryResult {
 export type Grade = "A" | "B" | "C" | "D" | "F";
 
 export interface ScanReport {
+  storage?:
+    | { status: "saved"; id: string; createdAt: string; expiresAt: string }
+    | { status: "unavailable" };
   url: string;
   scannedAt: string;
   durationMs: number;

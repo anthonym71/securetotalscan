@@ -6,6 +6,22 @@ Newest first.
 
 ---
 
+## 2026-09-29 — Commercial build resumed: scan persistence and truthful availability
+
+Engine: ChatGPT / Codex. Branch: `phase2/scan-persistence-2026-09-29`, based on `b24ffd00717bc0fff4189a0b984b1d7f1d64c171`. Anthony authorized continuing the commercial build while parking the owner-login issue.
+
+**Code:** Surface reports are written to the existing Neon scan table using bound parameters and a five-second storage timeout. The response includes the database receipt and six-month retention review date only after a successful write. Storage failure preserves the scan result with an explicit unsaved warning and a deduplicated operational alert. No submitted email is used to assign ownership; future account verification must establish that. Stored report strings remove URL credentials, query strings and fragments. Fetched page/bundle contents are not stored. There is no public read-by-ID route.
+
+**Copy:** Remove the unverified purchase link and monitoring/PDF/SSO promises. Pro is marked in development; organization routes to contact sales. Hero compares plans. PDF interest registration no longer promises eventual delivery of an unstored prior report. Storage/privacy wording describes current limitations, including unfinished automated deletion and online history.
+
+**Validation:** Typecheck, scan-storage regressions and existing claims checks pass. Lint passes with one existing font warning. Production build passed before the final timeout adjustment; exact-head CI remains required. Storage tests cover parameterization, URL redaction, non-mutation, unassigned ownership, receipt mapping, and write failures with a mock database. Real Neon insert/readback and live scan response remain UNVERIFIED. No deployment is claimed.
+
+**GHL / configuration:** No GHL objects changed, no messages or payments sent. No new env variables. Existing DATABASE_URL and migration 0001 are reused; no existing migration changed. No DNS changes.
+
+**Blockers / NEXT:** PRD v1.2 section 3 exact five-tier inclusions remains missing after repository, personal-context, public Slack and saved-file searches. Saved discussion contains an older $19 one-time proposal, which is not the later approved five-tier table and is not substituted. The deep-cost benchmark remains withdrawn. Owner login is still failing per user report; paused at their request. Payment entitlement, PDF/email delivery, accounts/credits, monitoring and launch QA remain unfinished. This PR is reviewable progress, not commercial launch completion.
+
+---
+
 ## 2026-09-29 — Email-bound owner dashboard access
 
 **Request:** Add separately configured owner access that is not tied to customer-plan expiration. Real email/code values are deployment settings only, never source or fixtures.

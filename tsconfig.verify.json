@@ -35,6 +35,7 @@
     "scripts/verify-ratelimit.ts",
     "scripts/verify-scanner.ts",
     "scripts/verify-ssrf.ts",
-    "scripts/scan-local.ts"
+    "scripts/scan-local.ts",
+    "scripts/verify-scan-storage.ts"
   ]
 }

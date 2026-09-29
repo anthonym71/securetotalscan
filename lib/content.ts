@@ -15,13 +15,8 @@ export const HERO = {
 };
 
 export const TRUST = {
-  headline: "We can't lose data we never keep.",
-  // Interim wording. "Nothing is persisted" is true of scan *content* today —
-  // there is no database yet — but the email you enter is sent to our CRM, and
-  // that was not stated. Phase 2 introduces storage with a stated retention
-  // period, and this copy is rewritten again there against what is actually
-  // stored. Until then it describes only what we can stand behind.
-  body: "Files and logs you submit are encrypted in transit, analyzed in memory, then discarded the moment the scan ends — we don't store them, and nothing trains a model. The email address you give us is kept so we can send your report and occasional security updates; you can unsubscribe any time.",
+  headline: "Know what happens to your scan data.",
+  body: "Surface-scan results are stored when storage is available, with a six-month retention review date. Stored reports omit URL query strings and fragments; fetched pages and JavaScript bundles are not stored with the report. Automatic deletion and online history are still being built. Your email is kept in our CRM for security updates; you can unsubscribe.",
 };
 
 export const SCAN_SECTION = {
@@ -53,8 +48,8 @@ export const HOW_IT_WORKS: Step[] = [
   },
   {
     icon: "🔧",
-    title: "Fix and monitor",
-    body: "Copy-paste fix prompts for every finding, then keep watch on a schedule.",
+    title: "Fix and re-scan",
+    body: "Use the fix prompts, then run another scan to check your changes.",
   },
 ];
 
@@ -123,14 +118,14 @@ export const PLANS: Plan[] = [
   {
     name: "Pro",
     price: "$49",
-    cadence: "/mo",
+    cadence: "/month",
     featured: true,
-    features: ["All five agents", "Repo + log analysis", "Scheduled monitoring", "Email PDF reports"],
+    features: ["Planned paid plan — not available to buy yet", "Deep-analysis dashboard preview", "Monitoring and emailed PDFs are in development"],
   },
   {
     name: "Organization",
     price: "Custom",
-    features: ["Continuous monitoring", "Compliance reports", "SSO and SLAs", "Priority support"],
+    features: ["Discuss your security requirements", "Custom scope agreed before purchase", "Enterprise features subject to availability"],
   },
 ];
 
@@ -146,7 +141,7 @@ export const FAQS: FaqItem[] = [
   },
   {
     q: "Do you store my data or train models on it?",
-    a: "We never train models on your data. Files and logs are encrypted in transit, analyzed in memory, and discarded the moment the scan ends — scan contents are not stored. Detected secrets are redacted before they're shown back to you. The email address you provide is stored so we can send your report and occasional security updates.",
+    a: "Surface-scan reports are stored when available, with a six-month retention review date. Online history and automated deletion are not live yet. Fetched pages and bundles are not stored with the report. Deep analysis uses external model services; do not submit credentials or sensitive personal data. Your email is kept in our CRM for security updates.",
   },
   {
     q: "How does the scan actually work?",
@@ -166,7 +161,7 @@ export const FAQS: FaqItem[] = [
     // 10/day per email, and 10/hour per target domain. Stating them is also
     // better product — a visitor who hits a limit unexpectedly assumes we are
     // broken.
-    a: "Yes, no credit card. The free scan gives you a complete surface assessment with every finding and a fix prompt. Fair-use limits apply — 5 scans an hour and 20 a day — so the scanner stays available for everyone. The agents and continuous monitoring are the paid tiers.",
+    a: "Yes, no credit card. The free scan gives you a complete surface assessment with every finding and a fix prompt. Fair-use limits apply — 5 scans an hour and 20 a day — so the scanner stays available for everyone. Paid plans, automated monitoring and report delivery are still in development.",
   },
 ];
 
