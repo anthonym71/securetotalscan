@@ -6,6 +6,18 @@ Newest first.
 
 ---
 
+## 2026-09-29 — PR #149 dependency security release
+
+Engine: ChatGPT / Codex. Anthony explicitly instructed continuation without waiting for the separate historical-webhook incident. This supersedes the earlier release sequencing dependency on provider revocation confirmation; it does not assert revocation or authorize hiding the historical secret finding.
+
+Code reviewed at `f299028b4d074bf3709a346b8dca25c4efd36dec`: Next.js and eslint-config-next 15.5.23 -> 15.5.26, sharp 0.35.3 -> 0.35.4 with matching platform packages/libvips, js-yaml 4.3.1 -> 4.3.2 in the lockfile. No unrelated application change. Existing Web, Backend, CodeQL, npm audit, pip-audit and dependency review checks pass for that code head. This documentation update triggers a fresh check of the resulting PR head before merge.
+
+GHL changes: none. New environment variables: none. Webhook incident: unresolved and tracked separately; no history rewrite, secret-scan suppression or credential reuse.
+
+NEXT: merge only the verified current PR head through GitHub, observe CI/CD, integrate current master into #148 using a normal merge, review and retest the hardening, then verify deployment/runtime. Production completion is not established by this record.
+
+---
+
 ## 2026-08-17 — Phase 1, PR 1.4 (nothing on the site claims a feature we do not have)
 
 **Code:** `lib/content.ts`, `components/LeadCapture.tsx`,
