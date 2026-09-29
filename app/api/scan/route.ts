@@ -1,3 +1,4 @@
+import { readJsonObject, RequestBodyError, requireStringFields } from "@/lib/security/requestBody";
 import { NextRequest, NextResponse, after } from "next/server";
 import { ScanError, normalizeTarget, scan } from "@/lib/scanner";
 import { EMAIL_RE, createLead } from "@/lib/leads";
@@ -18,8 +19,6 @@ const LIMITS = {
   targetPerHour: { max: 10, window: 60 * 60 }, // per scanned domain, all users
 } as const;
 
-const MAX_BODY_BYTES = 4096;
-
 function tooMany(resetIn: number) {
   return NextResponse.json(
     {
@@ -37,20 +36,16 @@ export async function POST(req: NextRequest) {
   const originError = assertSameOrigin(req);
   if (originError) return originError;
 
-  const declaredLength = Number(req.headers.get("content-length") ?? 0);
-  if (declaredLength > MAX_BODY_BYTES) {
-    return NextResponse.json({ error: "Request body too large." }, { status: 413 });
-  }
-
   let body: { url?: string; email?: string };
   try {
-    const raw = await req.text();
-    if (raw.length > MAX_BODY_BYTES) {
-      return NextResponse.json({ error: "Request body too large." }, { status: 413 });
-    }
-    body = JSON.parse(raw);
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    const parsed = await readJsonObject(req);
+    requireStringFields(parsed, ["url", "email"]);
+    body = parsed;
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof RequestBodyError ? error.message : "Invalid JSON body." },
+      { status: error instanceof RequestBodyError ? error.status : 400 },
+    );
   }
 
   const url = (body.url ?? "").trim();

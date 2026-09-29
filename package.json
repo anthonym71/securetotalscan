@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "verify:scanner": "tsc -p tsconfig.verify.json && node .verify/scripts/verify-scanner.js && npm run verify:input-validation && npm run verify:ratelimit && npm run verify:alerting && npm run verify:findings && npm run verify:target && npm run verify:http-posture && npm run verify:claims && npm run verify:schema && npm run verify:ssrf",
+    "verify:scanner": "tsc -p tsconfig.verify.json && node .verify/scripts/verify-scanner.js && npm run verify:input-validation && npm run verify:ratelimit && npm run verify:alerting && npm run verify:findings && npm run verify:target && npm run verify:http-posture && npm run verify:claims && npm run verify:schema && npm run verify:ssrf && node .verify/scripts/verify-request-body.js",
     "verify:input-validation": "node .verify/scripts/verify-input-validation.js",
     "verify:ratelimit": "node .verify/scripts/verify-ratelimit.js",
     "verify:alerting": "node .verify/scripts/verify-alerting.js",
@@ -47,6 +47,6 @@
     "brace-expansion": "^5.0.9"
   },
   "engines": {
-    "node": ">=18.18.0"
+    "node": ">=20.18.1"
   }
 }

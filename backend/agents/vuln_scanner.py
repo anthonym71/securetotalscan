@@ -95,9 +95,11 @@ def check_api_headers(headers: dict) -> list[dict]:
     Returns:
         List of missing-header findings with remediation text.
     """
+    # HTTP field names are case-insensitive; httpx returns lowercase names.
+    present = {name.lower() for name in headers}
     missing = []
     for h in REQUIRED_HEADERS:
-        if h not in headers:
+        if h.lower() not in present:
             missing.append(
                 {
                     "header": h,

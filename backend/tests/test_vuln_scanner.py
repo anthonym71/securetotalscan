@@ -19,6 +19,18 @@ def test_check_api_headers_missing():
     assert any(f["header"] == "Content-Security-Policy" for f in findings)
 
 
+def test_check_api_headers_case_insensitive():
+    headers = {
+        "x-frame-options": "DENY",
+        "content-security-policy": "default-src 'self'",
+        "X-CONTENT-TYPE-OPTIONS": "nosniff",
+        "Strict-Transport-Security": "max-age=31536000",
+    }
+    assert check_api_headers(headers) == []
+    del headers["x-frame-options"]
+    assert [f["header"] for f in check_api_headers(headers)] == ["X-Frame-Options"]
+
+
 def test_run_vuln_scanner_no_fake_headers_without_url():
     state = make_initial_state(raw_logs=[], log_source="synthetic", session_id="v2")
     state = {
