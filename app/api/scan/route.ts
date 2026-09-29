@@ -7,6 +7,9 @@ import { assertSameOrigin } from "@/lib/security/origin";
 import { anyUnavailable, limiterUnavailable } from "@/lib/security/limits";
 import { customerRef, postAlert } from "@/lib/alerting";
 import { recordSurfaceScan } from "@/lib/db/scans";
+import { reportAccessToken } from "@/lib/report/access";
+import { entitlementFor } from "@/lib/entitlements";
+import { toPublicReport } from "@/lib/scanner/publicReport";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -130,7 +133,15 @@ export async function POST(req: NextRequest) {
       tags: ["capture-free-scan"],
     }).catch(() => undefined);
 
-    return NextResponse.json(report, {
+    const publicReport = toPublicReport(report, { entitlement: await entitlementFor(req) });
+    if (report.storage?.status === "saved") {
+      const receipt = report.storage;
+      const readToken = reportAccessToken(receipt.id);
+      publicReport.storage = { ...receipt, ...(readToken ? { readToken } : {}) };
+    } else {
+      publicReport.storage = { status: "unavailable" };
+    }
+    return NextResponse.json(publicReport, {
       status: 200,
       headers: { "Cache-Control": "no-store" },
     });

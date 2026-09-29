@@ -1,4 +1,5 @@
-import type { Finding, Grade, ScanReport, Severity } from "@/lib/scanner/types";
+import type { PublicFinding, Grade, PublicScanReport, Severity } from "@/lib/scanner/types";
+import { ReportDownload } from "./ReportDownload";
 import { LeadCapture } from "./LeadCapture";
 
 const GRADE_COLOR: Record<Grade, string> = {
@@ -23,7 +24,7 @@ export function ScanResults({
   report,
   email,
 }: {
-  report: ScanReport;
+  report: PublicScanReport;
   /** Address the scan was run with, pre-filled into the report form below. */
   email?: string;
 }) {
@@ -72,6 +73,13 @@ export function ScanResults({
         defaultEmail={email}
       />
 
+      {report.storage?.status === "saved" && report.storage.readToken && (
+        <ReportDownload id={report.storage.id} token={report.storage.readToken} />
+      )}
+      {report.lockedPromptCount > 0 && <p className="text-sm text-white/60">
+        {report.lockedPromptCount} full fix prompts require member access. A medium-severity sample is shown when available.
+        {" "}<a href="/login" className="text-brand-light">Sign in</a> to run a scan with your existing access code.
+      </p>}
       {/* Severity summary */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {SEV_ORDER.map((sev) => (
@@ -118,7 +126,7 @@ export function ScanResults({
   );
 }
 
-function FindingCard({ finding }: { finding: Finding }) {
+function FindingCard({ finding }: { finding: PublicFinding }) {
   return (
     <li className="rounded-xl border border-white/10 bg-card-gradient p-5">
       <div className="flex flex-wrap items-center gap-3">
@@ -135,14 +143,15 @@ function FindingCard({ finding }: { finding: Finding }) {
           {finding.evidence}
         </p>
       )}
-      <details className="mt-3 group">
+      {finding.fixPrompt && <details className="mt-3 group">
         <summary className="cursor-pointer text-sm font-medium text-brand-light hover:text-white">
           Fix prompt →
         </summary>
         <p className="mt-2 rounded-lg border border-brand/30 bg-brand/10 px-3 py-2 text-sm text-white/80">
           {finding.fixPrompt}
         </p>
-      </details>
+      </details>}
+      {finding.promptLocked && <p className="mt-3 text-sm text-white/50">Full fix prompt requires member access.</p>}
     </li>
   );
 }

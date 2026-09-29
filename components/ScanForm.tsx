@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ScanReport } from "@/lib/scanner/types";
+import type { PublicScanReport } from "@/lib/scanner/types";
 import { SCAN_SECTION } from "@/lib/content";
 import {
   type Protocol,
@@ -29,7 +29,7 @@ export function ScanForm() {
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [report, setReport] = useState<ScanReport | null>(null);
+  const [report, setReport] = useState<PublicScanReport | null>(null);
   // The address the report was actually run for, so the report form can carry
   // it forward rather than asking for it twice.
   const [scannedEmail, setScannedEmail] = useState("");
@@ -82,7 +82,7 @@ export function ScanForm() {
       if (!res.ok) {
         setError(data.error ?? "Something went wrong. Please try again.");
       } else {
-        setReport(data as ScanReport);
+        setReport(data as PublicScanReport);
         setScannedEmail(email.trim());
       }
     } catch {
