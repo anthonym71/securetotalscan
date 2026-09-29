@@ -20,7 +20,8 @@
     "verify:schema": "node .verify/scripts/verify-schema.js",
     "verify:ssrf": "node .verify/scripts/verify-ssrf.js",
     "scan": "tsc -p tsconfig.verify.json && node .verify/scripts/scan-local.js",
-    "migrate": "tsc -p tsconfig.verify.json && node .verify/scripts/migrate.js"
+    "migrate": "tsc -p tsconfig.verify.json && node .verify/scripts/migrate.js",
+    "verify:storage:live": "tsc -p tsconfig.verify.json && node .verify/scripts/verify-live-storage.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

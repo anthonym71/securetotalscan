@@ -28,15 +28,22 @@ export function reportForStorage(report: ScanReport): ScanReport {
   )) as ScanReport;
 }
 
-export async function recordSurfaceScan(report: ScanReport): Promise<ScanReceipt> {
+export function surfaceScanInsert(report: ScanReport) {
   const stored = reportForStorage(report);
-  const rows = await db().query(
-    `INSERT INTO scan
+  return {
+    text: `INSERT INTO scan
       (target_url, target_host, kind, grade, score, findings, duration_ms)
      VALUES ($1, $2, 'surface', $3, $4, $5::jsonb, $6)
      RETURNING id, created_at, expires_at`,
-    [stored.url, new URL(stored.url).hostname.toLowerCase(), stored.grade,
+    values: [stored.url, new URL(stored.url).hostname.toLowerCase(), stored.grade,
       stored.score, JSON.stringify(stored), stored.durationMs],
+  };
+}
+
+export async function recordSurfaceScan(report: ScanReport): Promise<ScanReceipt> {
+  const insert = surfaceScanInsert(report);
+  const rows = await db().query(
+    insert.text, insert.values,
     { arrayMode: false, fullResults: false, fetchOptions: { signal: AbortSignal.timeout(5000) } },
   );
   if (!Array.isArray(rows) || rows.length !== 1 || Array.isArray(rows[0])) {

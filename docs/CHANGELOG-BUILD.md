@@ -6,6 +6,12 @@ Newest first.
 
 ---
 
+## 2026-09-29 — Storage deployment gate and login correction
+
+Anthony clarified that owner login **is working** (user-confirmed, not an independent live sign-in test). It is no longer a blocker. Full local web verification now passes after updating the obsolete schema-only assertion that prohibited the new scan writer. CD adds a real Neon gate: the same insert statement as the runtime, report readback, six-month retention/anonymous ownership assertions, and removal of the synthetic row in one atomic transaction. It logs only pass/fail, never database credentials or error objects. A failed SQL transaction rolls back; a successful transaction leaves no fixture behind. This gate must pass before the frontend deploys. No new secrets or schema changes.
+
+---
+
 ## 2026-09-29 — Commercial build resumed: scan persistence and truthful availability
 
 Engine: ChatGPT / Codex. Branch: `phase2/scan-persistence-2026-09-29`, based on `b24ffd00717bc0fff4189a0b984b1d7f1d64c171`. Anthony authorized continuing the commercial build while parking the owner-login issue.

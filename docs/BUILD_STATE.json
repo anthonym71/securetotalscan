@@ -9,15 +9,14 @@
   "objective": "Complete commercial launch per docs/PR-PLAN.md",
   "phase": "build",
   "rag_status": "RED",
-  "status_summary": "Commercial launch incomplete. Scan persistence and truthful availability prepared for review; owner login paused.",
+  "status_summary": "Commercial launch incomplete. Owner login works per user confirmation. Scan persistence under verification.",
   "blockers": [
     "Exact PRD v1.2 section 3 five-tier specification missing",
-    "Deep-scan cost benchmark withdrawn",
-    "Owner login failing; user requested pause"
+    "Deep-scan cost benchmark withdrawn"
   ],
   "tests": {
     "state": "partial",
-    "summary": "Typecheck, storage unit regressions, claims and lint pass; actual Neon persistence not verified"
+    "summary": "Full local web verification, typecheck, storage regressions pass. CD now runs atomic synthetic database insert/read/delete gate before deployment."
   },
   "deployment": {
     "state": "not_deployed",
@@ -49,6 +48,6 @@
     "build_pulse_path": "docs/BUILD_STATE.json",
     "build_ledger_path": "docs/CHANGELOG-BUILD.md"
   },
-  "last_reconciled_at": "2026-09-29T22:27:23.672058+00:00",
+  "last_reconciled_at": "2026-09-29T22:35:26.935505+00:00",
   "confidence": "high"
 }
