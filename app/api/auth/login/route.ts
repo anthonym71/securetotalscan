@@ -4,6 +4,7 @@ import {
   SESSION_COOKIE,
   SESSION_TTL_SECONDS,
   createSession,
+  createOwnerSession,
   isAccessConfigured,
   matchAccessCode,
 } from "@/lib/auth/session";
@@ -54,7 +55,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
   }
 
-  const entitlement = matchAccessCode(code);
+  const ownerToken = await createOwnerSession(email, code);
+  const entitlement = ownerToken ? { label: "owner" } : matchAccessCode(code);
   if (!entitlement) {
     return NextResponse.json(
       { error: "That access code isn't valid or has expired." },
@@ -62,7 +64,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const token = await createSession(email, entitlement.label);
+  const token = ownerToken ?? await createSession(email, entitlement.label);
   const res = NextResponse.json(
     { ok: true },
     { headers: { "Cache-Control": "no-store" } },
@@ -77,9 +79,11 @@ export async function POST(req: NextRequest) {
     maxAge: SESSION_TTL_SECONDS,
   });
 
-  void createLead({ email, tags: ["capture-dashboard-login", `plan-${entitlement.label}`] }).catch(
-    () => undefined,
-  );
+  if (!ownerToken) {
+    void createLead({ email, tags: ["capture-dashboard-login", `plan-${entitlement.label}`] }).catch(
+      () => undefined,
+    );
+  }
 
   return res;
 }

@@ -20,6 +20,9 @@
 #   UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN,
 #   ALERT_WEBHOOK_URL, ALERT_WEBHOOK_SECRET,
 #   DATABASE_URL, DATABASE_URL_UNPOOLED
+#   STS_OWNER_EMAIL, STS_OWNER_ACCESS_CODE, STS_AUTH_SECRET
+#   Owner access requires all three; use an independent random 32+ character
+#   signing secret. Never put an owner access code in source or workflow text.
 #
 # Neon issues two connection strings and both are needed. DATABASE_URL is the
 # pooled one used at runtime; DATABASE_URL_UNPOOLED is the direct one that
@@ -172,6 +175,9 @@ jobs:
           ALERT_WEBHOOK_SECRET: ${{ secrets.ALERT_WEBHOOK_SECRET }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+          STS_OWNER_EMAIL: ${{ secrets.STS_OWNER_EMAIL }}
+          STS_OWNER_ACCESS_CODE: ${{ secrets.STS_OWNER_ACCESS_CODE }}
+          STS_AUTH_SECRET: ${{ secrets.STS_AUTH_SECRET }}
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "::error::Missing VERCEL_TOKEN — add it to Settings → Environments → prod → Secrets"

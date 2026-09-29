@@ -6,6 +6,22 @@ Newest first.
 
 ---
 
+## 2026-09-29 — Email-bound owner dashboard access
+
+**Request:** Add separately configured owner access that is not tied to customer-plan expiration. Real email/code values are deployment settings only, never source or fixtures.
+
+**Code:** `lib/auth/session.ts` verifies the configured owner email and separate access code before issuing an explicit owner session. An independent 32+ character `STS_AUTH_SECRET` is required. Owner sessions ignore customer `STS_ACCESS_EXPIRES` but retain the seven-day session lifetime, login rate limits and agent quotas. A keyed credential binding revokes owner cookies when the owner email/code is changed or removed. Customer labels cannot grant owner privilege. Owner login does not send CRM lead events. The existing `/login` and `/dashboard` routes are reused; this does not build a separate administration panel.
+
+**Configuration:** New `STS_OWNER_EMAIL` and `STS_OWNER_ACCESS_CODE`; existing `STS_AUTH_SECRET` is required for owner access. All three are documented in `.env.example` and `docs/ACCESS_CONTROL.md`, and wired into the GitHub prod -> Vercel sync in `cd.yml` and `scripts/sync-vercel-env.sh`. Empty GitHub values preserve existing Vercel values. Owner access stays off until the three required settings exist. Preserve an existing strong signing secret, since rotating it also signs out customers.
+
+**Verified locally:** Typecheck and lint pass (two existing lint warnings). Dedicated owner regression suite passes: missing/weak signing key fails closed, wrong email/code refused, case-insensitive email matching, customer expiry stays effective, owner bypasses only that expiry, forged role/payload refused, normal owner-session expiration retained, and credential changes revoke prior owner cookies. HTTP integration checks **14/14 passed** with synthetic credentials and a mock shared rate-limit store, including authenticated dashboard access, anonymous refusal, expired customer refusal and HTTP 429 on attempt 11. No real customer messages or credentials were used in tests. Current PR CI/build/security checks remain the release gate.
+
+**GHL changes:** None. **Production owner setup:** Not yet performed or verified. Vercel settings currently require interactive sign-in; browser credential-change rules require the user to enter and submit new authentication credentials. This entry is implementation evidence, not a claim that the requested owner login is active.
+
+The historical-webhook incident remains the previously accepted separate exception; its finding is not suppressed.
+
+---
+
 ## 2026-09-29 — Security repair release: closure record
 
 **Build / milestone:** SecureTotalScan dependency and application hardening release (#149, #148). This is separate from AMOS and from the wider commercial-launch phases in `docs/PR-PLAN.md`.
