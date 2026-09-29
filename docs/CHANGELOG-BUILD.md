@@ -6,6 +6,57 @@ Newest first.
 
 ---
 
+## 2026-09-29 — Security repair release: closure record
+
+**Build / milestone:** SecureTotalScan dependency and application hardening release (#149, #148). This is separate from AMOS and from the wider commercial-launch phases in `docs/PR-PLAN.md`.
+
+**Closure status:** CONDITIONALLY CLOSED — the security release is deployed and verified; the user-accepted historical webhook incident remains open.
+
+### Acceptance checks
+
+- **PASS / VERIFIED — source:** #149 merged as `968b1cfec87aaf7c7c7390417b81f4ceb0bf1e70`; #148 merged as `ffe9795b1d7462edee3d661a2742814c0691d504`. The tested local tree and published #148 head `bcd605ef045fe0fb47620a8067fa2f4ef1745fb9` have identical tree `efb119e87b3aa3ca3f509b13af3171c97060c038`. Normal GitHub merges, no force push or history rewrite. Existing unrelated image work was preserved.
+- **PASS / VERIFIED — tests/build:** [production-branch CI](https://github.com/anthonym71/securetotalscan/actions/runs/36623524961) passed Web and Backend, including typecheck, lint, production build and scanner suites. Local backend: **225 passed**; web verification: **378 printed checks plus request-body assertions**; local API regression matrix: **12/12 passed**.
+- **PASS / VERIFIED — dependency and static security checks:** [Security Audit](https://github.com/anthonym71/securetotalscan/actions/runs/36623524868) and [CodeQL](https://github.com/anthonym71/securetotalscan/actions/runs/36623524977) passed for the merge. PR dependency review also passed.
+- **PASS / VERIFIED — deployment:** [CD run 36623647601](https://github.com/anthonym71/securetotalscan/actions/runs/36623647601) successfully deployed exact release commit `ffe9795` to both Vercel and Railway. Railway reported deploy complete and passed its post-deploy health check at 2026-09-29 20:09:32 UTC, with `available=true` and `db_ready=true`. A separate post-rollout probe at 20:10:08 UTC confirmed the same healthy state and HTTP 401 for an unauthenticated report request.
+- **PASS / VERIFIED — live web and access boundaries at 2026-09-29 20:06:57 UTC:** 13/13 production probes passed, as detailed below. These are health and boundary checks, not a paid deep-agent run.
+- **FAIL / ACCEPTED EXCEPTION — history secret scan:** [production-branch Secret Scan](https://github.com/anthonym71/securetotalscan/actions/runs/36623524974) scanned 134 commits and reported exactly **one** finding: the previously documented Slack webhook introduced in `de06dde`, `app/dashboard/page.tsx:53`. No new finding. The real-secret fingerprint remains unignored.
+
+| Production probe | Verified response |
+|---|---|
+| Home, `/preview`, `/login` | HTTP 200 each |
+| `/dashboard` without a session | HTTP 307 to login |
+| Agent report proxy without a session | HTTP 401 |
+| Backend report without service authentication | HTTP 401 |
+| Backend `/health/trivy` | HTTP 200, `available=true`, `db_ready=true` |
+| Scan: null body or wrong field types | HTTP 400 |
+| Scan: oversized request | HTTP 413 |
+| Scan: loopback target | HTTP 422 |
+| Lead and login: null body | HTTP 400, new object-validation response |
+
+### Blocking issues
+
+None for this security release. The historical credential incident is explicitly excluded from the release blocker list by the user; it is not resolved or hidden.
+
+### Non-blocking exceptions
+
+Anthony explicitly authorized this release to proceed independently of the historical-webhook incident on 2026-09-29. The incident stays **OPEN** until permanent revocation is confirmed. A prior HTTP 404 `no_service` response does not establish permanent revocation; provider escalation remains pending. No secret was printed, reused or suppressed, and no private support receipt is published here.
+
+Existing lint warnings (font placement and unused import) remain. Deployment reports the existing missing `DATABASE_URL_UNPOOLED` secret and uses the configured pooled database URL; this release adds no schema migration. Deployment also reports `ALERT_WEBHOOK_URL` absent from the GitHub production environment, so alert delivery is not certified by this record.
+
+### Repairs performed
+
+Dependency updates, lint configuration and CI enforcement, DNS-pinned web/backend connections and fail-closed private-network guards, redirect/body limits, GitHub/Docker path validation, default-disabled host-log access, UTF-8 cost reports, case-insensitive header checks, and bounded/type-checked API JSON. The affected tests and production-branch checks were rerun. Node minimum matches undici's requirement. No GHL or payment changes. Optional `STS_ALLOW_SYSTEM_LOGS` remains disabled by default.
+
+### Evidence gaps / unknowns
+
+Paid/authenticated end-to-end deep-agent execution and live alert delivery were not tested in this release. This record does not certify paid checkout, PDF/email delivery, individual customer accounts, scheduled monitoring, or completion of the wider product roadmap. No live payments or outbound customer messages were sent.
+
+**Lifecycle record:** This canonical build changelog contains the release decision and evidence. Earlier dated status/review documents remain historical snapshots.
+
+**Next trigger:** Provider revocation evidence closes the historical-secret incident through a separately reviewed update. New defects or changed production behavior require targeted re-verification; broader product phases remain separate work.
+
+---
+
 ## 2026-09-29 — PR #148 hardening release review
 
 Engine: ChatGPT / Codex. User instruction: continue and finish without waiting for the historical webhook issue. PR #149 is merged at `968b1cfec87aaf7c7c7390417b81f4ceb0bf1e70`; CI, CodeQL, Security Audit and production Vercel deployment run `36622822768` succeeded. That master was integrated into #148 with a normal merge.
