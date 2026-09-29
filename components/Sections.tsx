@@ -5,15 +5,10 @@ import {
   HOW_IT_WORKS,
   PLANS,
   SCAN_FEATURES,
-  SCAN_SECTION,
   STATS,
   STATS_CALLOUT,
   TRUST,
 } from "@/lib/content";
-
-// GHL hosted checkout for the Pro subscription ($49/mo). Public link, safe to inline.
-const PRO_CHECKOUT_URL =
-  "https://link.ifactoryusa.com/payment-link/6a2e744a03b17c94f5716342";
 
 export function NavBar() {
   return (
@@ -64,12 +59,10 @@ export function Hero() {
           {HERO.cta}
         </a>
         <a
-          href={PRO_CHECKOUT_URL}
-          target="_blank"
-          rel="noopener noreferrer"
+          href="#pricing"
           className="inline-block rounded-xl border border-brand/50 px-8 py-4 font-semibold text-brand-light transition hover:bg-brand/10"
         >
-          Get Pro — $49/mo
+          Compare plans
         </a>
       </div>
     </header>
@@ -217,7 +210,7 @@ export function Plans() {
     <section id="pricing" className="mx-auto max-w-5xl px-6 py-16">
       <h2 className="text-center text-3xl font-bold sm:text-4xl">Plans</h2>
       <p className="mx-auto mt-3 max-w-2xl text-center text-white/60">
-        Start free. Upgrade when you want the agents watching around the clock.
+        The free scanner is available now. Paid checkout is paused while reports, accounts and plan access are completed.
       </p>
       <div className="mt-10 grid gap-5 sm:grid-cols-3">
         {PLANS.map((p) => (
@@ -231,7 +224,7 @@ export function Plans() {
           >
             {p.featured && (
               <span className="mb-3 inline-block rounded-full bg-brand-gradient px-3 py-1 text-xs font-semibold">
-                Most popular
+                In development
               </span>
             )}
             <h3 className="text-lg font-semibold">{p.name}</h3>
@@ -252,22 +245,14 @@ export function Plans() {
               ))}
             </ul>
             <a
-              href={
-                p.name === "Pro"
-                  ? PRO_CHECKOUT_URL
-                  : p.name === "Organization"
-                    ? `mailto:${BRAND.email}`
-                    : "#scan"
-              }
-              target={p.name === "Pro" ? "_blank" : undefined}
-              rel={p.name === "Pro" ? "noopener noreferrer" : undefined}
+              href={p.name === "Free" ? "#scan" : `mailto:${BRAND.email}`}
               className={`mt-6 block rounded-xl px-5 py-3 text-center font-semibold transition ${
                 p.featured
                   ? "bg-brand-gradient hover:opacity-90"
                   : "border border-white/15 hover:bg-white/5"
               }`}
             >
-              {p.name === "Free" ? "Start free" : p.name === "Pro" ? "Go Pro" : "Contact us"}
+              {p.name === "Free" ? "Start free" : p.name === "Pro" ? "Ask about Pro" : "Contact sales"}
             </a>
           </div>
         ))}

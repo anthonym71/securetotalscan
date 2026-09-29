@@ -53,6 +53,13 @@ export function ScanResults({
         </div>
       </div>
 
+      {report.storage?.status === "saved" && (
+        <p className="text-sm text-white/60">
+          Result saved. Retention review date: {new Date(report.storage.expiresAt).toLocaleDateString()}.
+          {" "}Online history and automatic deletion are not available yet. Keep a copy of the findings below.
+        </p>
+      )}
+
       {/* Lead capture: email the full report (feeds GoHighLevel CRM).
           Pre-filled with the address the scan was run under — asking for the
           same email twice on one page reads as a form that is not paying

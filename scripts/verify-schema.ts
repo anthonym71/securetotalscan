@@ -157,20 +157,16 @@ for (const constraint of [
   check(`${constraint} exists`, allSql.includes(constraint));
 }
 
-// ── 8. Nothing reads the database yet ────────────────────────────────────
-//
-// PR 2.1 is schema only. If a route had started querying, this PR would be a
-// behaviour change wearing a migration's clothes.
-
-console.log("\nThis PR changes no behaviour:");
+// Phase 2.2 introduces the first writer. Auth and CRM remain independent.
+console.log("\nDatabase behavior is scoped to scan persistence:");
 {
   const routes = ["app/api/scan/route.ts", "app/api/lead/route.ts", "app/api/auth/login/route.ts"];
   const importsDb = routes.filter((r) =>
     /from "@\/lib\/db/.test(readFileSync(join(root, r), "utf8")),
   );
   check(
-    `no API route imports the database yet (${importsDb.join(", ") || "none do"})`,
-    importsDb.length === 0,
+    "surface scan is the only database consumer among scan, lead and login",
+    importsDb.length === 1 && importsDb[0] === "app/api/scan/route.ts",
   );
 }
 

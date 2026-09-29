@@ -51,9 +51,8 @@ export function LeadCapture({
             actually happened. */}
         <p className="font-semibold text-grade-a">You&apos;re on the list.</p>
         <p className="mt-1 text-sm text-white/60">
-          Emailed PDF reports are launching shortly and you&apos;ll be among the
-          first to get one. In the meantime every finding and fix prompt is on
-          this page — copy anything you need before you close it.
+          Your interest has been recorded. PDF delivery is not available yet.
+          Keep a copy of the findings on this page.
         </p>
       </div>
     );
@@ -61,10 +60,10 @@ export function LeadCapture({
 
   return (
     <div className="rounded-2xl border border-brand/30 bg-brand/10 p-5">
-      <p className="font-semibold">Get the PDF report when it launches</p>
+      <p className="font-semibold">Register interest in PDF reports</p>
       <p className="mt-1 text-sm text-white/60">
-        Emailed PDF reports are not live yet. Leave your address and we&apos;ll
-        send yours as soon as they are, along with occasional security updates.
+        Emailed PDF reports are not live yet. Leave your address for product
+        news and occasional security updates.
         No spam, unsubscribe any time.
       </p>
       <form onSubmit={submit} className="mt-3 flex flex-col gap-2 sm:flex-row">

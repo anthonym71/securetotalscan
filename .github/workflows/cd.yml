@@ -200,6 +200,13 @@ jobs:
           npm ci
           npm run migrate
 
+      - name: Verify scan storage against database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          npm ci
+          npm run verify:storage:live
+
       - name: Deploy frontend to Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

@@ -9,8 +9,7 @@
 // function that opens a Postgres connection per invocation exhausts the pool
 // under exactly the traffic you want.
 //
-// Nothing calls this yet. PR 2.1 lands the schema and the client; PR 2.2 is
-// the first writer.
+// Surface scans use this client to record their report and retention date.
 // ──────────────────────────────────────────────────────────────
 
 import { neon } from "@neondatabase/serverless";
