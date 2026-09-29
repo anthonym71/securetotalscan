@@ -27,6 +27,33 @@ Set these in Vercel (Project → Settings → Environment Variables → Producti
 
 Revoking access = remove or change the code in `STS_ACCESS_CODES` and redeploy.
 
+## Owner access
+
+The owner can use the same `/login` and `/dashboard` routes with a separately
+configured email and access code. It grants access to the existing deep-agent
+dashboard; it does not create a separate administration interface.
+
+- `STS_OWNER_EMAIL`: the one permitted email, compared case-insensitively.
+- `STS_OWNER_ACCESS_CODE`: separate owner code, at least eight characters.
+- `STS_AUTH_SECRET`: an independent random signing secret of at least 32
+  characters. Owner access fails closed without it. Preserve an existing strong
+  value; changing this secret invalidates existing customer sessions too.
+
+Use secrets in GitHub's `prod` environment; CD syncs these three values to Vercel
+Production. Direct Vercel values are retained when their GitHub secret is absent.
+Never store real access codes in source, workflow YAML, or documentation.
+
+Owner sessions ignore `STS_ACCESS_EXPIRES`, which applies only to customers.
+They still expire after seven days, and login and agent rate limits still apply.
+Both the exact email and code are required; the email field is not independently
+verified by an email challenge. Prefer a random private code over public or
+guessable personal information. Changing/removing either owner setting and
+redeploying revokes existing owner sessions, even if `STS_AUTH_SECRET` is unchanged.
+Owner logins do not create customer CRM contacts or apply customer-plan tags.
+
+A customer code labelled `owner` does not grant the owner role or bypass expiry.
+The server creates that role only after checking the separate owner credentials.
+
 ## Rate limits (free scan)
 
 Fixed windows, counted in Upstash Redis:

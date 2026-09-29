@@ -24,8 +24,7 @@ export default async function LoginPage({
       <div className="rounded-2xl border border-white/10 bg-white/5 p-8">
         <h1 className="text-2xl font-bold">Agent dashboard</h1>
         <p className="mt-2 text-sm text-white/60">
-          The five-agent deep analysis is available to customers with an active
-          plan. Sign in to continue.
+          Sign in with your email and access code to open the agent dashboard.
         </p>
         <div className="mt-6">
           {configured ? (

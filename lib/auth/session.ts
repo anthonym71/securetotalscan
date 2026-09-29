@@ -5,7 +5,8 @@
 // Codes live in the STS_ACCESS_CODES env var (comma-separated). A
 // successful login mints a signed, HttpOnly session cookie.
 //
-// Deny by default: if STS_ACCESS_CODES is unset, nobody gets in.
+// Owner access is separately configured and bound to one email address.
+// Deny by default: absent customer and owner credentials, nobody gets in.
 // No third-party auth provider, no database, nothing to pay for, and
 // reverting the deploy restores the previous behaviour exactly.
 //
@@ -22,6 +23,19 @@ export interface SessionPayload {
   plan: string;
   /** Unix seconds. */
   exp: number;
+  /** Only credential-verified owner sessions carry this explicit role. */
+  role?: "owner";
+  /** Keyed binding invalidates owner sessions when their credentials change. */
+  ownerBinding?: string;
+}
+
+function ownerCredentials(): { email: string; code: string } | null {
+  const email = (process.env.STS_OWNER_EMAIL ?? "").trim().toLowerCase();
+  const code = (process.env.STS_OWNER_ACCESS_CODE ?? "").trim();
+  // Never use a memorable access code as the session-signing secret.
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 ||
+      code.length < 8 || (process.env.STS_AUTH_SECRET ?? "").length < 32) return null;
+  return { email, code };
 }
 
 /** Parsed access codes. Format: `CODE` or `label:CODE`. */
@@ -44,11 +58,11 @@ export function accessCodes(): { label: string; code: string }[] {
 
 /** True when access control has been configured for this deployment. */
 export function isAccessConfigured(): boolean {
-  return accessCodes().length > 0;
+  return accessCodes().length > 0 || ownerCredentials() !== null;
 }
 
 /**
- * Optional hard expiry for all entitlements, e.g. STS_ACCESS_EXPIRES=2027-01-01.
+ * Optional hard expiry for customer entitlements. Owner credentials are separate.
  * Returns null when unset or unparseable.
  */
 function entitlementDeadline(): number | null {
@@ -130,11 +144,31 @@ export async function createSession(
   return `${body}.${await hmac(body)}`;
 }
 
+/** Owner access requires both the configured email and its separate secret. */
+export async function createOwnerSession(email: string, submitted: string): Promise<string | null> {
+  const owner = ownerCredentials();
+  if (!owner) return null;
+  const emailMatches = timingSafeEqual(email.trim().toLowerCase(), owner.email);
+  const codeMatches = timingSafeEqual(submitted.trim(), owner.code);
+  if (!emailMatches || !codeMatches) return null;
+  const payload: SessionPayload = {
+    email: owner.email,
+    plan: "owner",
+    role: "owner",
+    exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
+    ownerBinding: await hmac(`owner:${JSON.stringify(owner)}`),
+  };
+  const body = base64UrlEncode(new TextEncoder().encode(JSON.stringify(payload)));
+  return `${body}.${await hmac(body)}`;
+}
+
 export async function verifySession(
   token: string | undefined | null,
 ): Promise<SessionPayload | null> {
   if (!token || !isAccessConfigured()) return null;
-  const [body, sig] = token.split(".");
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [body, sig] = parts;
   if (!body || !sig) return null;
   if (!timingSafeEqual(await hmac(body), sig)) return null;
 
@@ -144,8 +178,19 @@ export async function verifySession(
   } catch {
     return null;
   }
-  if (typeof payload?.exp !== "number") return null;
+  if (typeof payload?.exp !== "number" || !Number.isFinite(payload.exp) ||
+      typeof payload.email !== "string" || typeof payload.plan !== "string") return null;
   if (payload.exp <= Math.floor(Date.now() / 1000)) return null;
+
+  if (payload.role === "owner") {
+    const owner = ownerCredentials();
+    if (!owner || payload.email !== owner.email || payload.plan !== "owner" ||
+        typeof payload.ownerBinding !== "string") return null;
+    if (!timingSafeEqual(payload.ownerBinding, await hmac(`owner:${JSON.stringify(owner)}`))) return null;
+    return payload;
+  }
+  // A customer label called 'owner' cannot grant the owner role or bypass expiry.
+  if (payload.role !== undefined || accessCodes().length === 0) return null;
 
   const deadline = entitlementDeadline();
   if (deadline !== null && deadline <= Math.floor(Date.now() / 1000)) {

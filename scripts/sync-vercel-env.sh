@@ -69,6 +69,9 @@ add_env DATABASE_URL
 add_env DATABASE_URL_UNPOOLED
 add_env ALERT_WEBHOOK_URL
 add_env ALERT_WEBHOOK_SECRET
+add_env STS_OWNER_EMAIL
+add_env STS_OWNER_ACCESS_CODE
+add_env STS_AUTH_SECRET
 
 # Fail the job if anything could not be synced — but only after every variable
 # has been attempted, so one failure does not hide the state of the others.
