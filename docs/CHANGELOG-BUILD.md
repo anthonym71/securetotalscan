@@ -6,6 +6,22 @@ Newest first.
 
 ---
 
+## 2026-09-29 — PR #148 hardening release review
+
+Engine: ChatGPT / Codex. User instruction: continue and finish without waiting for the historical webhook issue. PR #149 is merged at `968b1cfec87aaf7c7c7390417b81f4ceb0bf1e70`; CI, CodeQL, Security Audit and production Vercel deployment run `36622822768` succeeded. That master was integrated into #148 with a normal merge.
+
+Reviewed the DNS-pinned outbound transports, fail-closed DNS errors, per-hop redirect validation, IPv4/IPv6 private-range blocks, bounded response reads, GitHub/Docker input validation, and default-disabled host log access. Existing independent review R1-R9 fixes are present. Added regression repairs: HTTP header presence comparisons are case-insensitive; scan, lead and login JSON inputs are streamed with a 4096-byte cap and reject non-object bodies or non-string text fields; Node minimum now matches undici's 20.18.1 requirement. Tests are part of normal CI.
+
+Verification on the integrated working tree: typecheck passes; lint has no errors and two existing warnings; all web verification suites pass (378 printed checks plus request-body regression assertions); backend pytest **225 passed**. Local HTTP smoke tests verify null, wrong field types and malformed JSON return 400, and oversized UTF-8 bodies return 413, on scan, lead and login (12/12). Full PR-head CI/build/security checks must finish before merge; production hardening deployment is not yet established here.
+
+GHL changes: none. New environment variables in this release: optional `STS_ALLOW_SYSTEM_LOGS`, documented in `backend/.env.example`, default off; deliberately not enabled in production. No other new environment variables, infrastructure settings or payment changes.
+
+Historical webhook incident remains OPEN. The prior endpoint returned HTTP 404 `no_service`; that is not proof of permanent revocation. Provider escalation is pending. Release proceeds under the user's explicit exception; the real secret fingerprint remains unignored, the full-history Secret Scan stays enabled, and git history is not rewritten. A failing Secret Scan is acceptable only if it reports exactly the already-documented historical webhook and no new secret. Normal GitHub merge rules remain in force.
+
+Full commercial launch is not claimed: the repository's wider PR plan still includes persistence, payment entitlement, PDF/email delivery, individual accounts and monitoring. See `docs/PR-PLAN.md`; these are distinct from closing the reviewed security repair release.
+
+---
+
 ## 2026-09-29 — PR #149 dependency security release
 
 Engine: ChatGPT / Codex. Anthony explicitly instructed continuation without waiting for the separate historical-webhook incident. This supersedes the earlier release sequencing dependency on provider revocation confirmation; it does not assert revocation or authorize hiding the historical secret finding.

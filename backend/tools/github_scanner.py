@@ -8,7 +8,7 @@ import base64
 import os
 import re
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import httpx
 
@@ -303,18 +303,37 @@ def _is_scanner_meta_line(line: str, matched_name: str) -> bool:
     return False
 
 
+# GitHub's own naming rules. owner/repo are interpolated into api.github.com
+# paths that carry our GitHub token, so anything outside the grammar ("..",
+# extra slashes, "?", "#", "%") is refused: otherwise a crafted "repo" could
+# steer an authenticated request to a different API endpoint.
+_OWNER_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$")
+_REPO_RE = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
+_GITHUB_HOSTS = {"github.com", "www.github.com"}
+
+
+def _validated(owner: str, name: str) -> tuple[str, str]:
+    name = name.removesuffix(".git")
+    # fullmatch, not match: "$" also matches before a trailing newline.
+    if not _OWNER_RE.fullmatch(owner) or not _REPO_RE.fullmatch(name) or name in (".", ".."):
+        raise ValueError("Invalid repo — use owner/repo or full GitHub URL")
+    return owner, name
+
+
 def parse_github_url(repo: str) -> tuple[str, str]:
     """Return (owner, repo_name) from URL or owner/repo string."""
     repo = repo.strip().rstrip("/")
     if repo.startswith("http"):
         parsed = urlparse(repo)
+        if (parsed.hostname or "").lower() not in _GITHUB_HOSTS:
+            raise ValueError("Invalid GitHub URL — expected github.com/owner/repo")
         parts = [p for p in parsed.path.strip("/").split("/") if p]
         if len(parts) < 2:
             raise ValueError("Invalid GitHub URL — expected github.com/owner/repo")
-        return parts[0], parts[1].replace(".git", "")
-    if "/" in repo:
+        return _validated(parts[0], parts[1])
+    if repo.count("/") == 1:
         owner, name = repo.split("/", 1)
-        return owner, name.replace(".git", "")
+        return _validated(owner, name)
     raise ValueError("Invalid repo — use owner/repo or full GitHub URL")
 
 
@@ -368,7 +387,7 @@ def list_scannable_files(
 
     Prioritizes Terraform/HCL files when the repo is IaC-heavy.
     """
-    tree = _get(client, f"/repos/{owner}/{repo}/git/trees/{branch}?recursive=1")
+    tree = _get(client, f"/repos/{owner}/{repo}/git/trees/{_quote_ref(branch)}?recursive=1")
     candidates: list[str] = []
     langs = languages or {}
     hcl_repo = "HCL" in langs and langs.get("HCL", 0) >= 10
@@ -399,9 +418,35 @@ def list_scannable_files(
     return candidates[:MAX_FILES]
 
 
+def _check_segments(value: str, what: str) -> None:
+    if not value or any(ord(c) < 0x20 or c == "\x7f" for c in value):
+        raise ValueError(f"Invalid {what}")
+    if any(part in ("", ".", "..") for part in value.split("/")):
+        raise ValueError(f"Invalid {what}")
+
+
+def _quote_ref(branch: str) -> str:
+    """Encode a branch name from the scanned repo for a token-bearing API URL.
+
+    Branch and file names come from the repository being scanned, so a hostile
+    repo chooses them. Git allows ?, # and % in both; unencoded they would
+    add a query or fragment to our authenticated request. "/" is kept, since
+    branch names such as feature/x are normal; empty, "." and ".." segments
+    are refused.
+    """
+    _check_segments(branch, "branch name")
+    return quote(branch, safe="/")
+
+
+def _quote_path(path: str) -> str:
+    """Encode a file path from the scanned repo for a token-bearing API URL."""
+    _check_segments(path, "file path")
+    return quote(path, safe="/")
+
+
 def fetch_file_content(client: httpx.Client, owner: str, repo: str, path: str) -> str:
     """Download and decode a single file from the GitHub contents API."""
-    data = _get(client, f"/repos/{owner}/{repo}/contents/{path}")
+    data = _get(client, f"/repos/{owner}/{repo}/contents/{_quote_path(path)}")
     if isinstance(data, list):
         return ""
     content = data.get("content", "")

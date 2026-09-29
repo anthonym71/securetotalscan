@@ -11,6 +11,7 @@ import { safeFetch } from "./fetcher";
 import { runProbes } from "./probes";
 import { buildReport } from "./score";
 import { checkSecrets } from "./secrets";
+import { BLOCKED_MESSAGE, type GuardOptions } from "./netguard";
 import { ScanError, normalizeTarget } from "./target";
 import type { CategoryResult, ScanContext, ScanReport } from "./types";
 
@@ -39,12 +40,22 @@ function extractScripts(html: string, base: URL): string[] {
   return [...urls];
 }
 
-export async function scan(input: string): Promise<ScanReport> {
+/**
+ * Run a surface scan.
+ *
+ * @param guard SSRF policy. The API route passes nothing, so every private,
+ *   loopback and link-local destination is refused. Only the local CLI
+ *   (scripts/scan-local.ts) sets `allowLoopback`.
+ */
+export async function scan(input: string, guard: GuardOptions = {}): Promise<ScanReport> {
   const start = Date.now();
-  const target = normalizeTarget(input);
+  const target = normalizeTarget(input, "https:", guard);
   const notes: string[] = [];
 
-  const root = await safeFetch(target.toString());
+  const root = await safeFetch(target.toString(), {}, guard);
+  // Refused by the SSRF guard. A name that does not resolve is refused too
+  // (fail closed), and falls through to the "could not reach" message below.
+  if (root.blocked && root.error === BLOCKED_MESSAGE) throw new ScanError(BLOCKED_MESSAGE);
   if (root.status === 0) {
     throw new ScanError(
       `Could not reach ${target.hostname}. Check the URL is public and online.`,
@@ -55,7 +66,7 @@ export async function scan(input: string): Promise<ScanReport> {
   const scriptUrls = extractScripts(root.body, target).slice(0, MAX_BUNDLES);
 
   // Fetch the JS bundles concurrently so we can scan their source.
-  const bundles = await Promise.all(scriptUrls.map((u) => safeFetch(u)));
+  const bundles = await Promise.all(scriptUrls.map((u) => safeFetch(u, {}, guard)));
   const bundleSource = bundles.map((b) => b.body).join("\n");
   // Keep per-file sources so checks can separate application code from
   // framework/vendor chunks.
@@ -77,11 +88,12 @@ export async function scan(input: string): Promise<ScanReport> {
     bundleSource,
     bundles: bundleSources,
     notes,
+    guard,
   };
 
   // Port 80 is probed alongside the file probes rather than before them —
   // both are network work and neither depends on the other.
-  const httpOriginProbe = target.protocol === "https:" ? probeHttpOrigin(target) : null;
+  const httpOriginProbe = target.protocol === "https:" ? probeHttpOrigin(target, guard) : null;
 
   // Passive, content-based checks (synchronous).
   const headers = checkHeaders(ctx);

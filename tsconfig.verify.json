@@ -30,7 +30,10 @@
     "scripts/verify-findings.ts",
     "scripts/verify-http-posture.ts",
     "scripts/verify-input-validation.ts",
+    "scripts/verify-request-body.ts",
     "scripts/verify-ratelimit.ts",
-    "scripts/verify-scanner.ts"
+    "scripts/verify-scanner.ts",
+    "scripts/verify-ssrf.ts",
+    "scripts/scan-local.ts"
   ]
 }

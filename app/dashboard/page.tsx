@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 import {
   AGENT_LABELS,
@@ -188,9 +189,9 @@ export default function Dashboard() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
       <div className="flex items-center justify-between">
-        <a href="/" className="text-sm text-brand-light hover:text-white">
+        <Link href="/" className="text-sm text-brand-light hover:text-white">
           ← Back to home
-        </a>
+        </Link>
         <button
           type="button"
           onClick={async () => {

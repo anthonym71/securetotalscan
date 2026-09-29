@@ -137,6 +137,21 @@ def _load_logs_for_source(source: str) -> tuple[list[str], dict]:
             "line_count": len(logs),
         }
     if source == "system":
+        # Reading this server's own log files and returning an analysis of them
+        # to a customer discloses our host's logs (auth attempts, IPs, user
+        # names). Off unless an operator explicitly enables it on a machine
+        # they own.
+        if os.getenv("STS_ALLOW_SYSTEM_LOGS", "").lower() not in ("1", "true", "yes"):
+            logs = _load_synthetic_logs()
+            return logs, {
+                "used_fallback": True,
+                "paths": [],
+                "line_count": len(logs),
+                "fallback_reason": (
+                    "Reading server system logs is disabled on this deployment; "
+                    "using bundled synthetic logs. Upload a log file to analyse your own."
+                ),
+            }
         return _load_system_logs()
     raise HTTPException(status_code=400, detail="Use /analyze/upload for file uploads")
 

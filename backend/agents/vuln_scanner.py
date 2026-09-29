@@ -1,9 +1,8 @@
 """Vuln Scanner agent — OWASP mapping, HTTP headers, and GitHub code analysis."""
 
-import httpx
-
 from tools.github_scanner import scan_github_repo_safe
 from state import SecurityState
+from url_guard import guarded_get
 
 OWASP_MAP = {
     "path_traversal": {
@@ -70,13 +69,18 @@ def scan_for_owasp(anomalies: list[dict]) -> list[dict]:
 def fetch_response_headers(url: str) -> dict[str, str]:
     """Fetch HTTP response headers from a public URL.
 
+    The URL is customer-supplied and fetched from our own server, so it goes
+    through :func:`url_guard.guarded_get`: internal, private, loopback and
+    metadata addresses are refused, on the first request and on every redirect.
+
     Returns:
-        Lowercase header name → value mapping, or empty dict on failure.
+        Lowercase header name → value mapping, or empty dict on failure or
+        when the destination is refused.
     """
     if not url.strip():
         return {}
     try:
-        resp = httpx.get(url.strip(), timeout=15, follow_redirects=True)
+        resp = guarded_get(url.strip(), timeout=15)
         return {k: v for k, v in resp.headers.items()}
     except Exception:
         return {}
@@ -91,9 +95,11 @@ def check_api_headers(headers: dict) -> list[dict]:
     Returns:
         List of missing-header findings with remediation text.
     """
+    # HTTP field names are case-insensitive; httpx returns lowercase names.
+    present = {name.lower() for name in headers}
     missing = []
     for h in REQUIRED_HEADERS:
-        if h not in headers:
+        if h.lower() not in present:
             missing.append(
                 {
                     "header": h,

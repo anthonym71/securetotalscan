@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { LoginForm } from "@/components/LoginForm";
 import { isAccessConfigured } from "@/lib/auth/session";
@@ -41,9 +42,9 @@ export default async function LoginPage({
         </div>
       </div>
       <p className="mt-6 text-center text-sm text-white/40">
-        <a href="/" className="underline hover:text-white/70">
+        <Link href="/" className="underline hover:text-white/70">
           ← Back to the free scan
-        </a>
+        </Link>
       </p>
     </main>
   );

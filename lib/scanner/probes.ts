@@ -87,7 +87,7 @@ export async function runProbes(ctx: ScanContext): Promise<{
 
   const results = await Promise.all(
     PROBES.map(async (probe) => {
-      const res = await safeFetch(origin + probe.path);
+      const res = await safeFetch(origin + probe.path, {}, ctx.guard);
       return { probe, res };
     }),
   );

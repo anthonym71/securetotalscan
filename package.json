@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "verify:scanner": "tsc -p tsconfig.verify.json && node .verify/scripts/verify-scanner.js && npm run verify:input-validation && npm run verify:ratelimit && npm run verify:alerting && npm run verify:findings && npm run verify:target && npm run verify:http-posture && npm run verify:claims && npm run verify:schema",
+    "verify:scanner": "tsc -p tsconfig.verify.json && node .verify/scripts/verify-scanner.js && npm run verify:input-validation && npm run verify:ratelimit && npm run verify:alerting && npm run verify:findings && npm run verify:target && npm run verify:http-posture && npm run verify:claims && npm run verify:schema && npm run verify:ssrf && node .verify/scripts/verify-request-body.js",
     "verify:input-validation": "node .verify/scripts/verify-input-validation.js",
     "verify:ratelimit": "node .verify/scripts/verify-ratelimit.js",
     "verify:alerting": "node .verify/scripts/verify-alerting.js",
@@ -18,13 +18,16 @@
     "verify:target": "node .verify/scripts/verify-target.js",
     "verify:claims": "node .verify/scripts/verify-claims.js",
     "verify:schema": "node .verify/scripts/verify-schema.js",
+    "verify:ssrf": "node .verify/scripts/verify-ssrf.js",
+    "scan": "tsc -p tsconfig.verify.json && node .verify/scripts/scan-local.js",
     "migrate": "tsc -p tsconfig.verify.json && node .verify/scripts/migrate.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
     "next": "15.5.26",
     "react": "19.0.0",
-    "react-dom": "19.0.0"
+    "react-dom": "19.0.0",
+    "undici": "7.30.0"
   },
   "devDependencies": {
     "@types/node": "22.10.5",
@@ -44,6 +47,6 @@
     "brace-expansion": "^5.0.9"
   },
   "engines": {
-    "node": ">=18.18.0"
+    "node": ">=20.18.1"
   }
 }

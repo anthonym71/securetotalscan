@@ -1,3 +1,4 @@
+import { readJsonObject, RequestBodyError, requireStringFields } from "@/lib/security/requestBody";
 import { NextRequest, NextResponse } from "next/server";
 import { EMAIL_RE, createLead } from "@/lib/leads";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
@@ -22,9 +23,14 @@ export async function POST(req: NextRequest) {
 
   let body: { email?: string; url?: string; grade?: string; score?: number };
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    const parsed = await readJsonObject(req);
+    requireStringFields(parsed, ["email", "url", "grade"]);
+    body = parsed;
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof RequestBodyError ? error.message : "Invalid JSON body." },
+      { status: error instanceof RequestBodyError ? error.status : 400 },
+    );
   }
 
   const email = (body.email ?? "").trim();

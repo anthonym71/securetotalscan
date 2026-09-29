@@ -194,8 +194,10 @@ def parse_docker_image_ref(raw: str) -> tuple[str, str, str]:
             tag = "latest"
             if len(parts) >= 4 and parts[2] == "tags":
                 tag = parts[3]
+            _validate_image_parts(namespace, repo, tag)
             return namespace, repo, tag
         if path.startswith("_/"):
+            _validate_image_parts("library", path[2:], "latest")
             return "library", path[2:], "latest"
 
     text = re.sub(r"^https?://", "", text)
@@ -216,7 +218,26 @@ def parse_docker_image_ref(raw: str) -> tuple[str, str, str]:
     if not repo:
         raise ValueError("Invalid Docker image reference")
 
+    _validate_image_parts(namespace, repo, tag)
     return namespace, repo, tag
+
+
+# Docker Hub naming rules. The parts are interpolated into Docker Hub API
+# paths and into the reference handed to Trivy, so anything outside the
+# grammar (slashes, "..", "?", "#", whitespace, a leading "-") is refused
+# rather than passed along.
+_NAME_RE = re.compile(r"^[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*$")
+_TAG_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$")
+
+
+def _validate_image_parts(namespace: str, repo: str, tag: str) -> None:
+    # fullmatch, not match: "$" also matches before a trailing newline.
+    if len(namespace) > 255 or not _NAME_RE.fullmatch(namespace):
+        raise ValueError("Invalid Docker Hub namespace")
+    if len(repo) > 255 or not _NAME_RE.fullmatch(repo):
+        raise ValueError("Invalid Docker Hub repository name")
+    if not _TAG_RE.fullmatch(tag):
+        raise ValueError("Invalid Docker image tag")
 
 
 def docker_registry_ref(namespace: str, repo: str, tag: str) -> str:

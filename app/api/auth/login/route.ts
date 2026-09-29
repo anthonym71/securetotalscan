@@ -1,3 +1,4 @@
+import { readJsonObject, RequestBodyError, requireStringFields } from "@/lib/security/requestBody";
 import { NextRequest, NextResponse } from "next/server";
 import {
   SESSION_COOKIE,
@@ -37,9 +38,14 @@ export async function POST(req: NextRequest) {
 
   let body: { email?: string; code?: string };
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    const parsed = await readJsonObject(req);
+    requireStringFields(parsed, ["email", "code"]);
+    body = parsed;
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof RequestBodyError ? error.message : "Invalid JSON body." },
+      { status: error instanceof RequestBodyError ? error.status : 400 },
+    );
   }
 
   const email = (body.email ?? "").trim().toLowerCase();

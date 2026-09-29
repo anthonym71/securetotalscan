@@ -1,0 +1,18 @@
+# gitleaks findings reviewed and accepted. One fingerprint per line:
+# commit:file:rule:line. Add a line only after checking the value by hand.
+#
+# Test fixtures, not credentials (reviewed 2026-09-27): a 12-character
+# made-up "sk_live_" string used to prove the alert redactor strips
+# Stripe-style keys. Real Stripe keys are far longer.
+75c780a71b620108f09bd3b36c9aa950ea555ca8:backend/tests/test_alerting.py:stripe-access-token:134
+75c780a71b620108f09bd3b36c9aa950ea555ca8:scripts/verify-alerting.ts:stripe-access-token:140
+75c780a71b620108f09bd3b36c9aa950ea555ca8:scripts/verify-alerting.ts:stripe-access-token:144
+e8490ef95029388e645ef054eca37be2cbd3f447:backend/tests/test_alerting.py:stripe-access-token:134
+e8490ef95029388e645ef054eca37be2cbd3f447:scripts/verify-alerting.ts:stripe-access-token:140
+e8490ef95029388e645ef054eca37be2cbd3f447:scripts/verify-alerting.ts:stripe-access-token:144
+#
+# NOT ignored, on purpose: the Slack incoming webhook committed in de06dde
+# (app/dashboard/page.tsx:53). It is a real-shaped webhook URL and must be
+# revoked in Slack first. Once it has been revoked, add this line with the
+# date it was revoked:
+#   de06dded7330da020df64ced2c9c081cfeb7e6e0:app/dashboard/page.tsx:slack-webhook-url:53
