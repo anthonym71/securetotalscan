@@ -1,0 +1,27 @@
+name: Commercial integration readiness
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - scripts/audit-commercial-integrations.mjs
+      - .github/workflows/integration-readiness.yml
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Read provider readiness without sending or changing anything
+        env:
+          GHL_API_TOKEN: ${{ secrets.GHL_API_TOKEN }}
+          GHL_LOCATION_ID: ${{ secrets.GHL_LOCATION_ID }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          REPORT_FROM_EMAIL: ${{ secrets.REPORT_FROM_EMAIL }}
+        run: node scripts/audit-commercial-integrations.mjs
