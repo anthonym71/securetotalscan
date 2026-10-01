@@ -16,7 +16,7 @@ def test_make_initial_state_sets_required_fields():
     assert state["action_plan"] == []
     assert state["compliance_gaps"] == []
     assert state["threat_score"] == 0
-    assert state["compliance_score"] == 0
+    assert state["compliance_score"] is None
     assert state["github_repo"] == ""
     assert state["code_findings"] == []
     assert state["slack_webhook_url"] == ""

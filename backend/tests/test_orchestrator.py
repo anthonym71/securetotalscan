@@ -23,9 +23,9 @@ def test_run_analysis_populates_all_state_fields():
                 )
 
     assert len(state["anomalies"]) > 0
-    assert len(state["compliance_gaps"]) > 0
+    assert len(state["compliance_references"]) > 0
     assert len(state["action_plan"]) > 0
-    assert 0 <= state["compliance_score"] <= 100
+    assert state["compliance_score"] is None
     assert state["risk_level"] in ("low", "medium", "high", "critical")
     assert state["session_id"] == "orch-test"
     assert state["slack_skipped"] is True

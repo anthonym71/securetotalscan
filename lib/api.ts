@@ -105,7 +105,22 @@ export function streamUrl(sessionId: string): string {
 export interface SecurityReport {
   risk_level?: string;
   threat_score?: number;
-  compliance_score?: number;
+  compliance_score?: number | null;
+  compliance_status?: string;
+  compliance_references?: Record<string, unknown>[];
+  scan_coverage?: {
+    status: "complete" | "incomplete";
+    scope: string;
+    commit_sha?: string;
+    inventory_complete: boolean;
+    inventoried_files: number;
+    eligible_files: number;
+    scanned_files: number;
+    excluded_files: { path: string; reason: string }[];
+    failed_files: { path: string; reason: string }[];
+    incomplete_reasons: string[];
+    limits?: Record<string, unknown>;
+  };
   files_scanned?: number;
   primary_language?: string;
   github_repo?: string;

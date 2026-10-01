@@ -45,7 +45,12 @@ def _wrap(agent_name: str, fn):
             result = fn(state)
             latency_ms = (time.perf_counter() - t0) * 1000
             record_agent_latency(session_id, agent_name, latency_ms)
-            emit_sync(session_id, agent_name, "done")
+            skipped = (
+                (agent_name in ("log_monitor", "threat_intel") and not state.get("raw_logs"))
+                or (agent_name == "docker_scanner" and result.get("docker_skipped", False))
+                or (agent_name == "slack_notifier" and result.get("slack_skipped", False))
+            )
+            emit_sync(session_id, agent_name, "skipped" if skipped else "done")
             return result
         except Exception as exc:
             record_agent_error(session_id, agent_name)

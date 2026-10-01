@@ -147,7 +147,7 @@ def map_code_findings_to_compliance(findings: list[dict]) -> list[dict]:
         seen.add(key)
         gaps.append(
             {
-                "framework": "NIST CSF 2.0",
+                "framework": "OWASP Top 10",
                 "control_id": f.get("category", "DE.CM-8"),
                 "description": f"{f.get('name')} in {f.get('file', '?')} — {f.get('recommendation', '')}",
                 "severity": f.get("severity", "MEDIUM"),
@@ -188,16 +188,14 @@ def run_policy_checker(state: SecurityState) -> SecurityState:
     docker_gaps = map_docker_findings_to_compliance(state.get("docker_findings", []))
     gaps.extend(docker_gaps)
 
-    rag_gaps = map_rag_to_compliance(retrieved)
-    gaps.extend(rag_gaps)
-
-    # Non-RAG gaps affect score; RAG references are informational
-    score_gaps = [g for g in gaps if g.get("severity") != "INFO"]
-    score = max(0, 100 - len(score_gaps) * 5)
-
+    # A scanner match is not evidence that an organizational control failed.
+    # Keep relevant mappings available for human review, without a fake score.
+    references = [{**gap, "assessment_status": "not_assessed"} for gap in gaps]
     return {
         **state,
         "retrieved_sources": retrieved,
-        "compliance_gaps": gaps,
-        "compliance_score": score,
+        "compliance_references": references,
+        "compliance_gaps": [],
+        "compliance_score": None,
+        "compliance_status": "not_assessed",
     }

@@ -141,19 +141,33 @@ def scan_github_code(state: SecurityState) -> dict:
             "files_scanned": 0,
             "code_findings": [],
             "scan_error": result["error"],
+            "scan_coverage": result.get("scan_coverage") or {
+                "status": "incomplete",
+                "scope": "supported source files at commit",
+                "commit_sha": "",
+                "inventory_complete": False,
+                "inventoried_files": 0,
+                "eligible_files": 0,
+                "scanned_files": 0,
+                "excluded_files": [],
+                "failed_files": [],
+                "incomplete_reasons": ["Repository scan could not complete"],
+            },
         }
     return result
 
 
 def _compute_risk_level(vulns: list[dict]) -> str:
-    """Derive overall risk level from the highest vulnerability severity."""
+    """Highest candidate severity; this does not verify exploitability or safety."""
     if any(v["severity"] == "CRITICAL" for v in vulns):
         return "critical"
     if any(v["severity"] == "HIGH" for v in vulns):
         return "high"
     if any(v["severity"] == "MEDIUM" for v in vulns):
         return "medium"
-    return "low"
+    if any(v.get("severity") == "LOW" for v in vulns):
+        return "low"
+    return "not_assessed"
 
 
 def run_vuln_scanner(state: SecurityState) -> SecurityState:
@@ -188,6 +202,7 @@ def run_vuln_scanner(state: SecurityState) -> SecurityState:
         "repo_languages": scan.get("repo_languages", {}),
         "primary_language": scan.get("primary_language", ""),
         "files_scanned": scan.get("files_scanned", 0),
+        "scan_coverage": scan.get("scan_coverage", {}),
         "code_findings": code_findings,
         "scan_error": scan.get("scan_error", ""),
     }
