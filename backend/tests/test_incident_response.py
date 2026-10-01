@@ -193,3 +193,22 @@ def test_run_incident_response_uses_fallback_for_unparsable_llm_output():
         result = run_incident_response(state)
     assert len(result["action_plan"]) >= 1
     assert "192.168.1.42" in result["action_plan"][0]
+
+
+def test_repository_candidates_never_become_llm_remediation_orders():
+    state = make_initial_state(raw_logs=[], log_source="github", session_id="review", github_repo="owner/repo")
+    state["code_findings"] = [{"name": "Hardcoded Secret", "file": "app.py", "line": 4,
+                               "recommendation": "Immediately delete and rotate all credentials"}]
+    with patch("agents.incident_response.call_openai", return_value="1. Delete production") as llm:
+        result = run_incident_response(state)
+    llm.assert_not_called()
+    assert "Review candidate" in result["action_plan"][0]
+    assert "verify it is real and exposed" in result["action_plan"][0]
+    assert "Immediately delete" not in " ".join(result["action_plan"])
+
+
+def test_fixture_is_not_an_actionable_secret():
+    state = make_initial_state(raw_logs=[], log_source="github", session_id="fixture", github_repo="owner/repo")
+    state["code_findings"] = [{"name": "Hardcoded Secret", "file": "test.py", "line": 1, "disposition": "test_fixture"}]
+    result = _fallback_action_plan(state)
+    assert not any("Review candidate Hardcoded Secret" in step for step in result)
