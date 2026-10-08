@@ -6,6 +6,18 @@ Newest first.
 
 ---
 
+## 2026-10-08 — Service-auth deployment sync hardened
+
+**Engine:** ChatGPT orchestration. **Branch:** `fix/service-auth-sync-2026-10-08`.
+
+CD already deployed the current release successfully, but the canonical environment sync omitted the two service-to-service authentication variables that protect the deep-agent path: `STS_SERVICE_TOKEN` on Railway and `AGENT_SERVICE_TOKEN` on Vercel. Both had previously been configured manually and the handshake was verified, but a future environment rebuild or replacement could silently drop them.
+
+**Change:** wire `STS_SERVICE_TOKEN` through the Railway deploy job and `scripts/sync-railway-env.sh`; wire `AGENT_SERVICE_TOKEN` through the Vercel deploy job and `scripts/sync-vercel-env.sh`; update the CD source-of-truth comments accordingly. No token value is logged or committed.
+
+**GHL / DNS / payments:** no change. **Release gate:** normal CI/security review, then merge so the next CD run reasserts both auth variables from the GitHub `prod` environment.
+
+---
+
 ## 2026-10-08 — Repository-audit repair released to production
 
 **Engine:** ChatGPT orchestration + GitHub CI/CD. **Release commit:** `39c40b43c327d16cc58a19492802000c920fd72c`. **PR:** #156.

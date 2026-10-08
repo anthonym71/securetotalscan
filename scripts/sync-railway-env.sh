@@ -51,6 +51,7 @@ if [ -n "${GIT_TOKEN:-}" ]; then
 fi
 set_var NVD_API_KEY
 set_var ABUSEIPDB_API_KEY
+set_var STS_SERVICE_TOKEN
 set_var ALERT_WEBHOOK_URL
 set_var ALERT_WEBHOOK_SECRET
 
