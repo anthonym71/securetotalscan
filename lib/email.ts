@@ -92,3 +92,30 @@ export async function sendMagicLinkEmail(to: string, url: string): Promise<Email
   const body = (await response.json().catch(() => ({}))) as { id?: unknown };
   return { delivered: true, ...(typeof body.id === "string" ? { id: body.id } : {}) };
 }
+
+
+export async function sendRetentionWarningEmail(
+  to: string,
+  days: 30 | 7,
+  expiresAt: string,
+): Promise<EmailDeliveryResult> {
+  const apiKey = (process.env.RESEND_API_KEY ?? "").trim();
+  const from = sender();
+  if (!apiKey || !from) return { delivered: false, reason: "not_configured" };
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject: `Secure Total Scan report expires in ${days} days`,
+      html:
+        `<p>Your Secure Total Scan report is scheduled to expire on ${expiresAt}.</p>` +
+        "<p>Download anything you need before then. Extended retention options may be available in your account.</p>",
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) return { delivered: false, reason: "provider_error" };
+  const body = (await response.json().catch(() => ({}))) as { id?: unknown };
+  return { delivered: true, ...(typeof body.id === "string" ? { id: body.id } : {}) };
+}
