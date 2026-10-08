@@ -61,3 +61,34 @@ export async function sendReportEmail(
     ...(typeof body.id === "string" ? { id: body.id } : {}),
   };
 }
+
+
+export async function sendMagicLinkEmail(to: string, url: string): Promise<EmailDeliveryResult> {
+  const apiKey = (process.env.RESEND_API_KEY ?? "").trim();
+  const from = sender();
+  if (!apiKey || !from) return { delivered: false, reason: "not_configured" };
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject: "Your Secure Total Scan sign-in link",
+      html:
+        "<p>Use the secure link below to sign in to Secure Total Scan.</p>" +
+        `<p><a href="${url}">Sign in to Secure Total Scan</a></p>` +
+        "<p>This link expires in 20 minutes and can be used once.</p>",
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) {
+    console.error("magic link email provider error:", response.status);
+    return { delivered: false, reason: "provider_error" };
+  }
+  const body = (await response.json().catch(() => ({}))) as { id?: unknown };
+  return { delivered: true, ...(typeof body.id === "string" ? { id: body.id } : {}) };
+}
