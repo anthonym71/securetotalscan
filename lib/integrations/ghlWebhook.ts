@@ -12,7 +12,7 @@ export interface InvoicePaidPayload {
   amountPaid?: unknown;
   currency?: unknown;
   contactDetails?: { id?: unknown; email?: unknown };
-  invoiceItems?: Array<{ productId?: unknown }>;
+  invoiceItems?: Array<{ productId?: unknown; amount?: unknown }>;
 }
 
 interface ProductConfig {
@@ -56,6 +56,7 @@ export function parsePaidInvoice(payload: InvoicePaidPayload): {
   grants: CommercialGrant[];
 } | null {
   if (payload.status !== "paid") return null;
+  if (payload.liveMode !== true && process.env.STS_ALLOW_TEST_PAYMENTS !== "true") return null;
   if (typeof payload._id !== "string" || !payload._id) return null;
   const email = typeof payload.contactDetails?.email === "string"
     ? payload.contactDetails.email.trim().toLowerCase()
@@ -76,7 +77,13 @@ export function parsePaidInvoice(payload: InvoicePaidPayload): {
     if (config.kind === "subscription" && typeof config.tier === "string" && config.tier) {
       grants.push({ kind: "subscription", tier: config.tier, productId: item.productId });
     } else if (config.kind === "purchase" && typeof config.product === "string" && config.product) {
-      grants.push({ kind: "purchase", product: config.product, productId: item.productId });
+      const itemAmount = Number(item.amount);
+      grants.push({
+        kind: "purchase",
+        product: config.product,
+        productId: item.productId,
+        ...(Number.isFinite(itemAmount) && itemAmount >= 0 ? { amountCents: Math.round(itemAmount) } : {}),
+      });
     }
   }
   if (!grants.length) return null;
