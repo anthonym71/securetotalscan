@@ -290,6 +290,38 @@ class DockerAnalyzeRequest(BaseModel):
     target_url: str = ""
 
 
+class RepositoryCoverageRequest(BaseModel):
+    """Internal release-gate request for a source-only GitHub coverage check."""
+
+    repo_url: str
+
+
+@app.post("/ops/verify-github-coverage")
+async def verify_github_coverage(request: RepositoryCoverageRequest):
+    """Run only the repository source scanner for production release evidence.
+
+    ServiceAuthMiddleware protects this endpoint. It deliberately bypasses the
+    LLM/agent pipeline so deployment verification does not spend model credit.
+    """
+    from tools.github_scanner import scan_github_repo_safe
+
+    result = await asyncio.to_thread(scan_github_repo_safe, request.repo_url)
+    if result.get("error"):
+        raise HTTPException(status_code=502, detail=result["error"])
+    coverage = result.get("scan_coverage") or {}
+    return {
+        "github_repo": result.get("github_repo"),
+        "commit_sha": result.get("commit_sha"),
+        "files_scanned": result.get("files_scanned", 0),
+        "coverage_status": coverage.get("status"),
+        "inventory_complete": coverage.get("inventory_complete", False),
+        "eligible_files": coverage.get("eligible_files", 0),
+        "scanned_files": coverage.get("scanned_files", 0),
+        "failed_files": len(coverage.get("failed_files") or []),
+        "incomplete_reasons": coverage.get("incomplete_reasons") or [],
+    }
+
+
 @app.post("/analyze")
 async def analyze(request: AnalyzeRequest, background_tasks: BackgroundTasks):
     """Start log analysis from synthetic or system log sources."""
