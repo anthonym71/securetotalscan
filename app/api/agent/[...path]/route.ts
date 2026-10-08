@@ -6,6 +6,7 @@ import { assertSameOrigin } from "@/lib/security/origin";
 import { anyUnavailable, limiterUnavailable } from "@/lib/security/limits";
 import { SERVICE_AUTH_HEADER, serviceToken } from "@/lib/security/serviceAuth";
 import { creditBalance, ensureMonthlyCredits, spendCredit } from "@/lib/db/customerAccess";
+import { recordCustomerDeepScan } from "@/lib/db/sites";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -148,10 +149,22 @@ export async function GET(
   const path = (await ctx.params).path.join("/");
   const denied = await guard(req, path);
   if (denied) return denied;
+  const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
+  if (!session) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+
+  const reportMatch = /^report\/([\w-]{1,64})$/.exec(path);
   return forward(req, path, {
     method: "GET",
     headers: serviceHeaders({ Accept: "*/*" }),
-  });
+  }, reportMatch && session.role === "customer"
+    ? async (response) => {
+        const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
+        if (payload) {
+          await recordCustomerDeepScan(session.email, payload, reportMatch[1]);
+        }
+      }
+    : undefined,
+  );
 }
 
 export async function POST(
