@@ -1,0 +1,62 @@
+name: Provision SecureTotalScan commercial catalog
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/PROVISION_GHL_CATALOG_ONCE
+
+permissions:
+  contents: read
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create or reuse HighLevel products and prices
+        id: catalog
+        env:
+          GHL_API_TOKEN: ${{ secrets.GHL_API_TOKEN }}
+          GHL_LOCATION_ID: ${{ secrets.GHL_LOCATION_ID }}
+        run: |
+          node scripts/provision-ghl-catalog.mjs | tee /tmp/catalog.log
+          map="$(sed -n 's/^PRODUCT_MAP=//p' /tmp/catalog.log | tail -1)"
+          test -n "$map" || { echo "::error::Catalog did not return a product map"; exit 1; }
+          {
+            echo 'product_map<<EOF'
+            echo "$map"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set product map and generated runtime secrets directly on Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID || 'team_x0HywmHRlyGlzeUAlcsAIsYY' }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_LzgIUHdMQXzfOfy1icfyrNHkdK3v' }}
+          PRODUCT_MAP: ${{ steps.catalog.outputs.product_map }}
+        run: |
+          set -euo pipefail
+          VERCEL=(npx --yes vercel@54.13.0)
+          "${VERCEL[@]}" link --project="$VERCEL_PROJECT_ID" --yes --token="$VERCEL_TOKEN"
+
+          set_env() {
+            local name="$1" value="$2"
+            printf '%s' "$value" | "${VERCEL[@]}" env add "$name" production --force --token="$VERCEL_TOKEN" >/dev/null
+          }
+
+          set_env STS_GHL_PRODUCT_MAP "$PRODUCT_MAP"
+
+          # These are runtime-only secrets. Generate them here rather than
+          # committing or printing them. Existing production values are safely
+          # replaced; this invalidates old sessions but not customer records.
+          set_env CRON_SECRET "$(openssl rand -hex 32)"
+          set_env STS_AUTH_SECRET "$(openssl rand -hex 32)"
+
+          echo "Commercial product map and runtime secrets installed in Vercel production."
+
+      - name: Force production deploy with the new configuration
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx --yes vercel@54.13.0 deploy --prod --yes --force --token="$VERCEL_TOKEN"
