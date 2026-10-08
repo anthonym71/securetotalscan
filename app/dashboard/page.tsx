@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { additionalVulnerabilities, highestCandidateSeverity, completeSourceCoverage } from "@/lib/audit-report";
 import { useRef, useState } from "react";
 import {
   AGENT_LABELS,
@@ -58,6 +59,7 @@ const STATUS_STYLE: Record<string, string> = {
   running: "text-grade-c border-grade-c/40 animate-pulse",
   done: "text-grade-a border-grade-a/40",
   error: "text-grade-f border-grade-f/40",
+  skipped: "text-white/40 border-white/10",
 };
 
 const RISK_STYLE: Record<string, string> = {
@@ -184,7 +186,7 @@ export default function Dashboard() {
     }
   }
 
-  const risk = (report?.risk_level ?? "").toLowerCase();
+  const risk = report ? highestCandidateSeverity(report) : "Not assessed";
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
@@ -230,6 +232,7 @@ export default function Dashboard() {
       <form onSubmit={run} className="mt-4 space-y-3">
         {/* Per-mode input */}
         {mode === "github" && (
+          <div className="space-y-2">
           <input
             type="text"
             value={repo}
@@ -238,6 +241,8 @@ export default function Dashboard() {
             className="w-full rounded-xl bg-black/40 px-4 py-3.5 text-white placeholder-white/30 outline-none ring-brand/50 transition focus:ring-2"
             disabled={running}
           />
+          <p className="px-1 text-xs text-white/50">Public repositories only. The report shows source coverage, exclusions and any incomplete checks.</p>
+          </div>
         )}
         {mode === "docker" && (
           <div className="space-y-2">
@@ -295,8 +300,7 @@ export default function Dashboard() {
             disabled={running}
           />
           <p className="mt-1 px-1 text-xs text-white/40">
-            Pre-filled with the default webhook; edit or clear to use a different
-            channel or disable Slack alerts.
+            Optional. Leave blank to disable Slack alerts.
           </p>
         </div>
 
@@ -321,7 +325,8 @@ export default function Dashboard() {
           <h2 className="mb-3 text-lg font-semibold">Agent pipeline</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {pipeline.map((agent) => {
-              const s = status[agent] ?? "pending";
+              const s = report && agent === "docker_scanner" && report.docker_skipped
+                ? "skipped" : status[agent] ?? "pending";
               return (
                 <div
                   key={agent}
@@ -360,21 +365,23 @@ export default function Dashboard() {
           {tab === "analysis" && report && (
             <div className="space-y-6 animate-fade-in">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Metric label="Risk level" value={report.risk_level ?? "—"} className={RISK_STYLE[risk]} />
+                <Metric label="Highest candidate severity" value={risk} className={RISK_STYLE[risk]} />
                 <Metric label="Files scanned" value={report.files_scanned ?? 0} />
                 <Metric label="Primary language" value={report.primary_language || "—"} />
-                <Metric label="Compliance" value={`${report.compliance_score ?? 0}%`} />
+                <Metric label="Compliance" value="Not assessed" />
               </div>
 
+              <p className="text-sm text-white/60">Automated findings need contextual review. Severity does not establish exploitability; this report is not a compliance assessment.</p>
+              <CoverageStatus report={report} />
               <SlackStatus report={report} slackConfigured={!!slackUrl.trim()} />
 
               <TrivyStatus report={report} />
 
               <FindingList title="Docker findings" items={report.docker_findings} />
               <FindingList title="Code findings" items={report.code_findings} />
-              <FindingList title="Vulnerabilities" items={report.vulnerabilities} />
+              <FindingList title="Additional findings" items={additionalVulnerabilities(report)} />
               <FindingList title="Log anomalies" items={report.anomalies} />
-              <FindingList title="Compliance gaps" items={report.compliance_gaps} />
+              <FindingList title="Control references for review (not assessed)" items={report.compliance_references} />
               <RagSources sources={report.retrieved_sources} />
 
               {typeof report.docker_scan_error === "string" && report.docker_scan_error && (
@@ -456,6 +463,29 @@ function SlackStatus({
   return null;
 }
 
+function CoverageStatus({ report }: { report: SecurityReport }) {
+  if (!report.github_repo) return null;
+  const rawCoverage = report.scan_coverage;
+  const coverage = rawCoverage && Array.isArray(rawCoverage.excluded_files) && Array.isArray(rawCoverage.failed_files) && Array.isArray(rawCoverage.incomplete_reasons) ? rawCoverage : undefined;
+  const complete = completeSourceCoverage(report);
+  return (
+    <section className="rounded-xl border border-white/20 p-4 text-sm">
+      <h3 className="font-semibold">{complete ? "Source coverage complete" : coverage?.inventory_complete && coverage.eligible_files === 0 ? "No supported source files" : "Source coverage incomplete"}</h3>
+      <p className="mt-2 text-white/70">Supported source and configuration files only. Dependency, runtime, access-control and infrastructure audits require separate checks.</p>
+      {coverage ? <>
+        <p className="mt-2">Scanned {coverage.scanned_files} of {coverage.eligible_files} eligible files; {coverage.inventoried_files} files inventoried.</p>
+        {coverage.commit_sha && <p className="mt-1 break-all font-mono text-xs">Commit: {coverage.commit_sha}</p>}
+        {(coverage.incomplete_reasons ?? []).map((reason, i) => <p key={i} className="mt-1 text-grade-d">{reason}</p>)}
+        {[{title: "Excluded files", items: coverage.excluded_files ?? []}, {title: "Failed files", items: coverage.failed_files ?? []}].map(({title, items}) => items.length > 0 && (
+          <details key={title} className="mt-3"><summary>{title} ({items.length})</summary>
+            <ul className="mt-2 max-h-64 overflow-auto">{items.map((item, i) => <li key={i} className="break-all">{item.path}: {item.reason}</li>)}</ul>
+          </details>
+        ))}
+      </> : <p className="mt-2 text-grade-d">Coverage evidence is unavailable for this run. Run a new analysis to obtain an inventory and exclusions.</p>}
+    </section>
+  );
+}
+
 function FindingList({
   title,
   items,
@@ -463,6 +493,7 @@ function FindingList({
   title: string;
   items?: Record<string, unknown>[];
 }) {
+  const [expanded, setExpanded] = useState(false);
   if (!items || items.length === 0) return null;
   return (
     <div className="rounded-2xl border border-white/10 bg-card-gradient p-5">
@@ -470,7 +501,7 @@ function FindingList({
         {title} <span className="text-white/40">({items.length})</span>
       </h3>
       <ul className="mt-3 space-y-2">
-        {items.slice(0, 25).map((item, i) => {
+        {(expanded ? items : items.slice(0, 25)).map((item, i) => {
           const sev = String(item.severity ?? item.level ?? "").toLowerCase();
           // Raw JSON is the last resort, not the fourth option — see
           // lib/findings.ts for which agent shapes were landing there.
@@ -489,6 +520,7 @@ function FindingList({
                 </span>
               )}
               <span className="text-white/75">{label}</span>
+              {typeof item.disposition === "string" && <span className="ml-2 text-xs text-white/50">{item.disposition.replaceAll("_", " ")}</span>}
               {meta && (
                 <span className="ml-2 font-mono text-xs text-white/40">{meta}</span>
               )}
@@ -505,6 +537,7 @@ function FindingList({
           );
         })}
       </ul>
+      {items.length > 25 && <button type="button" className="mt-3 text-sm text-brand-light" onClick={() => setExpanded(!expanded)}>{expanded ? "Show first 25" : `Show all ${items.length} findings`}</button>}
     </div>
   );
 }

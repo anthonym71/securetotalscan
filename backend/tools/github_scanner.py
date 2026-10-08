@@ -5,12 +5,17 @@ Uses the GitHub REST API (optional GIT_TOKEN for higher rate limits).
 """
 
 import base64
+import json
+from bisect import bisect_right
 import os
 import re
+import time
 from typing import Any
 from urllib.parse import quote, urlparse
 
 import httpx
+
+from tools.source_analysis import accepts_match, literal_at, source_view
 
 GITHUB_API = "https://api.github.com"
 
@@ -70,7 +75,6 @@ SKIP_PATH_PARTS = {
     "spec",
 }
 
-MAX_FILES = 60
 MAX_FILE_BYTES = 100_000
 
 # (regex, owasp, name, severity, recommendation)
@@ -83,14 +87,14 @@ CODE_PATTERNS: list[tuple[str, str, str, str, str]] = [
         "Move secrets to environment variables or a secrets manager",
     ),
     (
-        r"(?i)(aws_access_key_id|aws_secret_access_key|sk-or-|sk_live_|ghp_[a-zA-Z0-9]{20,})",
+        r"(?:AKIA[A-Z0-9]{16}|sk-or-[A-Za-z0-9_-]{20,}|sk_live_[A-Za-z0-9]{20,}|ghp_[a-zA-Z0-9]{20,}|github_pat_[A-Za-z0-9_]{40,})",
         "OWASP-A02",
         "Exposed Credential Pattern",
         "CRITICAL",
         "Rotate the credential and remove it from source control",
     ),
     (
-        r"(?i)(SELECT|INSERT|UPDATE|DELETE)\s+.+\s*(%s|\+|\|\||\.format\(|f[\"'])",
+        r"(?i)\b(?:SELECT|INSERT|UPDATE|DELETE)\s+[^\n]+",
         "OWASP-A03",
         "SQL Injection Risk",
         "HIGH",
@@ -356,9 +360,23 @@ def _headers() -> dict[str, str]:
 
 def _get(client: httpx.Client, path: str) -> dict | list:
     """Perform an authenticated GET against the GitHub API."""
-    resp = client.get(f"{GITHUB_API}{path}", headers=_headers(), timeout=20)
-    resp.raise_for_status()
-    return resp.json()
+    # Streaming bounds apply before JSON/base64 decoding; never follow API redirects.
+    limit = 8 * 1024 * 1024 if "/git/trees/" in path else 2 * 1024 * 1024
+    chunks = bytearray()
+    deadline = getattr(client, "scan_deadline", None)
+    remaining = deadline - time.monotonic() if deadline else 20
+    if remaining <= 0:
+        raise TimeoutError("Repository scan deadline")
+    with client.stream("GET", f"{GITHUB_API}{path}", headers=_headers(), timeout=min(20, remaining),
+                       follow_redirects=False) as resp:
+        resp.raise_for_status()
+        for chunk in resp.iter_bytes():
+            if deadline and time.monotonic() >= deadline:
+                raise TimeoutError("Repository scan deadline")
+            if len(chunks) + len(chunk) > limit:
+                raise ValueError("GitHub response exceeds safe size limit")
+            chunks.extend(chunk)
+    return json.loads(chunks)
 
 
 def fetch_repo_languages(client: httpx.Client, owner: str, repo: str) -> dict[str, float]:
@@ -383,7 +401,9 @@ def list_scannable_files(
     branch: str,
     languages: dict[str, float] | None = None,
 ) -> list[str]:
-    """List up to ``MAX_FILES`` source paths suitable for static analysis.
+    """Legacy helper: list source paths without a file-count cap.
+
+    The production scanner uses immutable, exhaustive inventory instead.
 
     Prioritizes Terraform/HCL files when the repo is IaC-heavy.
     """
@@ -415,7 +435,7 @@ def list_scannable_files(
         return (priority, path)
 
     candidates.sort(key=sort_key)
-    return candidates[:MAX_FILES]
+    return candidates
 
 
 def _check_segments(value: str, what: str) -> None:
@@ -455,13 +475,22 @@ def fetch_file_content(client: httpx.Client, owner: str, repo: str, path: str) -
     return content
 
 
+MAX_FINDINGS_PER_FILE = 1000
+
+
+class FindingsLimitError(ValueError):
+    """Analysis is incomplete; caller must record this file as failed."""
+
+
 def scan_source_code(content: str, path: str, language: str) -> list[dict]:
     """Run regex-based security patterns against file content.
 
     Applies general code patterns plus Terraform rules for ``.tf``/``.hcl`` files.
     """
     findings: list[dict] = []
+    view = source_view(content, language)
     lines = content.splitlines()
+    line_starts = [0] + [m.end() for m in re.finditer("\n", content)]
     ext = os.path.splitext(path)[1].lower()
     patterns = list(CODE_PATTERNS)
     if ext in (".tf", ".hcl", ".tfvars") or language == "HCL":
@@ -469,24 +498,41 @@ def scan_source_code(content: str, path: str, language: str) -> list[dict]:
 
     for pattern, owasp, name, severity, recommendation in patterns:
         regex = re.compile(pattern)
-        for line_no, line in enumerate(lines, start=1):
-            if _is_scanner_meta_line(line, name):
+        for match in regex.finditer(content if name == "Exposed Credential Pattern" else view.text):
+            if not accepts_match(view, match, name, language):
                 continue
-            if regex.search(line):
-                findings.append(
-                    {
-                        "category": owasp,
-                        "name": name,
-                        "severity": severity,
-                        "recommendation": recommendation,
-                        "file": path,
-                        "line": line_no,
-                        "language": language,
-                        "snippet": line.strip()[:120],
-                        "source": "github_code_scan",
-                    }
-                )
-                break
+            if len(findings) >= MAX_FINDINGS_PER_FILE:
+                raise FindingsLimitError("Per-file finding safety limit exceeded; analysis incomplete")
+            line_no = bisect_right(line_starts, match.start())
+            line = lines[line_no - 1]
+            credential = "Secret" in name or "Credential" in name
+            # Only an explicit dummy value in a test path is a fixture. A
+            # variable named TEST_TOKEN can still contain a real credential.
+            test_path = any(part in {"tests", "__tests__", "spec"} for part in path.split("/")) or os.path.basename(path) == "conftest.py" or os.path.basename(path).startswith("test_")
+            fixture = (name != "Exposed Credential Pattern" and credential and test_path
+                       and bool(re.search(r"=[\s]*[\"'](?:test|dummy|example|fake)[-_]", match.group(), re.I)))
+            snippet = line.strip()
+            # A different rule on the same line must not leak the credential.
+            for secret_pattern, *_ in CODE_PATTERNS[:2]:
+                snippet = re.sub(secret_pattern, "[REDACTED]", snippet)
+            sql_literal = literal_at(view, match.start()) if name == "SQL Injection Risk" else None
+            template_sql = bool(sql_literal and view.text[sql_literal[0]:].startswith("`"))
+            findings.append({
+                "category": owasp,
+                "name": name,
+                "severity": "INFO" if fixture else severity,
+                "recommendation": "Verify this fixture value is never accepted in production" if fixture else ("Verify the tag binds interpolation as parameters; parameterized tags may be safe" if template_sql else recommendation),
+                "file": path,
+                "line": line_no,
+                "column": match.start() - line_starts[line_no - 1] + 1,
+                "language": language,
+                "snippet": "[REDACTED: credential-like literal]" if credential else snippet[:120],
+                "source": "github_code_scan",
+                "disposition": "test_fixture" if fixture else "needs_review",
+                "confidence": "low" if fixture or template_sql else "medium",
+                "evidence_type": "static_pattern",
+                "verified": False,
+            })
     return findings
 
 
@@ -510,10 +556,19 @@ def _guess_language(path: str, repo_languages: dict[str, float]) -> str:
         ".sql": "SQL",
         ".sh": "Shell",
         ".bash": "Shell",
+        ".json": "JSON",
+        ".yaml": "YAML",
+        ".yml": "YAML",
+        ".toml": "TOML",
+        ".ini": "INI",
+        ".cfg": "INI",
+        ".env": "INI",
         ".tf": "HCL",
         ".hcl": "HCL",
         ".tfvars": "HCL",
     }
+    if os.path.basename(path) == ".env" or os.path.basename(path).startswith(".env."):
+        return "INI"
     if ext in ext_map:
         return ext_map[ext]
     if repo_languages:
@@ -529,31 +584,61 @@ def scan_github_repo(repo_url: str) -> dict[str, Any]:
     owner, repo = parse_github_url(repo_url)
     full_name = f"{owner}/{repo}"
 
-    with httpx.Client() as client:
-        languages = fetch_repo_languages(client, owner, repo)
-        branch = fetch_default_branch(client, owner, repo)
-        paths = list_scannable_files(client, owner, repo, branch, languages)
+    from tools.github_inventory import scan_inventory
+    from tools.github_inventory import DEADLINE_SECONDS
 
-        findings: list[dict] = []
-        for path in paths:
-            try:
-                content = fetch_file_content(client, owner, repo, path)
-            except Exception:
-                continue
-            if not content:
-                continue
-            lang = _guess_language(path, languages)
-            findings.extend(scan_source_code(content, path, lang))
+    deadline = time.monotonic() + DEADLINE_SECONDS
+    with httpx.Client(follow_redirects=False) as client:
+        client.scan_deadline = deadline
+        prefix = f"/repos/{owner}/{repo}"
+        meta = _get(client, prefix)
+        if meta.get("private") is not False:
+            raise ValueError("Only public repositories are supported by this scanner")
+        branch = meta.get("default_branch", "main")
+        commit = _get(client, f"{prefix}/commits/{_quote_ref(branch)}")
+        commit_sha = commit["sha"]
+        tree_sha = commit["commit"]["tree"]["sha"]
+        if not re.fullmatch(r"[0-9a-f]{40}", commit_sha) or not re.fullmatch(r"[0-9a-f]{40}", tree_sha):
+            raise ValueError("Invalid repository commit metadata")
+        # Languages are descriptive only, not a substitute for analyzed file counts.
+        try:
+            languages = fetch_repo_languages(client, owner, repo)
+        except Exception:
+            languages = {}
 
+        def classify(item):
+            if item.get("type") == "commit":
+                return "submodule_external_repository"
+            if item.get("type") != "blob":
+                return "unsupported_git_entry"
+            if item.get("mode") == "120000":
+                return "symbolic_link_not_followed"
+            path = item["path"]
+            # Tests remain in scope: they can contain real secrets too.
+            excluded_dirs = SKIP_PATH_PARTS - {"tests", "__tests__", "spec"}
+            if any(part in excluded_dirs for part in path.split("/")[:-1]):
+                return "generated_or_dependency_directory"
+            basename = os.path.basename(path)
+            ext = os.path.splitext(path)[1].lower()
+            if ext not in SCANNABLE_EXTENSIONS and basename != ".env" and not basename.startswith(".env."):
+                return "unsupported_file_type"
+            return None
+
+        findings, coverage = scan_inventory(
+            lambda path: _get(client, path), prefix, tree_sha, commit_sha, classify,
+            lambda content, path: scan_source_code(content, path, _guess_language(path, languages)),
+            deadline=deadline,
+        )
     primary = max(languages, key=languages.get) if languages else "Unknown"
-
     return {
         "github_repo": full_name,
         "repo_url": f"https://github.com/{full_name}",
         "default_branch": branch,
+        "commit_sha": commit_sha,
         "repo_languages": languages,
         "primary_language": primary,
-        "files_scanned": len(paths),
+        "files_scanned": coverage["scanned_files"],
+        "scan_coverage": coverage,
         "code_findings": findings,
     }
 
@@ -566,7 +651,7 @@ def scan_github_repo_safe(repo_url: str) -> dict[str, Any]:
         status = e.response.status_code
         if status == 404:
             return {
-                "error": "Repository not found or is private — set GIT_TOKEN on the Railway backend (GitHub PAT)"
+                "error": "Public repository not found. Check the repository URL; private repositories are not supported."
             }
         if status == 403:
             return {
@@ -586,5 +671,7 @@ def scan_github_repo_safe(repo_url: str) -> dict[str, Any]:
                 )
             }
         return {"error": f"GitHub API error: {status}"}
-    except Exception as e:
+    except ValueError as e:
         return {"error": str(e)}
+    except Exception:
+        return {"error": "Repository scan could not complete; retry or contact support"}

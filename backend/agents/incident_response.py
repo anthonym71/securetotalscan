@@ -123,7 +123,7 @@ RETRIEVED SECURITY KNOWLEDGE (RAG):
 
 THREAT SCORE: {state['threat_score']}/100
 
-Provide a numbered action plan (5-7 steps) to remediate these issues immediately. Be specific and actionable. Ground recommendations in the retrieved security knowledge where relevant."""
+Provide a short evidence-based review plan. Automated findings are candidates, not confirmed vulnerabilities. Verify context and exploitability before changes; recommend rotation only when real credential exposure is confirmed. Knowledge references do not establish failed controls. Do not invent affected assets or assert compliance."""
 
 
 def _fallback_action_plan(state: SecurityState) -> list[str]:
@@ -170,13 +170,16 @@ def _fallback_action_plan(state: SecurityState) -> list[str]:
 
     if len(steps) < 7:
         for finding in state.get("code_findings", []):
+            if finding.get("disposition") == "test_fixture":
+                continue
             key = f"{finding.get('file')}:{finding.get('name')}"
             if key in seen:
                 continue
             seen.add(key)
             steps.append(
-                f"Fix {finding['name']} in {finding['file']}:{finding['line']} — "
-                f"{finding['recommendation']}"
+                f"Review candidate {finding['name']} in {finding['file']}:{finding['line']}. "
+                "Confirm that executable code is affected and assess exploitability before changing it. "
+                "If a credential is involved, verify it is real and exposed before rotating it."
             )
             if len(steps) >= 7:
                 break
@@ -211,8 +214,8 @@ def _fallback_action_plan(state: SecurityState) -> list[str]:
 
     if not steps and state.get("github_repo"):
         steps.append(
-            f"Review all {state.get('files_scanned', 0)} scanned files in "
-            f"{state['github_repo']} against AWS and Terraform security best practices."
+            f"No actionable source candidates were found in {state.get('files_scanned', 0)} scanned files. "
+            "Review the coverage exclusions and failures; this is not proof the repository is secure."
         )
 
     return steps or ["No automated remediation steps generated — review scan output manually."]
@@ -273,8 +276,15 @@ def run_incident_response(state: SecurityState) -> SecurityState:
         prompt = build_prompt(state)
         action_plan: list[str] = []
         try:
-            raw = call_openai(prompt, session_id=state["session_id"])
-            action_plan = _parse_llm_action_plan(raw)
+            # Source patterns must not become unverified LLM remediation orders.
+            # The deterministic review plan retains locations and uncertainty.
+            if state.get("github_repo") or state.get("code_findings"):
+                action_plan = _fallback_action_plan(state)
+                raw = ""
+            else:
+                raw = call_openai(prompt, session_id=state["session_id"])
+            if raw:
+                action_plan = _parse_llm_action_plan(raw)
         except Exception:
             action_plan = []
 

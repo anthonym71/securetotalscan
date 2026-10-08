@@ -19,7 +19,7 @@ def test_run_policy_checker_includes_rag_sources():
     }
     result = run_policy_checker(state)
     assert len(result["retrieved_sources"]) > 0
-    assert any(g.get("framework") == "ISO 27001" for g in result["compliance_gaps"])
+    assert any(g.get("framework") == "ISO 27001" for g in result["compliance_references"])
 
 
 def test_map_to_nist_brute_force():
@@ -55,7 +55,7 @@ def test_run_policy_checker_maps_code_findings():
         ],
     }
     result = run_policy_checker(state)
-    assert any("main.tf" in g["description"] for g in result["compliance_gaps"])
+    assert any("main.tf" in g["description"] for g in result["compliance_references"])
 
 
 def test_run_policy_checker_produces_score():
@@ -69,6 +69,16 @@ def test_run_policy_checker_produces_score():
         "action_plan": ["Block IP", "Rotate keys"],
     }
     result = run_policy_checker(state)
-    assert 0 <= result["compliance_score"] <= 100
-    assert len(result["compliance_gaps"]) > 0
-    assert all("framework" in g for g in result["compliance_gaps"])
+    assert result["compliance_score"] is None
+    assert result["compliance_gaps"] == []
+    assert result["compliance_status"] == "not_assessed"
+    assert len(result["compliance_references"]) > 0
+    assert all("framework" in g for g in result["compliance_references"])
+
+
+def test_reference_material_does_not_establish_failed_controls():
+    state = make_initial_state(raw_logs=[], log_source="github", session_id="empty", github_repo="owner/repo")
+    result = run_policy_checker(state)
+    assert result["compliance_gaps"] == []
+    assert result["compliance_score"] is None
+    assert result["compliance_references"] == []

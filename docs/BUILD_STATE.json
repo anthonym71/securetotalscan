@@ -4,19 +4,21 @@
     "id": "securetotalscan",
     "name": "Secure Total Scan",
     "repo": "https://github.com/anthonym71/securetotalscan",
-    "branch": "phase2/integration-readiness-2026-09-29"
+    "branch": "fix/audit-coverage-2026-10-01"
   },
   "objective": "Complete commercial launch per docs/PR-PLAN.md",
   "phase": "build",
   "rag_status": "RED",
-  "status_summary": "Storage, secure PDF downloads and prompt paywall deployed and live-verified. Commercial launch remains blocked by pricing and unverified integrations/accounts.",
+  "status_summary": "REVIEW: expanded repository source coverage, false-positive repair and truthful reporting pass local tests and independent review. CI and production rollout pending. Full commercial launch remains blocked.",
   "blockers": [
     "Exact PRD v1.2 section 3 five-tier specification missing",
-    "Deep-scan cost benchmark withdrawn"
+    "Deep-scan cost benchmark withdrawn",
+    "HighLevel and Resend production API credentials returned401 on September29",
+    "Paid entitlement, accounts/credits, email delivery, monitoring and retention cleanup unfinished"
   ],
   "tests": {
-    "state": "partial",
-    "summary": "PR154 exact-head CI, CodeQL, audit and dependency review pass. Live A/100 scan saved; free and owner PDFs, owner login, premium authorization and missing/wrong-token refusal pass."
+    "state": "passed_local",
+    "summary": "306 backend tests pass; full web verification, typecheck and production build pass. Independent review passed with findings on integrated code and final accuracy supplement; no remaining blocking review finding. Exact-head CI and live rollout pending."
   },
   "deployment": {
     "state": "healthy",
@@ -26,21 +28,15 @@
     ]
   },
   "unknowns": [
-    "Exact five-tier table",
-    "HighLevel product API access under deployment integration",
-    "Resend sender verification and actual delivery",
-    "Payment webhook, accounts/credits, monitoring and retention enforcement"
+    "Large-repository throughput and cost after coverage changes",
+    "Current provider credentials after September29 audit",
+    "Exact five-tier commercial specification"
   ],
   "next_actions": [
     {
-      "action": "Run read-only integration readiness audit through existing prod credentials",
+      "action": "Integrate, review and validate audit repair before deployment",
       "owner": "Codex",
-      "evidence_expected": "Provider HTTP status and sender verification; no messages or payment changes"
-    },
-    {
-      "action": "Recover exact pricing table; complete payment, verified accounts and email workflows",
-      "owner": "Anthony / Codex",
-      "evidence_expected": "Approved tier table and end-to-end test purchases and delivery"
+      "evidence_expected": "Positive/negative detection tests; coverage failure tests; live immutable-commit coverage receipt"
     }
   ],
   "source_of_truth": {
@@ -49,7 +45,7 @@
     "build_pulse_path": "docs/BUILD_STATE.json",
     "build_ledger_path": "docs/CHANGELOG-BUILD.md"
   },
-  "last_reconciled_at": "2026-09-29T22:53:30.630904+00:00",
+  "last_reconciled_at": "2026-10-01T18:37:23.312204+00:00",
   "confidence": "high",
   "latest_verified_milestone": {
     "description": "PR154 deployed; live self-scan A/100, saved result, free/owner PDF and access boundaries pass; owner login independently verified",
@@ -57,5 +53,45 @@
     "evidence_refs": [
       "https://github.com/anthonym71/securetotalscan/actions/runs/36641707562"
     ]
-  }
+  },
+  "active_workstreams": [
+    {
+      "id": "STS-AUDIT-1",
+      "owner": "Codex coverage worker",
+      "status": "REVIEW",
+      "acceptance": "No60-file cutoff; immutable commit inventory; successful-read count and explicit exclusions/failures/limits"
+    },
+    {
+      "id": "STS-AUDIT-2",
+      "owner": "Codex accuracy worker",
+      "status": "REVIEW",
+      "acceptance": "Language/context-aware pattern candidates; true positives retained; fixtures labeled; secrets redacted"
+    },
+    {
+      "id": "STS-AUDIT-3",
+      "owner": "Codex reporting worker",
+      "status": "REVIEW",
+      "acceptance": "No unsupported compliance percentage or duplicate finding lists; coverage shown; evidence-based advice"
+    },
+    {
+      "id": "STS-AUDIT-4",
+      "owner": "Codex integration/review",
+      "status": "REVIEW",
+      "acceptance": "Independent review, regression tests, exact-head CI, deployment and live >60-file scan"
+    }
+  ],
+  "acceptance_criteria": [
+    "No silent60-file sampling; exactcommit and complete file accounting",
+    "Original12 falsepositive locations corrected or classified as fixture notices",
+    "Realpositive detections retained with credential snippets redacted",
+    "Incomplete inventory/reads/analysis/output never reportcomplete",
+    "No compliancepercentage or duplicatefindings",
+    "ExactheadCI and production>60file verification"
+  ],
+  "risks": [
+    "Lexical heuristics are not a complete security audit",
+    "Cooperative runtime/output limits; oversized runs explicit incomplete",
+    "Deep reports remain in process memory; durable queued paid audits not implemented",
+    "Historical Slack webhook revocation remains open under accepted exception"
+  ]
 }

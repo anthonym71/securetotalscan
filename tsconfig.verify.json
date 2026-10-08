@@ -40,6 +40,7 @@
     "scripts/verify-live-storage.ts",
     "scripts/verify-report.ts",
     "scripts/verify-report-access.ts",
-    "scripts/verify-paywall.ts"
+    "scripts/verify-paywall.ts",
+    "scripts/verify-audit-report.ts"
   ]
 }

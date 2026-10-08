@@ -32,11 +32,14 @@ class SecurityState(TypedDict):
     action_plan: list[str]
     runbook_md: str
     compliance_gaps: list[dict]
-    compliance_score: int
+    compliance_score: int | None
+    compliance_status: str
+    compliance_references: list[dict]
     github_repo: str
     repo_languages: dict[str, float]
     primary_language: str
     files_scanned: int
+    scan_coverage: dict
     code_findings: list[dict]
     scan_error: str
     slack_webhook_url: str
@@ -79,7 +82,7 @@ def make_initial_state(
         cve_matches=[],
         threat_score=0,
         vulnerabilities=[],
-        risk_level="low",
+        risk_level="not_assessed",
         docker_findings=[],
         docker_scan_error="",
         docker_skipped=True,
@@ -91,11 +94,14 @@ def make_initial_state(
         action_plan=[],
         runbook_md="",
         compliance_gaps=[],
-        compliance_score=0,
+        compliance_score=None,
+        compliance_status="not_assessed",
+        compliance_references=[],
         github_repo=github_repo,
         repo_languages={},
         primary_language="",
         files_scanned=0,
+        scan_coverage={},
         code_findings=[],
         scan_error="",
         slack_webhook_url=slack_webhook_url,

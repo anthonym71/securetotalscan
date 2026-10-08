@@ -6,6 +6,24 @@ Newest first.
 
 ---
 
+## 2026-10-01 — Audit coverage and reporting repair (in review)
+
+**Engine:** Codex orchestration, three isolated builder worktrees and an independent reviewer. **Base:** 6b664bd. **Objective:** remove the silent 60-file sample and fix misleading detection/report claims before paid use.
+
+The owner replaced `GIT_TOKEN` in the existing GitHub prod environment. Railway job 110487653914 in CD 36640879372 synced it and deployed successfully. A live authenticated scan of our own public repository reported 60 selected files, 12 candidate findings and no credential error. Review then established that the count was capped and could include failed reads; findings confused regex matching, comments, fixture secrets and detector text with vulnerabilities. The associated critical rating and 45% compliance were not evidence-backed security conclusions.
+
+**Repair acceptance:** immutable commit inventory, no 60-file cutoff, successfully decoded file counts, complete accounting for exclusions and failures, bounded resources with explicit incomplete status, language/context-aware candidates, real-positive regression cases, redacted credential evidence, no duplicate finding lists, no compliance percentage, and conditional evidence-based recommendations. A source coverage receipt is not a penetration test or certification. Private repositories are not accessed through the app-wide public scan token.
+
+**Current verification:** final integrated audit changes passed 306 backend tests, full web verification, typecheck and production build. The independent reviewer reproduced and checked fixes for fixture misclassification, credential snippets, unbounded finding output and quadratic lexical lookups. A speculative Neon SQL-tag exemption failed review and was removed: uncertain tagged SQL remains reviewable. Independent review passed with documented non-blocking scope limitations. Exact final CI and live deployment checks are pending; this entry does not claim release.
+
+**CI dependency repair:** the initial PR audit found three brace-expansion denial-of-service advisories (GHSA-q2hr-2g5m-vwhr, GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p) affecting the locked5.0.9 version. Update the existing override minimum and lockfile to5.0.12; preserve unrelated platform metadata. No new package introduced. Audit/build verification is rerun on this patched head.
+
+**Configuration/external changes:** no new secrets, migrations, payments, GHL objects, DNS or customer messages. Existing credentials and deployment workflow reused. Historical Slack webhook exception stays open and unsuppressed. Rollback is a normal revert through CI/CD. Broader commercial launch remains blocked by pricing, payment/customer lifecycle, email credentials/delivery, monitoring and retention cleanup.
+
+**NEXT:** finish independent review, integrate fixes, run exact tree regressions, publish PR, verify CI/CD and live source coverage beyond 60 files. Very large or unsupported repositories must show limits/incomplete coverage; future durable queued audits require separate architecture and cost validation before claiming unlimited audits.
+
+---
+
 ## 2026-09-29 — Storage and secure PDF release: live verification
 
 **Milestone status: CONDITIONALLY CLOSED** for scan storage, server-side prompt projection and secure PDF downloads. **Full commercial launch: BLOCKED**, not complete.

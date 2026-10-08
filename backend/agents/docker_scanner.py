@@ -35,8 +35,10 @@ def run_docker_scanner(state: SecurityState) -> SecurityState:
         risk_level = "critical"
     elif any(f.get("severity") == "HIGH" for f in findings) and risk_level not in ("critical",):
         risk_level = "high"
-    elif any(f.get("severity") == "MEDIUM" for f in findings) and risk_level == "low":
+    elif any(f.get("severity") == "MEDIUM" for f in findings) and risk_level in ("low", "not_assessed"):
         risk_level = "medium"
+    elif any(f.get("severity") == "LOW" for f in findings) and risk_level == "not_assessed":
+        risk_level = "low"
 
     return {
         **state,
