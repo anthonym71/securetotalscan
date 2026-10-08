@@ -272,10 +272,41 @@ def literal_at(view: SourceView, position: int):
     return None
 
 
+def _inside_python_fstring_expression(text: str, position: int) -> bool:
+    """Best-effort guard for Python 3.12+ f-string tokenization differences.
+
+    Some Python versions expose f-string token spans differently. When a regex
+    match lands inside an active {...} expression of a nearby f-string, treat
+    it as executable code rather than surrounding literal text.
+    """
+    window_start = max(0, position - 2000)
+    prefix = text[window_start:position]
+    candidates = [prefix.rfind(marker) for marker in ('f"', "f'", 'F"', "F'")]
+    start = max(candidates)
+    if start < 0:
+        return False
+    segment = prefix[start + 2:]
+    depth = 0
+    i = 0
+    while i < len(segment):
+        if segment.startswith("{{", i) or segment.startswith("}}", i):
+            i += 2
+            continue
+        ch = segment[i]
+        if ch == "{":
+            depth += 1
+        elif ch == "}" and depth:
+            depth -= 1
+        i += 1
+    return depth > 0
+
+
 def accepts_match(view: SourceView, match: re.Match, name: str, language: str) -> bool:
     """Keep code syntax separate from mentions of syntax inside strings."""
     start = match.start()
     literal = literal_at(view, start)
+    if literal is not None and language == "Python" and _inside_python_fstring_expression(view.text, start):
+        literal = None
     if name == "Exposed Credential Pattern":
         return True  # known token shapes remain sensitive even inside a string
     if name in {"Hardcoded Secret", "Hardcoded Secret in Terraform"}:
