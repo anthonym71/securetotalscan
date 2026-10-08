@@ -144,6 +144,29 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: bash ../scripts/sync-railway-env.sh --deploy
 
+      - name: Verify live repository coverage beyond 60 files
+        env:
+          STS_SERVICE_TOKEN: ${{ secrets.STS_SERVICE_TOKEN }}
+        run: |
+          if [ -z "$STS_SERVICE_TOKEN" ]; then
+            echo "::error::STS_SERVICE_TOKEN is missing from the GitHub prod environment."
+            exit 1
+          fi
+          body="$(curl -fsS --max-time 180             -X POST "${NEXT_PUBLIC_API_URL%/}/ops/verify-github-coverage"             -H "content-type: application/json"             -H "x-sts-service-auth: $STS_SERVICE_TOKEN"             --data '{"repo_url":"https://github.com/anthonym71/securetotalscan"}')"
+          python - "$body" <<'PY'
+          import json, sys
+          data = json.loads(sys.argv[1])
+          scanned = int(data.get("scanned_files") or 0)
+          eligible = int(data.get("eligible_files") or 0)
+          failed = int(data.get("failed_files") or 0)
+          complete = data.get("coverage_status") == "complete" and data.get("inventory_complete") is True
+          if scanned <= 60:
+              raise SystemExit(f"release gate failed: only {scanned} files scanned")
+          if not complete or failed or scanned != eligible:
+              raise SystemExit(f"release gate failed: incomplete coverage {data}")
+          print(f"Live repository coverage verified: {scanned}/{eligible} files at {data.get('commit_sha')}")
+          PY
+
   deploy-frontend:
     name: Vercel
     needs: changes
