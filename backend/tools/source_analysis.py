@@ -209,7 +209,7 @@ def _python_fstring_parts(content: str, start: int, end: int):
                     quote_char = None
                 j += 1
                 continue
-            if ch in "\\\"\'":
+            if ch == '"' or ch == "'":
                 quote_char = ch
                 j += 1
                 continue
