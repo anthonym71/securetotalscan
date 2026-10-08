@@ -2,7 +2,7 @@ import { db } from "./client";
 
 export type CommercialGrant =
   | { kind: "subscription"; tier: string; productId: string }
-  | { kind: "purchase"; product: string; productId: string };
+  | { kind: "purchase"; product: string; productId: string; amountCents?: number };
 
 export interface PaidInvoice {
   invoiceId: string;
@@ -17,7 +17,7 @@ async function upsertCustomer(email: string, ghlContactId?: string): Promise<str
   const rows = await db().query(
     `INSERT INTO customer (email, ghl_contact_id)
      VALUES ($1, $2)
-     ON CONFLICT (lower(email))
+     ON CONFLICT ((lower(email)))
      DO UPDATE SET ghl_contact_id = COALESCE(EXCLUDED.ghl_contact_id, customer.ghl_contact_id),
                    updated_at = now()
      RETURNING id`,
@@ -57,7 +57,7 @@ export async function recordPaidInvoice(invoice: PaidInvoice): Promise<{ custome
          VALUES ($1, $2, $3, $4, 'paid', $5)
          ON CONFLICT (external_id)
          DO UPDATE SET status = 'paid'`,
-        [customerId, grant.product, invoice.amountPaid, invoice.currency, externalId],
+        [customerId, grant.product, grant.amountCents ?? invoice.amountPaid, invoice.currency, externalId],
         { arrayMode: false, fullResults: false },
       );
     }
