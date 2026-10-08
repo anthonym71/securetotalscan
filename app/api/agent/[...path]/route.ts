@@ -5,6 +5,7 @@ import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { assertSameOrigin } from "@/lib/security/origin";
 import { anyUnavailable, limiterUnavailable } from "@/lib/security/limits";
 import { SERVICE_AUTH_HEADER, serviceToken } from "@/lib/security/serviceAuth";
+import { creditBalance, ensureMonthlyCredits, spendCredit } from "@/lib/db/customerAccess";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -89,12 +90,16 @@ async function forward(
   req: NextRequest,
   path: string,
   init: RequestInit,
+  onSuccess?: (response: Response) => Promise<void>,
 ): Promise<NextResponse> {
   try {
     const upstream = await fetch(upstreamUrl(path, req), {
       ...init,
       cache: "no-store",
     });
+    if (upstream.ok && onSuccess) {
+      await onSuccess(upstream.clone());
+    }
     if (upstream.status >= 500) {
       after(() =>
         postAlert({
@@ -157,9 +162,34 @@ export async function POST(
   const denied = await guard(req, path);
   if (denied) return denied;
 
+  const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
+  if (!session) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+
+  const isDeepStart = /^analyze(?:\/github|\/docker|\/upload)?$/.test(path);
+  if (isDeepStart && session.role === "customer") {
+    await ensureMonthlyCredits(session.email, session.plan);
+    const balance = await creditBalance(session.email);
+    if (balance <= 0) {
+      return NextResponse.json(
+        { error: "Your monthly deep-scan allowance is used up. Upgrade your plan or wait for the next allowance reset." },
+        { status: 402, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+  }
+
   const contentType = req.headers.get("content-type") ?? "";
   const headers = serviceHeaders({ Accept: "*/*" });
   if (contentType) headers["content-type"] = contentType;
   const body = await req.arrayBuffer();
-  return forward(req, path, { method: "POST", headers, body });
+
+  return forward(req, path, { method: "POST", headers, body },
+    isDeepStart && session.role === "customer"
+      ? async (response) => {
+          const payload = await response.json().catch(() => null) as { session_id?: unknown } | null;
+          if (typeof payload?.session_id === "string") {
+            await spendCredit(session.email, `deep:${payload.session_id}`);
+          }
+        }
+      : undefined,
+  );
 }
