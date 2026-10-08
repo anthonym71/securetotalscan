@@ -7,9 +7,12 @@ import { assertSameOrigin } from "@/lib/security/origin";
 import { anyUnavailable, limiterUnavailable } from "@/lib/security/limits";
 import { customerRef, postAlert } from "@/lib/alerting";
 import { recordSurfaceScan } from "@/lib/db/scans";
+import { recordCustomerSurfaceScan } from "@/lib/db/sites";
 import { reportAccessToken } from "@/lib/report/access";
 import { entitlementFor } from "@/lib/entitlements";
 import { toPublicReport } from "@/lib/scanner/publicReport";
+import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
+import { sendReportEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -108,10 +111,19 @@ export async function POST(req: NextRequest) {
 
   try {
     const report = await scan(target.toString());
-    // Await the write: never tell a visitor their result was saved when the
-    // database rejected it. Scanning remains useful during a storage outage.
+    const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value).catch(() => null);
+    const verifiedCustomer =
+      session?.role === "customer" && session.email.toLowerCase() === email
+        ? session
+        : null;
+
+    // A verified paid customer owns their scan. Anonymous/free visitors remain
+    // deliberately unassigned because a typed email address is not ownership proof.
     try {
-      report.storage = { status: "saved", ...await recordSurfaceScan(report) };
+      const receipt = verifiedCustomer
+        ? await recordCustomerSurfaceScan(verifiedCustomer.email, report)
+        : await recordSurfaceScan(report);
+      report.storage = { status: "saved", ...receipt };
     } catch {
       report.storage = { status: "unavailable" };
       report.notes.push("This result could not be saved. Copy the findings before closing this page.");
@@ -133,11 +145,33 @@ export async function POST(req: NextRequest) {
       tags: ["capture-free-scan"],
     }).catch(() => undefined);
 
-    const publicReport = toPublicReport(report, { entitlement: await entitlementFor(req) });
+    const entitlement = await entitlementFor(req);
+    const publicReport = toPublicReport(report, { entitlement });
     if (report.storage?.status === "saved") {
       const receipt = report.storage;
       const readToken = reportAccessToken(receipt.id);
       publicReport.storage = { ...receipt, ...(readToken ? { readToken } : {}) };
+
+      // Email only to a cryptographically verified customer session, never to
+      // an arbitrary address typed into the public free-scan form.
+      if (verifiedCustomer && entitlement === "member") {
+        after(async () => {
+          const delivered = await sendReportEmail(
+            verifiedCustomer.email,
+            toPublicReport(report, { entitlement: "member", scanId: receipt.id }),
+            receipt.id,
+          );
+          if (!delivered.delivered) {
+            await postAlert({
+              severity: "warning",
+              kind: "paid-report-email-failed",
+              customer: customerRef(verifiedCustomer.email),
+              detail: `Paid surface scan ${receipt.id} completed but report email was not delivered (${delivered.reason ?? "unknown"}).`,
+              dedupeKey: `paid-report-email-failed:${delivered.reason ?? "unknown"}`,
+            });
+          }
+        });
+      }
     } else {
       publicReport.storage = { status: "unavailable" };
     }
