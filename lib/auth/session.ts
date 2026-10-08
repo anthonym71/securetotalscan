@@ -23,8 +23,8 @@ export interface SessionPayload {
   plan: string;
   /** Unix seconds. */
   exp: number;
-  /** Only credential-verified owner sessions carry this explicit role. */
-  role?: "owner";
+  /** Credential-verified role. Customer sessions are minted only after a one-time magic link. */
+  role?: "owner" | "customer";
   /** Keyed binding invalidates owner sessions when their credentials change. */
   ownerBinding?: string;
 }
@@ -144,6 +144,20 @@ export async function createSession(
   return `${body}.${await hmac(body)}`;
 }
 
+/** Paid customer session, minted only after a one-time emailed magic link. */
+export async function createCustomerSession(email: string, plan: string): Promise<string> {
+  const payload: SessionPayload = {
+    email: email.trim().toLowerCase(),
+    plan,
+    role: "customer",
+    // Keep paid sessions short enough that cancellation/refund revocation is
+    // bounded even if the user leaves a browser open.
+    exp: Math.floor(Date.now() / 1000) + 60 * 60,
+  };
+  const body = base64UrlEncode(new TextEncoder().encode(JSON.stringify(payload)));
+  return `${body}.${await hmac(body)}`;
+}
+
 /** Owner access requires both the configured email and its separate secret. */
 export async function createOwnerSession(email: string, submitted: string): Promise<string | null> {
   const owner = ownerCredentials();
@@ -181,6 +195,11 @@ export async function verifySession(
   if (typeof payload?.exp !== "number" || !Number.isFinite(payload.exp) ||
       typeof payload.email !== "string" || typeof payload.plan !== "string") return null;
   if (payload.exp <= Math.floor(Date.now() / 1000)) return null;
+
+  if (payload.role === "customer") {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email) || !payload.plan) return null;
+    return payload;
+  }
 
   if (payload.role === "owner") {
     const owner = ownerCredentials();
