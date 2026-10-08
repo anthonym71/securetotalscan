@@ -1,0 +1,102 @@
+name: Live audit acceptance
+
+on:
+  push:
+    branches:
+      - release/live-audit-acceptance-2026-10-08
+    paths:
+      - .github/workflows/live-audit-acceptance.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: prod
+    env:
+      SITE_URL: ${{ vars.SITE_URL || 'https://securetotalscan.com' }}
+      OWNER_EMAIL: ${{ secrets.STS_OWNER_EMAIL }}
+      OWNER_CODE: ${{ secrets.STS_OWNER_ACCESS_CODE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify production owner credentials are configured
+        run: |
+          test -n "$OWNER_EMAIL" || { echo "::error::STS_OWNER_EMAIL is missing"; exit 1; }
+          test -n "$OWNER_CODE" || { echo "::error::STS_OWNER_ACCESS_CODE is missing"; exit 1; }
+
+      - name: Run authenticated live repository audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          cookies="$work/cookies.txt"
+          login="$work/login.json"
+          start="$work/start.json"
+          report="$work/report.json"
+
+          login_code="$(curl -sS -o "$login" -w "%{http_code}" -c "$cookies"             -H "Origin: $SITE_URL"             -H "Referer: $SITE_URL/login"             -H "Content-Type: application/json"             --data "$(python -c 'import json,os; print(json.dumps({"email":os.environ["OWNER_EMAIL"],"code":os.environ["OWNER_CODE"]}))')"             "$SITE_URL/api/auth/login")"
+          if [ "$login_code" != "200" ]; then
+            echo "::error::Owner login failed with HTTP $login_code"
+            cat "$login"
+            exit 1
+          fi
+
+          start_code="$(curl -sS -o "$start" -w "%{http_code}" -b "$cookies" -c "$cookies"             -H "Origin: $SITE_URL"             -H "Referer: $SITE_URL/dashboard"             -H "Content-Type: application/json"             --data '{"repo_url":"https://github.com/anthonym71/securetotalscan","include_logs":false,"slack_webhook_url":"","target_url":""}'             "$SITE_URL/api/agent/analyze/github")"
+          if [ "$start_code" != "200" ]; then
+            echo "::error::Production repository audit could not start; HTTP $start_code"
+            cat "$start"
+            exit 1
+          fi
+
+          session="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["session_id"])' "$start")"
+          echo "Started production audit session."
+
+          got=0
+          for i in $(seq 1 72); do
+            code="$(curl -sS -o "$report" -w "%{http_code}" -b "$cookies"               -H "Origin: $SITE_URL"               -H "Referer: $SITE_URL/dashboard"               "$SITE_URL/api/agent/report/$session")"
+            if [ "$code" = "200" ]; then
+              got=1
+              break
+            fi
+            if [ "$code" != "404" ]; then
+              echo "::error::Report polling returned HTTP $code"
+              cat "$report"
+              exit 1
+            fi
+            sleep 5
+          done
+          if [ "$got" != "1" ]; then
+            echo "::error::Production repository audit did not finish inside the acceptance window"
+            exit 1
+          fi
+
+          python - "$report" <<'PY'
+          import json, sys
+          r=json.load(open(sys.argv[1]))
+          c=r.get("scan_coverage") or {}
+          scanned=c.get("scanned_files", r.get("files_scanned", 0))
+          eligible=c.get("eligible_files", 0)
+          failed=c.get("failed_files") or []
+          reasons=c.get("incomplete_reasons") or []
+          assert scanned > 60, f"60-file cap still present: scanned={scanned}"
+          assert c.get("status") == "complete", f"coverage not complete: {c.get('status')}"
+          assert c.get("inventory_complete") is True, "inventory is not complete"
+          assert scanned == eligible, f"scanned {scanned} != eligible {eligible}"
+          assert not failed, f"failed files present: {len(failed)}"
+          assert not reasons, f"incomplete reasons present: {reasons}"
+          assert r.get("compliance_status") == "not_assessed", f"compliance status={r.get('compliance_status')}"
+          assert r.get("compliance_score") is None, f"unsupported compliance score={r.get('compliance_score')}"
+          print(json.dumps({
+            "production_acceptance":"PASS",
+            "files_scanned":scanned,
+            "eligible_files":eligible,
+            "inventoried_files":c.get("inventoried_files"),
+            "coverage_status":c.get("status"),
+            "compliance_status":r.get("compliance_status"),
+            "commit_sha":c.get("commit_sha"),
+          }))
+          PY
