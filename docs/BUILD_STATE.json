@@ -4,40 +4,109 @@
     "id": "securetotalscan",
     "name": "Secure Total Scan",
     "repo": "https://github.com/anthonym71/securetotalscan",
-    "branch": "fix/audit-coverage-2026-10-01"
+    "branch": "master",
+    "sha": "39c40b43c327d16cc58a19492802000c920fd72c"
   },
-  "objective": "Complete commercial launch per docs/PR-PLAN.md",
+  "objective": "Complete commercial launch per docs/PR-PLAN.md while keeping repository-audit claims evidence-backed.",
   "phase": "build",
   "rag_status": "RED",
-  "status_summary": "REVIEW: expanded repository source coverage, false-positive repair and truthful reporting pass local tests and independent review. CI and production rollout pending. Full commercial launch remains blocked.",
+  "status_summary": "Repository-audit coverage repair is merged and deployed to production with CI, CodeQL, Security Audit, Railway health verification, database/storage verification and Vercel deployment passing. Full commercial launch remains incomplete and blocked on customer/payment/email/lifecycle work plus external integration readiness.",
+  "latest_verified_milestone": {
+    "description": "PR156 merged as 39c40b43; CD 37709084769 deployed backend and frontend successfully. Silent 60-file sampling removed in released code; exact-head and master CI passed.",
+    "verified_at": "2026-10-08T00:45:00Z",
+    "evidence_refs": [
+      "https://github.com/anthonym71/securetotalscan/pull/156",
+      "https://github.com/anthonym71/securetotalscan/actions/runs/37708998812",
+      "https://github.com/anthonym71/securetotalscan/actions/runs/37708999074",
+      "https://github.com/anthonym71/securetotalscan/actions/runs/37708998829",
+      "https://github.com/anthonym71/securetotalscan/actions/runs/37709084769"
+    ]
+  },
   "blockers": [
-    "Exact PRD v1.2 section 3 five-tier specification missing",
-    "Deep-scan cost benchmark withdrawn",
-    "HighLevel and Resend production API credentials returned401 on September29",
-    "Paid entitlement, accounts/credits, email delivery, monitoring and retention cleanup unfinished"
+    "Exact approved five-tier commercial specification is not present in the repository.",
+    "HighLevel production API credential returned HTTP 401 in the September 29 read-only integration audit.",
+    "Resend production API credential returned HTTP 401 in the September 29 read-only integration audit.",
+    "Payment-verified entitlement, customer accounts/credits, email delivery, subscription lifecycle, monitoring/retention completion and full launch QA are not yet implemented end to end.",
+    "Deep-scan unit economics must be revalidated after expanded repository coverage before selling an unlimited/full-audit promise.",
+    "Historical Slack incoming-webhook credential remains in Git history under the accepted open incident; permanent provider revocation is not verified."
   ],
   "tests": {
-    "state": "passed_local",
-    "summary": "306 backend tests pass; full web verification, typecheck and production build pass. Independent review passed with findings on integrated code and final accuracy supplement; no remaining blocking review finding. Exact-head CI and live rollout pending."
+    "state": "passed_release",
+    "summary": "PR156 exact head and merge commit: backend tests pass; web typecheck/lint/build/scanner verification pass; CodeQL pass; production-dependency Security Audit pass; Dependency Review pass. Full-history Secret Scan reports exactly the known historical Slack webhook exception."
   },
   "deployment": {
     "state": "healthy",
     "environment": "production",
     "evidence_refs": [
-      "https://github.com/anthonym71/securetotalscan/actions/runs/36641707562"
-    ]
+      "https://github.com/anthonym71/securetotalscan/actions/runs/37709084769"
+    ],
+    "summary": "Railway deploy and post-deploy backend health verification passed. Vercel env sync, database migration, live storage verification and production deploy passed."
+  },
+  "acceptance_criteria": [
+    "Repository source scan no longer silently samples 60 files.",
+    "Coverage reports immutable commit, inventory, exclusions, failures and explicit incomplete reasons.",
+    "False-positive fixtures/comments/regex contexts are distinguished without suppressing real credential candidates.",
+    "Compliance is not represented by an unsupported percentage.",
+    "Production release passes CI/security/deployment gates.",
+    "Commercial customer journey from purchase through account, entitlement, scan, PDF/email, credits, lifecycle and retention is verified end to end."
+  ],
+  "acceptance_progress": {
+    "repository_audit_release": "VERIFIED_DEPLOYED",
+    "commercial_launch": "INCOMPLETE"
   },
   "unknowns": [
-    "Large-repository throughput and cost after coverage changes",
-    "Current provider credentials after September29 audit",
-    "Exact five-tier commercial specification"
+    "Exact live scanned-file count for a post-deployment authenticated >60-file production run; automation could not reuse Vercel-only owner credentials and authentication was not weakened to obtain it.",
+    "Current valid HighLevel and Resend credentials/access after the September 29 HTTP 401 audit.",
+    "Exact approved five-tier pricing/inclusions."
+  ],
+  "active_workstreams": [
+    {
+      "id": "STS-REL-1",
+      "owner": "ChatGPT/GitHub CI",
+      "status": "DONE_VERIFIED",
+      "scope": "PR156 audit coverage repair, dependency patching, merge and production deployment"
+    },
+    {
+      "id": "STS-COM-1",
+      "owner": "Unassigned",
+      "status": "BLOCKED",
+      "scope": "Commercial pricing, provider credentials, payments/entitlements, accounts/credits and email"
+    },
+    {
+      "id": "STS-OPS-1",
+      "owner": "Unassigned",
+      "status": "READY",
+      "scope": "Disable competing Railway auto-deploy path so GitHub CD is the sole production deploy authority"
+    },
+    {
+      "id": "STS-ACC-1",
+      "owner": "Unassigned",
+      "status": "READY",
+      "scope": "Authenticated post-deploy >60-file production acceptance scan using an existing authorized credential path"
+    }
   ],
   "next_actions": [
     {
-      "action": "Integrate, review and validate audit repair before deployment",
-      "owner": "Codex",
-      "evidence_expected": "Positive/negative detection tests; coverage failure tests; live immutable-commit coverage receipt"
+      "action": "Establish one authorized automated production acceptance credential path without weakening authentication, then run and record a >60-file live repository audit.",
+      "owner": "ChatGPT/owner credential configuration",
+      "evidence_expected": "Production report with scanned_files > 60 and complete coverage."
+    },
+    {
+      "action": "Repair or replace HighLevel and Resend production credentials and rerun the existing read-only integration readiness workflow.",
+      "owner": "Owner/provider access + ChatGPT",
+      "evidence_expected": "Authorized provider reads and verified sender/domain state."
+    },
+    {
+      "action": "Implement remaining commercial launch phases in dependency order: pricing -> entitlement/checkout/email -> accounts/credits -> lifecycle/monitoring/retention -> full QA.",
+      "owner": "Build orchestrator",
+      "evidence_expected": "Reviewed PRs, CI, production journeys and rollback evidence."
     }
+  ],
+  "risks": [
+    "Static lexical source analysis is not a penetration test or compliance certification.",
+    "Very large repository audits are bounded; incomplete runs must be reported as incomplete.",
+    "A competing Railway-connected deployment path can post contradictory status and should be disabled.",
+    "Selling unverified unlimited/full audits before new coverage cost validation could create margin and reliability risk."
   ],
   "source_of_truth": {
     "canonical_system": "github",
@@ -45,53 +114,6 @@
     "build_pulse_path": "docs/BUILD_STATE.json",
     "build_ledger_path": "docs/CHANGELOG-BUILD.md"
   },
-  "last_reconciled_at": "2026-10-01T18:37:23.312204+00:00",
-  "confidence": "high",
-  "latest_verified_milestone": {
-    "description": "PR154 deployed; live self-scan A/100, saved result, free/owner PDF and access boundaries pass; owner login independently verified",
-    "verified_at": "2026-09-29T22:53:30.630885+00:00",
-    "evidence_refs": [
-      "https://github.com/anthonym71/securetotalscan/actions/runs/36641707562"
-    ]
-  },
-  "active_workstreams": [
-    {
-      "id": "STS-AUDIT-1",
-      "owner": "Codex coverage worker",
-      "status": "REVIEW",
-      "acceptance": "No60-file cutoff; immutable commit inventory; successful-read count and explicit exclusions/failures/limits"
-    },
-    {
-      "id": "STS-AUDIT-2",
-      "owner": "Codex accuracy worker",
-      "status": "REVIEW",
-      "acceptance": "Language/context-aware pattern candidates; true positives retained; fixtures labeled; secrets redacted"
-    },
-    {
-      "id": "STS-AUDIT-3",
-      "owner": "Codex reporting worker",
-      "status": "REVIEW",
-      "acceptance": "No unsupported compliance percentage or duplicate finding lists; coverage shown; evidence-based advice"
-    },
-    {
-      "id": "STS-AUDIT-4",
-      "owner": "Codex integration/review",
-      "status": "REVIEW",
-      "acceptance": "Independent review, regression tests, exact-head CI, deployment and live >60-file scan"
-    }
-  ],
-  "acceptance_criteria": [
-    "No silent60-file sampling; exactcommit and complete file accounting",
-    "Original12 falsepositive locations corrected or classified as fixture notices",
-    "Realpositive detections retained with credential snippets redacted",
-    "Incomplete inventory/reads/analysis/output never reportcomplete",
-    "No compliancepercentage or duplicatefindings",
-    "ExactheadCI and production>60file verification"
-  ],
-  "risks": [
-    "Lexical heuristics are not a complete security audit",
-    "Cooperative runtime/output limits; oversized runs explicit incomplete",
-    "Deep reports remain in process memory; durable queued paid audits not implemented",
-    "Historical Slack webhook revocation remains open under accepted exception"
-  ]
+  "last_reconciled_at": "2026-10-08T00:49:00Z",
+  "confidence": "high"
 }

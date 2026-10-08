@@ -6,6 +6,22 @@ Newest first.
 
 ---
 
+## 2026-10-08 — Repository-audit repair released to production
+
+**Engine:** ChatGPT orchestration + GitHub CI/CD. **Release commit:** `39c40b43c327d16cc58a19492802000c920fd72c`. **PR:** #156.
+
+The repository-audit repair is merged and deployed. It removes the silent 60-file sample, inventories supported files at an immutable commit, separates successful reads from exclusions/failures, marks bounded or interrupted work incomplete, fixes the reviewed false-positive contexts, redacts credential evidence, removes duplicate finding presentation and replaces unsupported compliance scoring with **Not assessed**.
+
+A Python f-string regression in the original PR head was repaired before merge. Newly published dependency advisories were also handled before release: the lock now carries Next.js 15.5.27, Sharp 0.35.5, source-map-js 1.2.2 and PostCSS 8.5.28. The remaining high `braces` advisory is in a dev-only dependency and currently has no patched release; production dependencies remain a blocking audit gate while the complete audit is still reported.
+
+**Verified:** PR exact-head CI passed; master CI passed; CodeQL passed; production-dependency Security Audit passed; Dependency Review passed. Full-history Secret Scan still reports exactly the already-recorded historical Slack-webhook fingerprint and no new secret. CD run 37709084769 passed both production legs: Railway deployed and passed post-deploy backend health verification; Vercel synced configuration, applied database migrations, passed the live storage check and deployed successfully.
+
+**GHL / external changes:** none in this release. The September 29 HighLevel and Resend read-only audit remains the latest provider evidence and returned HTTP 401 for both providers. No payment, customer message or DNS mutation was performed in this release.
+
+**Remaining release truth:** this closes the repository-audit production repair, not the whole commercial roadmap. Exact five-tier pricing, authorized provider access, payment-verified entitlement, real customer accounts/credits, email delivery, lifecycle, monitoring/retention completion, refreshed large-audit economics and full launch QA remain open. A post-deployment authenticated >60-file run still needs an authorized automation credential; authentication was not weakened merely to obtain that receipt.
+
+---
+
 ## 2026-10-01 — Audit coverage and reporting repair (in review)
 
 **Engine:** Codex orchestration, three isolated builder worktrees and an independent reviewer. **Base:** 6b664bd. **Objective:** remove the silent 60-file sample and fix misleading detection/report claims before paid use.
