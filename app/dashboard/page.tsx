@@ -191,9 +191,14 @@ export default function Dashboard() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
       <div className="flex items-center justify-between">
-        <Link href="/" className="text-sm text-brand-light hover:text-white">
-          ← Back to home
-        </Link>
+        <div className="flex gap-4">
+          <Link href="/" className="text-sm text-brand-light hover:text-white">
+            ← Back to home
+          </Link>
+          <Link href="/account" className="text-sm text-brand-light hover:text-white">
+            My sites & history
+          </Link>
+        </div>
         <button
           type="button"
           onClick={async () => {

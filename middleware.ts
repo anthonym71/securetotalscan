@@ -3,7 +3,7 @@ import { SECURITY_HEADERS } from "@/lib/security/headers";
 import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
 
 // Paths that require an authenticated session with an active entitlement.
-const PROTECTED_PREFIXES = ["/dashboard", "/api/agent"];
+const PROTECTED_PREFIXES = ["/dashboard", "/account", "/api/agent", "/api/account"];
 
 function withSecurityHeaders(res: NextResponse): NextResponse {
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) {

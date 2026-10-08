@@ -119,3 +119,34 @@ export async function sendRetentionWarningEmail(
   const body = (await response.json().catch(() => ({}))) as { id?: unknown };
   return { delivered: true, ...(typeof body.id === "string" ? { id: body.id } : {}) };
 }
+
+
+export async function sendMonitoringAlertEmail(
+  to: string,
+  siteUrl: string,
+  grade: string,
+  score: number,
+  previousGrade: string | null,
+  previousScore: number | null,
+): Promise<EmailDeliveryResult> {
+  const apiKey = (process.env.RESEND_API_KEY ?? "").trim();
+  const from = sender();
+  if (!apiKey || !from) return { delivered: false, reason: "not_configured" };
+  const before = previousScore == null ? "no previous score" : `${previousGrade ?? "?"} / ${previousScore}`;
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject: `Secure Total Scan alert — ${siteUrl} is now ${grade}`,
+      html:
+        `<p><strong>${siteUrl}</strong> changed from ${before} to <strong>${grade} / ${score}</strong>.</p>` +
+        "<p>Sign in to Secure Total Scan to review the latest findings and remediation guidance.</p>",
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) return { delivered: false, reason: "provider_error" };
+  const body = (await response.json().catch(() => ({}))) as { id?: unknown };
+  return { delivered: true, ...(typeof body.id === "string" ? { id: body.id } : {}) };
+}
