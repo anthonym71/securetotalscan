@@ -58,7 +58,11 @@ export function accessCodes(): { label: string; code: string }[] {
 
 /** True when access control has been configured for this deployment. */
 export function isAccessConfigured(): boolean {
-  return accessCodes().length > 0 || ownerCredentials() !== null;
+  const paidCustomerAuth =
+    Boolean((process.env.DATABASE_URL ?? "").trim()) &&
+    Boolean((process.env.RESEND_API_KEY ?? "").trim()) &&
+    (process.env.STS_AUTH_SECRET ?? "").length >= 32;
+  return accessCodes().length > 0 || ownerCredentials() !== null || paidCustomerAuth;
 }
 
 /**
