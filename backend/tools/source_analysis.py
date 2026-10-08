@@ -47,8 +47,27 @@ def source_view(content: str, language: str) -> SourceView:
                     strings.append((start, end))
                     _blank(code, start, end)
                 elif token.type == tokenize.STRING:
-                    strings.append((start, end))
-                    _blank(code, start, end)
+                    token_text = content[start:end]
+                    prefix_match = re.match(r"(?i)([rubf]*)(?:'''|\\"\\"\\"|'|\\")", token_text)
+                    is_fstring = bool(prefix_match and "f" in prefix_match.group(1).lower())
+                    if is_fstring:
+                        parts = _python_fstring_parts(content, start, end)
+                        if parts:
+                            for part_start, part_end, executable in parts:
+                                if executable:
+                                    inner = source_view(content[part_start:part_end], "Python")
+                                    text[part_start:part_end] = inner.text
+                                    code[part_start:part_end] = inner.code
+                                    strings.extend((part_start + a, part_start + b) for a, b in inner.strings)
+                                else:
+                                    strings.append((part_start, part_end))
+                                    _blank(code, part_start, part_end)
+                        else:
+                            strings.append((start, end))
+                            _blank(code, start, end)
+                    else:
+                        strings.append((start, end))
+                        _blank(code, start, end)
         except (tokenize.TokenError, IndentationError, SyntaxError):
             pass  # retain unprocessed source: never silently declare it safe
         try:
@@ -144,6 +163,62 @@ def source_view(content: str, language: str) -> SourceView:
             expanded.append((segment, end))
         strings = expanded
     return SourceView("".join(text), "".join(code), strings)
+
+
+def _python_fstring_parts(content: str, start: int, end: int):
+    """Split a pre-3.12 STRING-token f-string into literal and executable parts."""
+    token = content[start:end]
+    match = re.match(r"(?i)([rubf]*)(\\"\\"\\"|'''|\\\"|')", token)
+    if not match:
+        return []
+    quote = match.group(2)
+    body_start = start + match.end()
+    body_end = end - len(quote) if token.endswith(quote) else end
+    parts = []
+    literal_start = body_start
+    i = body_start
+    while i < body_end:
+        if content.startswith("{{", i) or content.startswith("}}", i):
+            i += 2
+            continue
+        if content[i] != "{":
+            i += 1
+            continue
+        if literal_start < i:
+            parts.append((literal_start, i, False))
+        expr_start = i + 1
+        depth = 1
+        j = expr_start
+        quote_char = None
+        while j < body_end:
+            ch = content[j]
+            if quote_char:
+                if ch == "\\\\":
+                    j += 2
+                    continue
+                if ch == quote_char:
+                    quote_char = None
+                j += 1
+                continue
+            if ch in "\\"'":
+                quote_char = ch
+                j += 1
+                continue
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            j += 1
+        if depth != 0:
+            return []
+        parts.append((expr_start, j, True))
+        i = j + 1
+        literal_start = i
+    if literal_start < body_end:
+        parts.append((literal_start, body_end, False))
+    return parts
 
 
 def _expression_end(content: str, start: int, limit: int) -> int:
