@@ -5,108 +5,119 @@
     "name": "Secure Total Scan",
     "repo": "https://github.com/anthonym71/securetotalscan",
     "branch": "master",
-    "sha": "39c40b43c327d16cc58a19492802000c920fd72c"
+    "sha": "b58ca601ed78823cfdcdadd7877959bebdd6c2a7"
   },
-  "objective": "Complete commercial launch per docs/PR-PLAN.md while keeping repository-audit claims evidence-backed.",
-  "phase": "build",
-  "rag_status": "RED",
-  "status_summary": "Repository-audit coverage repair is merged and deployed to production with CI, CodeQL, Security Audit, Railway health verification, database/storage verification and Vercel deployment passing. Full commercial launch remains incomplete and blocked on customer/payment/email/lifecycle work plus external integration readiness.",
+  "objective": "Complete commercial launch while keeping security, billing, customer history and provider integrations evidence-backed.",
+  "phase": "release",
+  "rag_status": "AMBER",
+  "status_summary": "Core commercial application code is merged on master: pricing, paid entitlements, customer magic-link access, credits, billing lifecycle hardening, saved sites/history, monitoring, retention, paid surface-report email trigger and deep-report persistence. Railway backend is online. Latest Vercel deployment for b58ca601 is in progress. Remaining blockers are external provider authorization/configuration: HighLevel Products/Payments scope, Resend sender/domain readiness, checkout URLs/product mapping, historical Slack webhook revocation, and final end-to-end paid journey.",
   "latest_verified_milestone": {
-    "description": "PR156 merged as 39c40b43; CD 37709084769 deployed backend and frontend successfully. Silent 60-file sampling removed in released code; exact-head and master CI passed.",
-    "verified_at": "2026-10-08T00:45:00Z",
+    "description": "Master b58ca601: paid surface reports are customer-owned and emailed through the existing Resend path; paid deep reports are sanitized and persisted into customer history when fetched. CI, CodeQL and Security Audit passed on master; latest CD started.",
+    "verified_at": "2026-10-08T02:40:00Z",
     "evidence_refs": [
-      "https://github.com/anthonym71/securetotalscan/pull/156",
-      "https://github.com/anthonym71/securetotalscan/actions/runs/37708998812",
-      "https://github.com/anthonym71/securetotalscan/actions/runs/37708999074",
-      "https://github.com/anthonym71/securetotalscan/actions/runs/37708998829",
-      "https://github.com/anthonym71/securetotalscan/actions/runs/37709084769"
+      "https://github.com/anthonym71/securetotalscan/commit/b58ca601ed78823cfdcdadd7877959bebdd6c2a7",
+      "https://github.com/anthonym71/securetotalscan/actions/runs/37718560612",
+      "https://github.com/anthonym71/securetotalscan/actions/runs/37718560508",
+      "https://github.com/anthonym71/securetotalscan/actions/runs/37718560456",
+      "https://github.com/anthonym71/securetotalscan/actions/runs/37718659340"
     ]
   },
   "blockers": [
-    "Exact approved five-tier commercial specification is not present in the repository.",
-    "HighLevel production API credential returned HTTP 401 in the September 29 read-only integration audit.",
-    "Resend production API credential returned HTTP 401 in the September 29 read-only integration audit.",
-    "Payment-verified entitlement, customer accounts/credits, email delivery, subscription lifecycle, monitoring/retention completion and full launch QA are not yet implemented end to end.",
-    "Deep-scan unit economics must be revalidated after expanded repository coverage before selling an unlimited/full-audit promise.",
-    "Historical Slack incoming-webhook credential remains in Git history under the accepted open incident; permanent provider revocation is not verified."
+    "HighLevel GHL_API_TOKEN returns HTTP 401 for Products/Payments scope, so live catalog/payment-link provisioning is blocked until provider authorization is repaired.",
+    "Resend production sending/domain authorization still requires provider-console verification.",
+    "Checkout URLs and STS_GHL_PRODUCT_MAP cannot be finalized until live provider product IDs/links exist.",
+    "Historical Slack incoming webhook in Git history remains intentionally unsuppressed until provider revocation is verified.",
+    "Final live purchase -> webhook -> entitlement -> login -> scan -> result/email -> return-account journey remains unverified."
   ],
   "tests": {
-    "state": "passed_release",
-    "summary": "PR156 exact head and merge commit: backend tests pass; web typecheck/lint/build/scanner verification pass; CodeQL pass; production-dependency Security Audit pass; Dependency Review pass. Full-history Secret Scan reports exactly the known historical Slack webhook exception."
+    "state": "passed_current_master",
+    "summary": "Master b58ca601: CI pass, CodeQL pass, Security Audit pass. Secret Scan fails only on the known historical Slack webhook incident pending provider revocation."
   },
   "deployment": {
-    "state": "healthy",
+    "state": "deploying_frontend",
     "environment": "production",
-    "evidence_refs": [
-      "https://github.com/anthonym71/securetotalscan/actions/runs/37709084769"
-    ],
-    "summary": "Railway deploy and post-deploy backend health verification passed. Vercel env sync, database migration, live storage verification and production deploy passed."
+    "summary": "Railway backend is online and healthy; GitHub CD for b58ca601 is currently syncing Vercel environment, then will migrate/verify storage and deploy frontend. Railway GitHub source is pinned to b58ca601 so GitHub CD remains the moving deployment authority."
   },
   "acceptance_criteria": [
-    "Repository source scan no longer silently samples 60 files.",
-    "Coverage reports immutable commit, inventory, exclusions, failures and explicit incomplete reasons.",
-    "False-positive fixtures/comments/regex contexts are distinguished without suppressing real credential candidates.",
-    "Compliance is not represented by an unsupported percentage.",
-    "Production release passes CI/security/deployment gates.",
-    "Commercial customer journey from purchase through account, entitlement, scan, PDF/email, credits, lifecycle and retention is verified end to end."
+    "Repository source scan is complete beyond 60 files and reports explicit incomplete states.",
+    "Paid surface scan is customer-owned and can email the PDF report.",
+    "Paid deep scans consume credits and persist sanitized report history.",
+    "Saved sites, tenant isolation, monitoring and retention are enforced.",
+    "Live checkout grants correct entitlement through signed provider webhook.",
+    "Customer receives access/email and can complete a paid journey without manual intervention.",
+    "Production release passes CI/security/deployment gates."
   ],
   "acceptance_progress": {
     "repository_audit_release": "VERIFIED_DEPLOYED",
-    "commercial_launch": "INCOMPLETE"
+    "commercial_application_code": "DONE_VERIFIED",
+    "provider_commerce_configuration": "BLOCKED_EXTERNAL_AUTH",
+    "final_paid_journey": "PENDING",
+    "commercial_launch": "AMBER"
   },
-  "unknowns": [
-    "Exact live scanned-file count for a post-deployment authenticated >60-file production run; automation could not reuse Vercel-only owner credentials and authentication was not weakened to obtain it.",
-    "Current valid HighLevel and Resend credentials/access after the September 29 HTTP 401 audit.",
-    "Exact approved five-tier pricing/inclusions."
-  ],
   "active_workstreams": [
     {
-      "id": "STS-REL-1",
-      "owner": "ChatGPT/GitHub CI",
-      "status": "DONE_VERIFIED",
-      "scope": "PR156 audit coverage repair, dependency patching, merge and production deployment"
+      "id": "STS-CHATGPT-REL",
+      "owner": "ChatGPT",
+      "status": "ACTIVE",
+      "scope": "GitHub/CI/CD, release verification, canonical state, remaining application defects."
     },
     {
-      "id": "STS-COM-1",
-      "owner": "Unassigned",
+      "id": "STS-CLAUDE-PROVIDER",
+      "owner": "Claude + Anthony",
       "status": "BLOCKED",
-      "scope": "Commercial pricing, provider credentials, payments/entitlements, accounts/credits and email"
+      "scope": "HighLevel, Resend, Vercel browser/provider console, DNS and Playwright E2E pending logins/authentication."
     },
     {
-      "id": "STS-OPS-1",
-      "owner": "Unassigned",
-      "status": "READY",
-      "scope": "Disable competing Railway auto-deploy path so GitHub CD is the sole production deploy authority"
+      "id": "STS-GHL",
+      "owner": "Claude + Anthony",
+      "status": "BLOCKED",
+      "scope": "Repair HighLevel Products/Payments authorization; provision $9/$49/$99 catalog, payment links and webhook."
     },
     {
-      "id": "STS-ACC-1",
-      "owner": "Unassigned",
-      "status": "READY",
-      "scope": "Authenticated post-deploy >60-file production acceptance scan using an existing authorized credential path"
+      "id": "STS-EMAIL",
+      "owner": "Claude + Anthony",
+      "status": "BLOCKED",
+      "scope": "Verify/repair Resend domain, sender and API authorization."
+    },
+    {
+      "id": "STS-SLACK",
+      "owner": "Claude + Anthony",
+      "status": "BLOCKED",
+      "scope": "Revoke historical Slack webhook; then ChatGPT will add the exact gitleaks fingerprint exception."
     }
   ],
   "next_actions": [
     {
-      "action": "Establish one authorized automated production acceptance credential path without weakening authentication, then run and record a >60-file live repository audit.",
-      "owner": "ChatGPT/owner credential configuration",
-      "evidence_expected": "Production report with scanned_files > 60 and complete coverage."
+      "action": "Finish and verify current Vercel CD for b58ca601.",
+      "owner": "ChatGPT/automation",
+      "evidence_expected": "Successful CD, migration/storage verification and production deployment."
     },
     {
-      "action": "Repair or replace HighLevel and Resend production credentials and rerun the existing read-only integration readiness workflow.",
-      "owner": "Owner/provider access + ChatGPT",
-      "evidence_expected": "Authorized provider reads and verified sender/domain state."
+      "action": "Repair HighLevel Products/Payments authorization and return real product IDs/payment links.",
+      "owner": "Claude + Anthony",
+      "evidence_expected": "Provider-console evidence and live links."
     },
     {
-      "action": "Implement remaining commercial launch phases in dependency order: pricing -> entitlement/checkout/email -> accounts/credits -> lifecycle/monitoring/retention -> full QA.",
-      "owner": "Build orchestrator",
-      "evidence_expected": "Reviewed PRs, CI, production journeys and rollback evidence."
+      "action": "Repair/verify Resend production sender/domain and return provider evidence.",
+      "owner": "Claude + Anthony",
+      "evidence_expected": "Verified domain/sender and accepted test email."
+    },
+    {
+      "action": "Revoke historical Slack webhook and report provider evidence.",
+      "owner": "Claude + Anthony",
+      "evidence_expected": "Revoked/disabled webhook without exposing its value."
+    },
+    {
+      "action": "Run full live paid-customer journey and close release only on evidence.",
+      "owner": "ChatGPT + Claude",
+      "evidence_expected": "Purchase-to-return-account production acceptance record."
     }
   ],
   "risks": [
-    "Static lexical source analysis is not a penetration test or compliance certification.",
-    "Very large repository audits are bounded; incomplete runs must be reported as incomplete.",
-    "A competing Railway-connected deployment path can post contradictory status and should be disabled.",
-    "Selling unverified unlimited/full audits before new coverage cost validation could create margin and reliability risk."
+    "Provider-console authorization is the critical launch dependency.",
+    "Cost harness observed zero reported LLM usage on six verification runs; treat this as an instrumentation gap, not proof of zero model cost.",
+    "Railway source and CLI deploy modes are incompatible on one moving branch; source is pinned to prevent duplicate auto-deploy races.",
+    "Historical Slack credential must not be broadly suppressed before revocation evidence."
   ],
   "source_of_truth": {
     "canonical_system": "github",
@@ -114,6 +125,6 @@
     "build_pulse_path": "docs/BUILD_STATE.json",
     "build_ledger_path": "docs/CHANGELOG-BUILD.md"
   },
-  "last_reconciled_at": "2026-10-08T00:49:00Z",
+  "last_reconciled_at": "2026-10-08T02:40:00Z",
   "confidence": "high"
 }
