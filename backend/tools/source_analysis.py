@@ -48,7 +48,7 @@ def source_view(content: str, language: str) -> SourceView:
                     _blank(code, start, end)
                 elif token.type == tokenize.STRING:
                     token_text = content[start:end]
-                    prefix_match = re.match(r"(?i)([rubf]*)(?:'''|\\"\\"\\"|'|\\")", token_text)
+                    prefix_match = re.match(r"(?i)([rubf]*)", token_text)
                     is_fstring = bool(prefix_match and "f" in prefix_match.group(1).lower())
                     if is_fstring:
                         parts = _python_fstring_parts(content, start, end)
@@ -209,7 +209,7 @@ def _python_fstring_parts(content: str, start: int, end: int):
                     quote_char = None
                 j += 1
                 continue
-            if ch in "\\"'":
+            if ch in "\\\"\'":
                 quote_char = ch
                 j += 1
                 continue
