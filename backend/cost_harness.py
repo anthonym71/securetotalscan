@@ -437,6 +437,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default="cost-results.json")
     parser.add_argument("--markdown-out", default="cost-results.md")
     parser.add_argument("--only", default="", help="Comma-separated group filter.")
+    parser.add_argument("--fixture-id", default="", help="Run exactly one named deep fixture.")
     parser.add_argument("--skip-surface", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--timeout", type=int, default=RUN_TIMEOUT_SECONDS)
@@ -444,9 +445,16 @@ def main(argv: list[str] | None = None) -> int:
 
     fixtures = load_fixtures()
     groups = {g.strip() for g in args.only.split(",") if g.strip()}
-    deep = [f for f in fixtures["deep"] if not groups or f["group"] in groups]
-    want_surface = not args.skip_surface and (not groups or "surface" in groups)
-    surface = fixtures["surface"] if want_surface else []
+    if args.fixture_id:
+        deep = [f for f in fixtures["deep"] if f["id"] == args.fixture_id]
+        if not deep:
+            print(f"error: unknown --fixture-id {args.fixture_id!r}", file=sys.stderr)
+            return 2
+        surface = []
+    else:
+        deep = [f for f in fixtures["deep"] if not groups or f["group"] in groups]
+        want_surface = not args.skip_surface and (not groups or "surface" in groups)
+        surface = fixtures["surface"] if want_surface else []
 
     started_at = datetime.now(timezone.utc).isoformat()
     results: list[RunResult] = []
