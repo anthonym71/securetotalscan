@@ -125,3 +125,65 @@ export async function monitoredSites(){
     previousGrade:r.previous_grade==null?null:String(r.previous_grade),
   })):[];
 }
+
+
+function deepTarget(report: Record<string, unknown>): { url: string; host: string } {
+  const targetUrl = typeof report.target_url === "string" ? report.target_url.trim() : "";
+  if (targetUrl) {
+    try {
+      const parsed = new URL(targetUrl);
+      parsed.username = "";
+      parsed.password = "";
+      parsed.search = "";
+      parsed.hash = "";
+      return { url: parsed.toString(), host: parsed.hostname.toLowerCase() };
+    } catch {}
+  }
+  const repo = typeof report.github_repo === "string" ? report.github_repo.trim() : "";
+  if (repo) return { url: `https://github.com/${repo.replace(/^\/+/, "")}`, host: "github.com" };
+  const image = typeof report.docker_image === "string" ? report.docker_image.trim() : "";
+  if (image) return { url: `docker://${image}`, host: "docker" };
+  const source = typeof report.log_source === "string" ? report.log_source : "deep-analysis";
+  return { url: `analysis://${source}`, host: source || "deep-analysis" };
+}
+
+export async function recordCustomerDeepScan(
+  email: string,
+  report: Record<string, unknown>,
+  sessionId: string,
+) {
+  // Never persist uploaded/system raw logs or customer-supplied Slack webhook
+  // material. Keep only the analysis result needed for history/report recovery.
+  const sanitized = { ...report };
+  delete sanitized.raw_logs;
+  delete sanitized.slack_webhook_url;
+  const target = deepTarget(sanitized);
+  const rows = await db().query(
+    `INSERT INTO scan
+       (customer_id,target_url,target_host,kind,findings)
+     SELECT c.id,$2,$3,'deep',$4::jsonb
+       FROM customer c
+      WHERE lower(c.email)=lower($1)
+        AND NOT EXISTS (
+          SELECT 1 FROM event_log e
+           WHERE e.customer_id=c.id
+             AND e.kind='deep_scan.persisted'
+             AND e.detail->>'session_id'=$5
+        )
+     RETURNING id,created_at,expires_at`,
+    [email,target.url,target.host,JSON.stringify(sanitized),sessionId],
+    {arrayMode:false,fullResults:false},
+  );
+  if(Array.isArray(rows) && rows[0] && !Array.isArray(rows[0])) {
+    const scanId=String(rows[0].id);
+    await db().query(
+      `INSERT INTO event_log (customer_id,kind,detail)
+       SELECT c.id,'deep_scan.persisted',jsonb_build_object('session_id',$2::text,'scan_id',$3::text)
+         FROM customer c WHERE lower(c.email)=lower($1)`,
+      [email,sessionId,scanId],
+      {arrayMode:false,fullResults:false},
+    );
+    return {id:scanId,createdAt:new Date(rows[0].created_at).toISOString(),expiresAt:new Date(rows[0].expires_at).toISOString()};
+  }
+  return null;
+}
