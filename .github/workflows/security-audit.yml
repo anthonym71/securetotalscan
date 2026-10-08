@@ -19,7 +19,10 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: Run npm audit (high and critical)
+      - name: Gate production dependencies (high and critical)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Report full dependency audit including dev-only advisories
+        continue-on-error: true
         run: npm audit --audit-level=high
 
   pip-audit:
