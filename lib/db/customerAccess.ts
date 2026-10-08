@@ -11,11 +11,22 @@ export async function issueMagicLink(email: string): Promise<{ token: string; ex
   const rows = await db().query(
     `SELECT c.id
        FROM customer c
-       JOIN subscription s ON s.customer_id = c.id
       WHERE lower(c.email) = lower($1)
-        AND s.status = 'active'
-        AND (s.renews_on IS NULL OR s.renews_on >= current_date)
-      ORDER BY s.updated_at DESC
+        AND (
+          EXISTS (
+            SELECT 1 FROM subscription s
+             WHERE s.customer_id = c.id
+               AND s.status = 'active'
+               AND (s.renews_on IS NULL OR s.renews_on >= current_date)
+          )
+          OR EXISTS (
+            SELECT 1 FROM purchase p
+             WHERE p.customer_id = c.id
+               AND p.status = 'paid'
+               AND p.product = 'report'
+               AND p.created_at >= now() - interval '7 days'
+          )
+        )
       LIMIT 1`,
     [email],
     { arrayMode: false, fullResults: false },
@@ -64,8 +75,23 @@ export async function consumeMagicLink(token: string): Promise<{ email: string; 
     [customerId],
     { arrayMode: false, fullResults: false },
   );
-  if (!Array.isArray(tierRows) || !tierRows[0] || Array.isArray(tierRows[0])) return null;
-  return { email, tier: String(tierRows[0].tier) };
+  if (Array.isArray(tierRows) && tierRows[0] && !Array.isArray(tierRows[0])) {
+    return { email, tier: String(tierRows[0].tier) };
+  }
+  const purchaseRows = await db().query(
+    `SELECT product
+       FROM purchase
+      WHERE customer_id = $1
+        AND status = 'paid'
+        AND product = 'report'
+        AND created_at >= now() - interval '7 days'
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [customerId],
+    { arrayMode: false, fullResults: false },
+  );
+  if (!Array.isArray(purchaseRows) || !purchaseRows[0] || Array.isArray(purchaseRows[0])) return null;
+  return { email, tier: "report" };
 }
 
 export function monthlyCreditsForTier(tier: string): number {
@@ -79,32 +105,41 @@ export function monthlyCreditsForTier(tier: string): number {
 export async function ensureMonthlyCredits(email: string, tier: string): Promise<void> {
   const allowance = monthlyCreditsForTier(tier);
   if (allowance <= 0) return;
-  const month = new Date().toISOString().slice(0, 7);
-  const ref = `monthly:${email.toLowerCase()}:${tier.toLowerCase()}:${month}`;
   await db().query(
     `INSERT INTO credit_ledger (customer_id, subscription_id, delta, reason, external_ref)
-     SELECT c.id, s.id, $3, 'monthly_allowance', $4
+     SELECT c.id, s.id, $3, 'monthly_allowance',
+            'allowance:' || s.id::text || ':' || COALESCE(s.renews_on::text, to_char(current_date, 'YYYY-MM'))
        FROM customer c
        JOIN LATERAL (
-         SELECT id FROM subscription
+         SELECT id, renews_on FROM subscription
           WHERE customer_id = c.id
             AND status = 'active'
             AND tier = $2
+            AND (renews_on IS NULL OR renews_on >= current_date)
           ORDER BY updated_at DESC LIMIT 1
        ) s ON true
       WHERE lower(c.email) = lower($1)
      ON CONFLICT (external_ref) DO NOTHING`,
-    [email, tier, allowance, ref],
+    [email, tier, allowance],
     { arrayMode: false, fullResults: false },
   );
 }
 
 export async function creditBalance(email: string): Promise<number> {
   const rows = await db().query(
-    `SELECT COALESCE(sum(cl.delta), 0)::int AS balance
-       FROM credit_ledger cl
-       JOIN customer c ON c.id = cl.customer_id
-      WHERE lower(c.email) = lower($1)`,
+    `WITH target AS (
+       SELECT id FROM customer WHERE lower(email) = lower($1)
+     ), latest AS (
+       SELECT max(created_at) AS granted_at
+         FROM credit_ledger
+        WHERE customer_id = (SELECT id FROM target)
+          AND reason = 'monthly_allowance'
+     )
+     SELECT COALESCE(sum(cl.delta), 0)::int AS balance
+       FROM credit_ledger cl, latest
+      WHERE cl.customer_id = (SELECT id FROM target)
+        AND latest.granted_at IS NOT NULL
+        AND cl.created_at >= latest.granted_at`,
     [email],
     { arrayMode: false, fullResults: false },
   );
@@ -119,7 +154,14 @@ export async function spendCredit(email: string, externalRef: string): Promise<{
   const rows = await db().query(
     `WITH target AS (
        SELECT c.id,
-              COALESCE((SELECT sum(delta) FROM credit_ledger WHERE customer_id = c.id), 0) AS balance
+              COALESCE((
+                SELECT sum(delta) FROM credit_ledger
+                 WHERE customer_id = c.id
+                   AND created_at >= COALESCE((
+                     SELECT max(created_at) FROM credit_ledger
+                      WHERE customer_id = c.id AND reason = 'monthly_allowance'
+                   ), now())
+              ), 0) AS balance
          FROM customer c
         WHERE lower(c.email) = lower($1)
      ), ins AS (
