@@ -107,25 +107,41 @@ export interface Plan {
   cadence?: string;
   features: string[];
   featured?: boolean;
+  checkoutEnv?: string;
 }
 
 export const PLANS: Plan[] = [
   {
     name: "Free",
     price: "$0",
-    features: ["Surface scan", "A–F security grade", "One medium-severity fix sample when available", "Downloadable PDF after a saved scan"],
+    features: ["Public surface scan", "A–F security grade", "Top findings", "One fix sample", "Saved PDF when storage is available"],
+  },
+  {
+    name: "Report",
+    price: "$9",
+    cadence: " one-time",
+    checkoutEnv: "NEXT_PUBLIC_CHECKOUT_REPORT",
+    features: ["Full surface findings", "All available fix prompts", "PDF report", "One priority re-scan", "No subscription"],
   },
   {
     name: "Pro",
     price: "$49",
     cadence: "/month",
     featured: true,
-    features: ["Planned paid plan — not available to buy yet", "Deep-analysis dashboard preview", "Monitoring and emailed PDFs are in development"],
+    checkoutEnv: "NEXT_PUBLIC_CHECKOUT_PRO",
+    features: ["10 deep scans / month", "Repo, Docker and log analysis", "Full fix prompts", "Saved reports", "Email delivery", "Monitoring alerts"],
+  },
+  {
+    name: "Business",
+    price: "$99",
+    cadence: "/month",
+    checkoutEnv: "NEXT_PUBLIC_CHECKOUT_BUSINESS",
+    features: ["100 deep scans / month", "5 team seats", "Everything in Pro", "Priority monitoring", "Compliance reports", "Higher usage limits"],
   },
   {
     name: "Organization",
     price: "Custom",
-    features: ["Discuss your security requirements", "Custom scope agreed before purchase", "Enterprise features subject to availability"],
+    features: ["Custom scan volume", "Custom seats", "SSO / enterprise controls", "Custom compliance scope", "Dedicated onboarding and SLA"],
   },
 ];
 

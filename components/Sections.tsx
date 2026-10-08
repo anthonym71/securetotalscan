@@ -210,10 +210,24 @@ export function Plans() {
     <section id="pricing" className="mx-auto max-w-5xl px-6 py-16">
       <h2 className="text-center text-3xl font-bold sm:text-4xl">Plans</h2>
       <p className="mx-auto mt-3 max-w-2xl text-center text-white/60">
-        The free scanner is available now. Paid checkout is paused while reports, accounts and plan access are completed.
+        Start free, buy a one-off report, or move into recurring monitoring when you need deeper coverage.
       </p>
-      <div className="mt-10 grid gap-5 sm:grid-cols-3">
-        {PLANS.map((p) => (
+      <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+        {PLANS.map((p) => {
+          const checkout =
+            p.checkoutEnv === "NEXT_PUBLIC_CHECKOUT_REPORT"
+              ? process.env.NEXT_PUBLIC_CHECKOUT_REPORT
+              : p.checkoutEnv === "NEXT_PUBLIC_CHECKOUT_PRO"
+                ? process.env.NEXT_PUBLIC_CHECKOUT_PRO
+                : p.checkoutEnv === "NEXT_PUBLIC_CHECKOUT_BUSINESS"
+                  ? process.env.NEXT_PUBLIC_CHECKOUT_BUSINESS
+                  : undefined;
+          const href = p.name === "Free" ? "#scan" : checkout || `mailto:${BRAND.email}`;
+          const cta =
+            p.name === "Free" ? "Start free" :
+            checkout ? (p.name === "Report" ? "Buy report" : `Choose ${p.name}`) :
+            p.name === "Organization" ? "Contact sales" : "Join waitlist";
+          return (
           <div
             key={p.name}
             className={`rounded-2xl border p-6 ${
@@ -224,7 +238,7 @@ export function Plans() {
           >
             {p.featured && (
               <span className="mb-3 inline-block rounded-full bg-brand-gradient px-3 py-1 text-xs font-semibold">
-                In development
+                Most popular
               </span>
             )}
             <h3 className="text-lg font-semibold">{p.name}</h3>
@@ -245,17 +259,18 @@ export function Plans() {
               ))}
             </ul>
             <a
-              href={p.name === "Free" ? "#scan" : `mailto:${BRAND.email}`}
+              href={href}
               className={`mt-6 block rounded-xl px-5 py-3 text-center font-semibold transition ${
                 p.featured
                   ? "bg-brand-gradient hover:opacity-90"
                   : "border border-white/15 hover:bg-white/5"
               }`}
             >
-              {p.name === "Free" ? "Start free" : p.name === "Pro" ? "Ask about Pro" : "Contact sales"}
+              {cta}
             </a>
           </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

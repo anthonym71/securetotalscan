@@ -1,0 +1,53 @@
+name: Authorized five-run cost verification
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/COST_RUN_ONCE
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cost-measurement
+  cancel-in-progress: false
+
+jobs:
+  measure-small:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: prod
+    env:
+      STS_BACKEND_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://securetotalscan-api-production.up.railway.app' }}
+      STS_SITE_URL: ${{ vars.SITE_URL || 'https://securetotalscan.com' }}
+      STS_SERVICE_TOKEN: ${{ secrets.STS_SERVICE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install
+        run: pip install -r backend/requirements.txt
+      - name: Preflight
+        run: |
+          test -n "$STS_SERVICE_TOKEN" || { echo "::error::STS_SERVICE_TOKEN missing"; exit 1; }
+          curl -fsS --max-time 20 "${STS_BACKEND_URL%/}/health/trivy" | grep -Eq '"available"[[:space:]]*:[[:space:]]*true'
+      - name: Run exactly five small deep scans
+        run: |
+          python backend/cost_harness.py             --only small             --skip-surface             --timeout 900             --out cost-results.json             --markdown-out cost-results.md
+      - name: Publish summary
+        if: always()
+        run: |
+          echo "## Authorized five-run SecureTotalScan cost verification" >> "$GITHUB_STEP_SUMMARY"
+          cat cost-results.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: securetotalscan-cost-small-5
+          path: |
+            cost-results.json
+            cost-results.md
+          retention-days: 90
