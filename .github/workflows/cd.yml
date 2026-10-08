@@ -11,7 +11,7 @@
 #
 # Backend API keys (synced to Railway on each backend deploy):
 #   OPENROUTER_API_KEY, GIT_TOKEN, NVD_API_KEY, ABUSEIPDB_API_KEY,
-#   ALERT_WEBHOOK_URL, ALERT_WEBHOOK_SECRET
+#   STS_SERVICE_TOKEN, ALERT_WEBHOOK_URL, ALERT_WEBHOOK_SECRET
 #   Note: name the GitHub secret GIT_TOKEN (not GITHUB_TOKEN — that name is
 #   reserved for the automatic Actions CI token).
 #
@@ -20,7 +20,7 @@
 #   UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN,
 #   ALERT_WEBHOOK_URL, ALERT_WEBHOOK_SECRET,
 #   DATABASE_URL, DATABASE_URL_UNPOOLED
-#   STS_OWNER_EMAIL, STS_OWNER_ACCESS_CODE, STS_AUTH_SECRET
+#   AGENT_SERVICE_TOKEN, STS_OWNER_EMAIL, STS_OWNER_ACCESS_CODE, STS_AUTH_SECRET
 #   Owner access requires all three; use an independent random 32+ character
 #   signing secret. Never put an owner access code in source or workflow text.
 #
@@ -128,6 +128,7 @@ jobs:
           GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
           ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
+          STS_SERVICE_TOKEN: ${{ secrets.STS_SERVICE_TOKEN }}
           ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
           ALERT_WEBHOOK_SECRET: ${{ secrets.ALERT_WEBHOOK_SECRET }}
         run: |
@@ -175,6 +176,7 @@ jobs:
           ALERT_WEBHOOK_SECRET: ${{ secrets.ALERT_WEBHOOK_SECRET }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+          AGENT_SERVICE_TOKEN: ${{ secrets.AGENT_SERVICE_TOKEN }}
           STS_OWNER_EMAIL: ${{ secrets.STS_OWNER_EMAIL }}
           STS_OWNER_ACCESS_CODE: ${{ secrets.STS_OWNER_ACCESS_CODE }}
           STS_AUTH_SECRET: ${{ secrets.STS_AUTH_SECRET }}
