@@ -1,0 +1,1 @@
+Authorized 2026-10-08 by Anthony: run the SMALL fixture group only (exactly 5 deep scans), maximum verification spend USD 10. This marker is intentionally one-shot because the workflow triggers only when this path changes on master.
