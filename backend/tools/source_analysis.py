@@ -168,11 +168,20 @@ def source_view(content: str, language: str) -> SourceView:
 def _python_fstring_parts(content: str, start: int, end: int):
     """Split a pre-3.12 STRING-token f-string into literal and executable parts."""
     token = content[start:end]
-    match = re.match(r"(?i)([rubf]*)(\\"\\"\\"|'''|\\\"|')", token)
-    if not match:
+    prefix_match = re.match(r"(?i)([rubf]*)", token)
+    prefix = prefix_match.group(1) if prefix_match else ""
+    rest = token[len(prefix):]
+    if rest.startswith('"""'):
+        quote = '"""'
+    elif rest.startswith("'''"):
+        quote = "'''"
+    elif rest.startswith('"'):
+        quote = '"'
+    elif rest.startswith("'"):
+        quote = "'"
+    else:
         return []
-    quote = match.group(2)
-    body_start = start + match.end()
+    body_start = start + len(prefix) + len(quote)
     body_end = end - len(quote) if token.endswith(quote) else end
     parts = []
     literal_start = body_start
