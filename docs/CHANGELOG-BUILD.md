@@ -1,3 +1,15 @@
+
+## 2026-10-08 — Commercial core and customer durability advanced
+
+**Engine:** ChatGPT. **Master:** `b58ca601ed78823cfdcdadd7877959bebdd6c2a7`.
+
+Verified/merged during launch push: five-tier pricing and commercial core, signed HighLevel paid-event intake, customer/subscription records, magic-link auth, scan credits, billing lifecycle hardening, saved sites/history, tenant isolation, monitoring, retention, paid surface-report email trigger, and sanitized paid deep-report persistence. CI, CodeQL and Security Audit pass on current master. Railway production remains online. Railway's competing GitHub source was pinned to current master so GitHub CD remains the moving release authority. Six bounded cost runs completed successfully, but reported zero tokens/cost; this is recorded as an instrumentation gap rather than zero-cost proof.
+
+**External blockers:** HighLevel Products/Payments authorization returns 401; Resend provider verification remains; checkout/product mapping awaits live provider identifiers; historical Slack webhook revocation remains unverified; final paid end-to-end production journey remains pending.
+
+**NEXT:** finish current Vercel CD, then consume Claude/provider-console evidence and complete final live purchase-to-account acceptance.
+
+---
 # Build changelog
 
 Required by PRD v1.2 §0.1.8. Every change gets an entry: date, phase, what
