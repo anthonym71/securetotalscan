@@ -9,34 +9,38 @@
   },
   "objective": "Complete commercial launch while keeping security, billing, customer history and provider integrations evidence-backed.",
   "phase": "release",
-  "rag_status": "AMBER",
-  "status_summary": "Core commercial application code is merged on master: pricing, paid entitlements, customer magic-link access, credits, billing lifecycle hardening, saved sites/history, monitoring, retention, paid surface-report email trigger and deep-report persistence. Railway backend is online. Latest Vercel deployment for b58ca601 is in progress. Remaining blockers are external provider authorization/configuration: HighLevel Products/Payments scope, Resend sender/domain readiness, checkout URLs/product mapping, historical Slack webhook revocation, and final end-to-end paid journey.",
+  "rag_status": "RED",
+  "status_summary": "Master b58ca601 contains merged commercial code; GitHub CD successfully deployed the Vercel frontend on 2026-10-08. The public website and Railway backend pass latest scheduled external health checks and Railway has 1/1 live replicas. Commercial launch is NOT verified: historical secret scan remains red, live HighLevel/Resend provisioning and signed paid-customer E2E are blocked/unverified, and cron/alert configuration is unresolved. Direct Vercel team access currently returns HTTP 403. Railway's competing source-triggered builds fail at snapshot, without evidence of an outage on the surviving deployment.",
   "latest_verified_milestone": {
-    "description": "Master b58ca601: paid surface reports are customer-owned and emailed through the existing Resend path; paid deep reports are sanitized and persisted into customer history when fetched. CI, CodeQL and Security Audit passed on master; latest CD started.",
-    "verified_at": "2026-10-08T02:40:00Z",
+    "description": "On master b58ca601 GitHub CD 37718659340 passed Vercel environment sync, database migrations, storage probe, and frontend deployment; Railway deploy appropriately skipped on frontend-only diff. Scheduled production health run 37898737171 succeeded on 2026-10-09; Railway runtime independently reports 1/1 replicas online. This verifies operational availability, not commercial acceptance.",
+    "verified_at": "2026-10-09T07:26:40Z",
     "evidence_refs": [
-      "https://github.com/anthonym71/securetotalscan/commit/b58ca601ed78823cfdcdadd7877959bebdd6c2a7",
-      "https://github.com/anthonym71/securetotalscan/actions/runs/37718560612",
-      "https://github.com/anthonym71/securetotalscan/actions/runs/37718560508",
-      "https://github.com/anthonym71/securetotalscan/actions/runs/37718560456",
-      "https://github.com/anthonym71/securetotalscan/actions/runs/37718659340"
+      "https://github.com/anthonym71/securetotalscan/actions/runs/37718659340",
+      "https://github.com/anthonym71/securetotalscan/actions/runs/37898737171",
+      "https://github.com/anthonym71/securetotalscan/commit/b58ca601ed78823cfdcdadd7877959bebdd6c2a7"
     ]
   },
   "blockers": [
-    "HighLevel GHL_API_TOKEN returns HTTP 401 for Products/Payments scope, so live catalog/payment-link provisioning is blocked until provider authorization is repaired.",
-    "Resend production sending/domain authorization still requires provider-console verification.",
-    "Checkout URLs and STS_GHL_PRODUCT_MAP cannot be finalized until live provider product IDs/links exist.",
-    "Historical Slack incoming webhook in Git history remains intentionally unsuppressed until provider revocation is verified.",
-    "Final live purchase -> webhook -> entitlement -> login -> scan -> result/email -> return-account journey remains unverified."
+    "Historical Slack incoming webhook remains in Git history and full-history Secret Scan fails on master and PR177; provider-side revocation has not been verified. Do not suppress before verification.",
+    "HighLevel Products/Payments authorization returned HTTP 401 on 2026-09-29; current authorization and live catalog/payment links have not been independently verified.",
+    "Resend production sender/domain authorization and successful authorized email delivery remain unverified.",
+    "Live checkout links/product mapping, signed paid webhook intake, subscription/entitlement/credit correctness and full purchase-to-return-account acceptance remain unverified; do not enable live payments without approval.",
+    "2026-10-08 configuration audit reported CRON_SECRET missing from GitHub prod and Vercel Production; no subsequent verified remediation. Scheduled monitoring and retention need a positive authenticated execution receipt.",
+    "ALERT_WEBHOOK_URL is absent from Railway's listed production variable names and application alert delivery is unverified; passing healthy probes does not test the failure alert path.",
+    "Direct Vercel project inspection fails HTTP 403 for team scope; GitHub CD success is verified but direct project environment/alias inspection is blocked."
   ],
   "tests": {
-    "state": "passed_current_master",
-    "summary": "Master b58ca601: CI pass, CodeQL pass, Security Audit pass. Secret Scan fails only on the known historical Slack webhook incident pending provider revocation."
+    "state": "PARTIAL_BLOCKED_SECURITY",
+    "summary": "At master b58ca601 and PR177 head 43dc17c: Web/Backend CI, CodeQL, pip-audit, npm audit, and Dependency Review pass; full-history gitleaks Secret Scan fails on the known historical Slack webhook, pending revocation. Latest scheduled health check 37898737171 passes backend and frontend probe jobs on 2026-10-09. No evidence of newly introduced source secrets from these checks."
   },
   "deployment": {
-    "state": "deploying_frontend",
+    "state": "OPERATIONAL_WITH_RELEASE_GATES",
     "environment": "production",
-    "summary": "Railway backend is online and healthy; GitHub CD for b58ca601 is currently syncing Vercel environment, then will migrate/verify storage and deploy frontend. Railway GitHub source is pinned to b58ca601 so GitHub CD remains the moving deployment authority."
+    "evidence_refs": [
+      "https://github.com/anthonym71/securetotalscan/actions/runs/37718659340",
+      "https://github.com/anthonym71/securetotalscan/actions/runs/37898737171"
+    ],
+    "summary": "CD on 2026-10-08 successfully synced Vercel environment, ran DB migrations, verified storage, deployed frontend; Railway leg skipped on frontend-only change. Railway environment shows active deployment 1871080f 1/1 replicas online with 0 crashes, though latest source-triggered Railway deployment d786d1f7 FAILED at snapshot ('railway.toml' not found). Health checks passed October 8 and October 9; 15-minute scheduled workflow runs are sparse, so alert cadence is unreliable. Direct Vercel team API returns 403. No complete paid-journey acceptance receipt."
   },
   "acceptance_criteria": [
     "Repository source scan is complete beyond 60 files and reports explicit incomplete states.",
@@ -51,73 +55,68 @@
     "repository_audit_release": "VERIFIED_DEPLOYED",
     "commercial_application_code": "DONE_VERIFIED",
     "provider_commerce_configuration": "BLOCKED_EXTERNAL_AUTH",
-    "final_paid_journey": "PENDING",
-    "commercial_launch": "AMBER"
+    "final_paid_journey": "NOT_VERIFIED",
+    "commercial_launch": "BLOCKED",
+    "monitoring_retention": "NOT_VERIFIED",
+    "production_security": "BLOCKED_KNOWN_HISTORICAL_SECRET"
   },
   "active_workstreams": [
     {
-      "id": "STS-CHATGPT-REL",
+      "id": "STS-RELEASE-STATE",
       "owner": "ChatGPT",
-      "status": "ACTIVE",
-      "scope": "GitHub/CI/CD, release verification, canonical state, remaining application defects."
+      "status": "REVIEW",
+      "scope": "Reconcile canonical state and PR177 release evidence; do not merge while Secret Scan red."
     },
     {
-      "id": "STS-CLAUDE-PROVIDER",
-      "owner": "Claude + Anthony",
+      "id": "STS-COMMERCE",
+      "owner": "Provider authorized operators",
       "status": "BLOCKED",
-      "scope": "HighLevel, Resend, Vercel browser/provider console, DNS and Playwright E2E pending logins/authentication."
+      "scope": "HighLevel product/payment authorization, live product ID mapping, Resend sender access and full authorized E2E."
     },
     {
-      "id": "STS-GHL",
-      "owner": "Claude + Anthony",
+      "id": "STS-SECURITY",
+      "owner": "Provider authorized operator",
       "status": "BLOCKED",
-      "scope": "Repair HighLevel Products/Payments authorization; provision $9/$49/$99 catalog, payment links and webhook."
+      "scope": "Verify revocation of compromised historical Slack webhook before narrowly scoped gitleaks handling."
     },
     {
-      "id": "STS-EMAIL",
-      "owner": "Claude + Anthony",
+      "id": "STS-OPERATIONS",
+      "owner": "ChatGPT / provider authorized operators",
       "status": "BLOCKED",
-      "scope": "Verify/repair Resend domain, sender and API authorization."
-    },
-    {
-      "id": "STS-SLACK",
-      "owner": "Claude + Anthony",
-      "status": "BLOCKED",
-      "scope": "Revoke historical Slack webhook; then ChatGPT will add the exact gitleaks fingerprint exception."
+      "scope": "Verify CRON_SECRET and alert configuration, exercise monitoring/retention, resolve Vercel team 403; monitor Railway parallel deployment failure."
     }
   ],
   "next_actions": [
     {
-      "action": "Finish and verify current Vercel CD for b58ca601.",
-      "owner": "ChatGPT/automation",
-      "evidence_expected": "Successful CD, migration/storage verification and production deployment."
+      "action": "Keep PR177 unmerged until Secret Scan evidence gate is resolved; continue non-production canonical documentation updates in its branch.",
+      "owner": "ChatGPT",
+      "evidence_expected": "Review-ready PR with 2026-10-09 health/CD evidence and no fabricated closure."
     },
     {
-      "action": "Repair HighLevel Products/Payments authorization and return real product IDs/payment links.",
-      "owner": "Claude + Anthony",
-      "evidence_expected": "Provider-console evidence and live links."
+      "action": "Verify historical Slack webhook has been revoked at provider (no credential disclosure or rotation by automation), then rerun gitleaks and independent CI checks.",
+      "owner": "Authorized Slack provider operator",
+      "evidence_expected": "Provider revocation evidence plus scoped secret-scan remediation."
     },
     {
-      "action": "Repair/verify Resend production sender/domain and return provider evidence.",
-      "owner": "Claude + Anthony",
-      "evidence_expected": "Verified domain/sender and accepted test email."
+      "action": "Verify existing provider credentials, product/payment API authorization, Resend sender, Vercel team access, CRON_SECRET and ALERT_WEBHOOK_URL; do not alter provider accounts or turn on payments without explicit approval.",
+      "owner": "Authorized provider operators",
+      "evidence_expected": "Read-only provider/configuration verification and successful alert/cron readiness receipts."
     },
     {
-      "action": "Revoke historical Slack webhook and report provider evidence.",
-      "owner": "Claude + Anthony",
-      "evidence_expected": "Revoked/disabled webhook without exposing its value."
-    },
-    {
-      "action": "Run full live paid-customer journey and close release only on evidence.",
-      "owner": "ChatGPT + Claude",
-      "evidence_expected": "Purchase-to-return-account production acceptance record."
+      "action": "Perform authorized purchase-to-email/account/entitlement/scan/credits/return-account acceptance only after approval for live payments and provider readiness.",
+      "owner": "Release acceptance owner",
+      "evidence_expected": "Timestamped complete journey receipt with reversible rollback evidence."
     }
   ],
   "risks": [
     "Provider-console authorization is the critical launch dependency.",
     "Cost harness observed zero reported LLM usage on six verification runs; treat this as an instrumentation gap, not proof of zero model cost.",
     "Railway source and CLI deploy modes are incompatible on one moving branch; source is pinned to prevent duplicate auto-deploy races.",
-    "Historical Slack credential must not be broadly suppressed before revocation evidence."
+    "Historical Slack credential must not be broadly suppressed before revocation evidence.",
+    "Railway GitHub-source deploy attempts fail snapshot while GitHub CD pipeline remains operational; latest FAILED label must not be confused with currently active service health.",
+    "Scheduled GitHub health workflow configured every 15 minutes actually runs with multi-hour gaps on 2026-10-08/09; passing executions do not prove continuous monitoring.",
+    "Direct Vercel API scope 403 prevents independent configuration verification; keep production configuration as unknown, not healthy by assumption.",
+    "Historical gitleaks incident must remain unsuppressed until revocation is proven."
   ],
   "source_of_truth": {
     "canonical_system": "github",
@@ -125,6 +124,14 @@
     "build_pulse_path": "docs/BUILD_STATE.json",
     "build_ledger_path": "docs/CHANGELOG-BUILD.md"
   },
-  "last_reconciled_at": "2026-10-08T02:40:00Z",
-  "confidence": "high"
+  "last_reconciled_at": "2026-10-09T07:26:40Z",
+  "confidence": "medium",
+  "unknowns": [
+    "Exact authenticated post-release production audit receipt demonstrating >60 successfully read files; code coverage fix alone is not an operational proof.",
+    "Current HighLevel Products/Payments scopes and Resend sender/domain authorization after 2026-09-29 401 observations.",
+    "Whether CRON_SECRET or ALERT_WEBHOOK_URL has been repaired after the 2026-10-08 audit; direct Vercel scope access currently fails 403.",
+    "Actual successful cron/retention/monitoring execution and end-to-end alert delivery.",
+    "Complete signed real-purchase E2E including email, account, credits and lifecycle.",
+    "Production deep-scan unit economics: six bounded runs reported zero model cost/tokens, an instrumentation gap rather than proof of no usage."
+  ]
 }
