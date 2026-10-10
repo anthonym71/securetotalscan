@@ -44,7 +44,7 @@ jobs:
       PROBES: "3"
       PROBE_GAP_SECONDS: "45"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Probe the deep-agent backend
         id: backend
