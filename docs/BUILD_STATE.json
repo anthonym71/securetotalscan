@@ -10,14 +10,15 @@
   "objective": "Complete commercial launch while keeping security, billing, customer history and provider integrations evidence-backed.",
   "phase": "release",
   "rag_status": "RED",
-  "status_summary": "As of 2026-10-11, GitHub master remains b58ca601. GitHub CD 37718659340 deployed the Vercel frontend on 2026-10-08, and production Health check 38104363646 passed at 02:15 UTC on 2026-10-11. Railway production currently reports 1/1 online with no crashes; its latest auto-source build failed while a prior successful deployment remains live. Vercel's alias lookup identifies deployment dpl_GhdtSvEYNF9Ktr1J9itm6KCzmzAG, but direct deployment and environment inspection still return HTTP 403. CI, CodeQL, Dependency Review and Security Audit passed at master/PR177; full-history Secret Scan fails on the unresolved historical Slack webhook. Commercial launch is blocked by verified security, provider-authorization/configuration and untested paid-customer journey gates.",
+  "status_summary": "As of 2026-10-12 20:50 UTC, master remains b58ca601; PR177 and Dependabot PR184 are unmerged. The most recent production health workflow passed at 19:23:30 UTC, while GitHub's 15-minute schedule still executes only every few hours. Railway production has 1/1 healthy replicas, six warnings, zero criticals or recent failed deployments; the latest source-triggered deployment is FAILED, but the last successful backend deployment remains live. Direct Vercel project/deployment API reads still return 403, though the October 8 GitHub CD reported successful frontend deployment. CI/CodeQL/Security Audit/Dependency Review passed on PR177 and PR184, but both PRs and the latest master scheduled scan fail full-history Secret Scan. Commercial readiness is RED pending verified Slack revocation, provider/configuration access, reliable alerts/cron and complete approved paid-customer end-to-end acceptance.",
   "latest_verified_milestone": {
-    "description": "Production Health check 38104363646 passed all backend and web steps at 2026-10-11T02:15:02Z. Railway production has one online replica with zero crashes and no failed deployment in the last 24 hours; its active deployment remains 1871080f. Vercel's alias resolves to deployment dpl_GhdtSvEYNF9Ktr1J9itm6KCzmzAG. This proves recent availability, NOT commercial launch.",
-    "verified_at": "2026-10-11T02:15:02Z",
+    "description": "GitHub Health check run 38296967631 completed successfully on 2026-10-12T19:23:30Z; both web and deep-agent backend probe steps passed. Railway production read shows 1/1 online, zero crashed replicas and zero new failed deployments in the six-hour window. Neither result verifies paid customer acceptance or alert delivery.",
+    "verified_at": "2026-10-12T19:23:30Z",
     "evidence_refs": [
-      "https://github.com/anthonym71/securetotalscan/actions/runs/38104363646",
-      "https://github.com/anthonym71/securetotalscan/actions/runs/37718659340",
-      "https://github.com/anthonym71/securetotalscan/commit/b58ca601ed78823cfdcdadd7877959bebdd6c2a7"
+      "https://github.com/anthonym71/securetotalscan/actions/runs/38296967631",
+      "https://github.com/anthonym71/securetotalscan/actions/runs/38285748442",
+      "https://github.com/anthonym71/securetotalscan/pull/177",
+      "https://github.com/anthonym71/securetotalscan/pull/184"
     ]
   },
   "blockers": [
@@ -28,20 +29,22 @@
     "ALERT_WEBHOOK_URL is absent from Railway's listed production variable names and application alert delivery is unverified; passing healthy probes does not test the failure alert path.",
     "Direct Vercel project inspection fails HTTP 403 for team scope; GitHub CD success is verified but direct project environment/alias inspection is blocked.",
     "Vercel Production environment/deployment API inspection still returns HTTP 403 on 2026-10-11; last confirmed 2026-10-09 environment inspection found missing CRON_SECRET, STS_GHL_PRODUCT_MAP, NEXT_PUBLIC_CHECKOUT_REPORT/PRO/BUSINESS and ALERT_WEBHOOK_URL. Current state cannot be independently verified without authorized access.",
-    "GitHub Actions health-check workflow declares 15-minute cadence but actual runs are separated by several hours on 2026-10-09/10/11; external outage detection has a monitoring-frequency gap."
+    "GitHub Actions health-check workflow declares 15-minute cadence but actual runs on 2026-10-11/12 remain hours apart (latest 2026-10-12 19:23 UTC); rapid outage detection is not verified.",
+    "GitHub prod health-check logs on 2026-10-11 showed ALERT_WEBHOOK_URL empty; Railway's production variable-name inventory on 2026-10-12 also lacks ALERT_WEBHOOK_URL. Absence of alert-delivery proof is a human configuration gate. Do not set a destination without authorization."
   ],
   "tests": {
     "state": "PARTIAL_BLOCKED_SECURITY",
-    "summary": "Latest master CI, CodeQL and Security Audit passed on 2026-10-08; PR177 head 2b30d8c passed CI/CodeQL/Security Audit/Dependency Review on 2026-10-09; master and PR177 full-history gitleaks Secret Scan failed on the known historical Slack webhook. Health check 38104363646 passed on 2026-10-11. Dependabot PRs 178-184 appeared on 2026-10-10; do not merge them without individual exact-head gates (PR113 additionally has a failing CI run)."
+    "summary": "As of 2026-10-12, master scheduled Security Audit and CodeQL pass (runs 38278180417 and 38259455359), while full-history Secret Scan fails (38285748442). PR177 exact head 37127f0 passes CI, CodeQL, Security Audit and Dependency Review, but fails gitleaks (38120753340). PR184 head 1df5c0b also passes those four checks but fails gitleaks (38095490872); it upgrades several GitHub Actions majors and is not a launch prerequisite. The latest production health-check 38296967631 passes backend and web probe steps. Historical webhook remains the documented likely cause; no new leak was independently ruled out from job log content during this reconciliation."
   },
   "deployment": {
     "state": "OPERATIONAL_WITH_RELEASE_GATES",
     "environment": "production",
     "evidence_refs": [
       "https://github.com/anthonym71/securetotalscan/actions/runs/37718659340",
-      "https://github.com/anthonym71/securetotalscan/actions/runs/38104363646"
+      "https://github.com/anthonym71/securetotalscan/actions/runs/38104363646",
+      "https://github.com/anthonym71/securetotalscan/actions/runs/38296967631"
     ],
-    "summary": "Vercel frontend successfully deployed by GitHub CD on 2026-10-08; external health probes passed at 2026-10-11T02:15Z. Direct Vercel deployment, environment and project-scoped API reads fail HTTP 403, so readiness and current variable inventory cannot be reverified through that API. Vercel alias lookup still identifies production deployment dpl_GhdtSvEYNF9Ktr1J9itm6KCzmzAG. Railway currently reports an online service, 1/1 replicas running, six warnings, zero criticals and zero failed deployments over the past 24 hours; latest source-triggered build failed on 2026-10-08 but active working deployment 1871080f survives. GitHub health-check schedule advertises 15m but executions are separated by multiple hours, so continuous monitoring is not established. No paid-customer E2E receipt."
+    "summary": "GitHub CD run 37718659340 successfully deployed Vercel on 2026-10-08; latest web/backend health probes passed 2026-10-12T19:23:30Z. Railway reports a SUCCESS deployment 1871080f live with 1/1 online, six warnings, zero criticals and no new failed deployments over six hours; separate latest source-triggered deployment d786d1f7 FAILED 2026-10-08 and must not be mistaken for a live outage. Railway source is pinned to b58ca601 and watch pattern disabled for auto-deploy. Direct Vercel project and deployment reads return HTTP 403 for team_x0HywmHRlyGlzeUAlcsAIsYY; current Vercel production config cannot be confirmed. HTTP counts over four hours: 3 successes, 0 5xx. End-to-end commerce, scheduled cron, failure alert delivery and true 15-minute monitoring cadence are NOT verified."
   },
   "acceptance_criteria": [
     "Repository source scan is complete beyond 60 files and reports explicit incomplete states.",
@@ -107,6 +110,16 @@
       "action": "Perform authorized purchase-to-email/account/entitlement/scan/credits/return-account acceptance only after approval for live payments and provider readiness.",
       "owner": "Release acceptance owner",
       "evidence_expected": "Timestamped complete journey receipt with reversible rollback evidence."
+    },
+    {
+      "action": "Investigate 15-minute GitHub Actions schedule execution gaps without weakening health checks; preserve a read-only record of health checks and alert delivery evidence.",
+      "owner": "ChatGPT/GitHub",
+      "evidence_expected": "Documented run interval and a confirmed working notification path."
+    },
+    {
+      "action": "Defer Dependabot PR184's major Actions upgrade until after launch; review each open dependency PR independently against exact-head CI/security and release risk.",
+      "owner": "ChatGPT/GitHub",
+      "evidence_expected": "Per-PR review decision with exact-head checks; no unreviewed merge."
     }
   ],
   "risks": [
@@ -126,7 +139,7 @@
     "build_pulse_path": "docs/BUILD_STATE.json",
     "build_ledger_path": "docs/CHANGELOG-BUILD.md"
   },
-  "last_reconciled_at": "2026-10-11T07:13:47Z",
+  "last_reconciled_at": "2026-10-12T20:50:00Z",
   "confidence": "medium",
   "unknowns": [
     "Exact authenticated post-release production audit receipt demonstrating >60 successfully read files; code coverage fix alone is not an operational proof.",
@@ -135,7 +148,7 @@
     "Complete signed real-purchase E2E including email, account, credits and lifecycle.",
     "Production deep-scan unit economics: six bounded runs reported zero model cost/tokens, an instrumentation gap rather than proof of no usage.",
     "Whether 2026-10-09 missing Vercel production variables (CRON_SECRET, checkout URLs, product mapping, alert URL) have been configured since; Vercel API remains 403.",
-    "Whether all six Railway warning notifications are relevant to launch; status reports zero criticals and an online service.",
+    "Whether the six Railway production warning notifications are material for launch (2026-10-12 read-only status shows online 1/1 and zero criticals).",
     "Reliability of independent outage alert delivery given multi-hour GitHub schedule gaps."
   ]
 }
