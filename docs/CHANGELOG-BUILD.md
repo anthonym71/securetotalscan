@@ -1,3 +1,22 @@
+# Build changelog
+
+Required by PRD v1.2 §0.1.8. Every change gets an entry: date, phase, what
+changed in code, what changed in GHL (object + ID), what was verified.
+Newest first.
+
+---
+
+## 2026-10-13 — Commercial release verification (BLOCKED)
+
+**Repository:** master remains `b58ca601ed78823cfdcdadd7877959bebdd6c2a7`; 16 PRs remain open, including the canonical release-state PR #177. Its exact head `3f201f057c1fb91a1226a3ec29e193656b490e2f` passed CI, CodeQL, Security Audit and Dependency Review. Full-history Secret Scan failed on the historical Slack incoming webhook at `de06dded` (247 commits scanned, one redacted finding). Provider-side credential revocation is unverified; do not suppress the finding or merge #177 while that gate fails.
+
+**Production:** GitHub health-check run [38369439934](https://github.com/anthonym71/securetotalscan/actions/runs/38369439934) passed three backend and three frontend probes by 08:31 UTC on October 13. Its logs show `ALERT_WEBHOOK_URL` empty; although configured for 15-minute cadence, the preceding two successful runs were nearly seven hours apart, so neither delivery of failure alerts nor prompt detection is established. Railway production is online with 1/1 replicas and zero crashes; the active successful backend deployment dates to October 8, while the newer competing source-triggered deployment failed due to the root `railway.toml` path, without evidence of a current outage. Vercel's deployment listing reports the master production deploy READY, but direct project/deployment inspections returned HTTP 403 in the production team scope on October 13.
+
+**Human/acceptance gates:** historical Slack webhook revocation evidence; authorized Vercel project access and confirmation of `CRON_SECRET`, `ALERT_WEBHOOK_URL`, checkout product map and URLs; HighLevel Products/Payments authorization and Resend sender readiness; evidence of monitored cron/retention/alert execution, live authenticated >60-file audit, and the expressly approved end-to-end paid customer journey. No provider accounts, credentials, DNS or payments were changed in this documentation reconciliation. Production operational health does **not** constitute commercial launch completion.
+
+**NEXT:** remain RED/BLOCKED, require actual security and provider proof, then repeat exact-head checks and full acceptance before any merge/release sign-off.
+
+---
 
 ## 2026-10-08 — Commercial core and customer durability advanced
 
@@ -7,14 +26,7 @@ Verified/merged during launch push: five-tier pricing and commercial core, signe
 
 **External blockers:** HighLevel Products/Payments authorization returns 401; Resend provider verification remains; checkout/product mapping awaits live provider identifiers; historical Slack webhook revocation remains unverified; final paid end-to-end production journey remains pending.
 
-**NEXT:** finish current Vercel CD, then consume Claude/provider-console evidence and complete final live purchase-to-account acceptance.
-
----
-# Build changelog
-
-Required by PRD v1.2 §0.1.8. Every change gets an entry: date, phase, what
-changed in code, what changed in GHL (object + ID), what was verified.
-Newest first.
+**NEXT:** maintain blocked commercial release classification and obtain independently verified provider authorization, production alert/cron configuration, webhook revocation, and approved paid-customer acceptance.
 
 ---
 
@@ -1104,3 +1116,4 @@ set. No deployment triggered.
 
 **Still missing:** everything in PRD §5. Implementation has not begun and is
 awaiting phase-by-phase approval.
+
