@@ -34,7 +34,7 @@
   ],
   "tests": {
     "state": "PARTIAL_BLOCKED_SECURITY",
-    "summary": "As of 2026-10-12, master scheduled Security Audit and CodeQL pass (runs 38278180417 and 38259455359), while full-history Secret Scan fails (38285748442). PR177 exact head 37127f0 passes CI, CodeQL, Security Audit and Dependency Review, but fails gitleaks (38120753340). PR184 head 1df5c0b also passes those four checks but fails gitleaks (38095490872); it upgrades several GitHub Actions majors and is not a launch prerequisite. The latest production health-check 38296967631 passes backend and web probe steps. Historical webhook remains the documented likely cause; no new leak was independently ruled out from job log content during this reconciliation."
+    "summary": "Verified 2026-10-12T20:52:34Z on PR177 head b1277cada099305b46e2ac7b6ab9b93e36f8c988: CI Web/Backend, CodeQL, Security Audit and Dependency Review pass; full-history Secret Scan fails. Gitleaks scanned 245 commits and found exactly one redacted historical Slack webhook at de06dded7330da020df64ced2c9c081cfeb7e6e0, app/dashboard/page.tsx:53 (rule slack-webhook-url). No additional finding appears in this full-history job log; provider-side webhook revocation remains unverified, so do not add an allowlist or merge. Master scheduled Secret Scan still fails. Production health check 38296967631 passed both web and backend probes at 2026-10-12T19:23:30Z. Railway currently has 1/1 running replicas, 0 crashes, 6 warnings, 0 critical notices and 0 deployments failed in the last six hours; latest source-triggered deployment failed while successful deployment 1871080f remains active. Vercel direct scope reads return 403; no current commercial end-to-end acceptance evidence."
   },
   "deployment": {
     "state": "OPERATIONAL_WITH_RELEASE_GATES",
@@ -139,7 +139,7 @@
     "build_pulse_path": "docs/BUILD_STATE.json",
     "build_ledger_path": "docs/CHANGELOG-BUILD.md"
   },
-  "last_reconciled_at": "2026-10-12T20:50:00Z",
+  "last_reconciled_at": "2026-10-13T01:15:00Z",
   "confidence": "medium",
   "unknowns": [
     "Exact authenticated post-release production audit receipt demonstrating >60 successfully read files; code coverage fix alone is not an operational proof.",
