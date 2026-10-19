@@ -6,6 +6,18 @@ Newest first.
 
 ---
 
+## 2026-10-19 — Read-only production release reconciliation (BLOCKED)
+
+**Repository:** `master` is still `b58ca601ed78823cfdcdadd7877959bebdd6c2a7`; 16 PRs remain open, including #177. The prior exact-head checks for PR #177 passed CI, CodeQL, Security Audit and Dependency Review, while full-history Secret Scan failed. No merge is justified without security evidence.
+
+**Fresh October 19 CI and runtime evidence:** scheduled [Secret Scan #39278081180](https://github.com/anthonym71/securetotalscan/actions/runs/39278081180) failed on exactly the same redacted historical Slack webhook in commit `de06dded` (252 commits scanned, one finding); provider revocation remains unverified. Scheduled [Security Audit #39268745180](https://github.com/anthonym71/securetotalscan/actions/runs/39268745180) and [CodeQL #39246150748](https://github.com/anthonym71/securetotalscan/actions/runs/39246150748) passed. The latest completed [health check #39268752210](https://github.com/anthonym71/securetotalscan/actions/runs/39268752210), at 14:28 UTC, reported backend 3/3 and web 3/3 successful. It also confirms `ALERT_WEBHOOK_URL` is empty in the GitHub `prod` environment. Scheduled health checks remain hours apart (06:55 to 14:25 UTC on October 19), not a guaranteed 15-minute cadence.
+
+**Deployment and configuration:** Vercel's latest production deployment `dpl_GhdtSvEYNF9Ktr1J9itm6KCzmzAG` remains READY at `b58ca601`; unscoped authenticated reads succeed, explicitly scoped requests still return HTTP 403. The 27-entry Vercel environment inventory still lacks `CRON_SECRET`, `STS_GHL_PRODUCT_MAP`, the three `NEXT_PUBLIC_CHECKOUT_*` URLs and `ALERT_WEBHOOK_URL`. Railway reports an active previously successful deployment, one configured sfo replica, no pending staging, and 21 HTTP 2xx, one 4xx and **zero 5xx** among 22 requests in the preceding 24 hours; its newer GitHub-source deployment is failed (snapshot cannot find root `railway.toml`), but there is no observed active-backend regression. No paid-customer end-to-end acceptance evidence was obtained.
+
+**Release decision: BLOCKED.** No production, DNS, payment, provider-account or credential changes were made. Human-owned approval/configuration/revocation gates remain. This PR is a documentation-only reconciliation and must not be merged while Secret Scan is red. Any new commit requires fresh exact-head checks.
+
+---
+
 ## 2026-10-13 — Commercial release verification (BLOCKED)
 
 **Repository:** master remains `b58ca601ed78823cfdcdadd7877959bebdd6c2a7`; 16 PRs remain open, including the canonical release-state PR #177. Its exact head `3f201f057c1fb91a1226a3ec29e193656b490e2f` passed CI, CodeQL, Security Audit and Dependency Review. Full-history Secret Scan failed on the historical Slack incoming webhook at `de06dded` (247 commits scanned, one redacted finding). Provider-side credential revocation is unverified; do not suppress the finding or merge #177 while that gate fails.
