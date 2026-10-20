@@ -6,6 +6,16 @@ Newest first.
 
 ---
 
+## 2026-10-20 — Read-only release reconciliation (BLOCKED)
+
+**Source:** GitHub master `b58ca601` remains unchanged; 16 PRs open. PR #177 pre-reconciliation head `472e36ee` passed [CI](https://github.com/anthonym71/securetotalscan/actions/runs/39285643686), [CodeQL](https://github.com/anthonym71/securetotalscan/actions/runs/39285643645), [Security Audit](https://github.com/anthonym71/securetotalscan/actions/runs/39285643681) and [Dependency Review](https://github.com/anthonym71/securetotalscan/actions/runs/39285643670) on October 19. [Full-history Secret Scan](https://github.com/anthonym71/securetotalscan/actions/runs/39285643692) failed on the same redacted historical Slack webhook in `de06dded` (253 commits, one finding). Provider revocation is unverified; do not merge or suppress the gate.
+
+**Runtime:** The [October 20 health check](https://github.com/anthonym71/securetotalscan/actions/runs/39426797048) passed 3/3 backend and 3/3 frontend probes at 13:03 UTC. GitHub `prod` still has an empty `ALERT_WEBHOOK_URL`; scheduled starts remain hours apart, not every configured 15 minutes. Railway is online 1/1 with six warnings and zero critical alerts; the latest sampled 24 HTTP requests since October 19 all returned 200 for health probes. The old competing source deployment is failed but is **not** the active production deployment. Vercel unscoped inspection confirms production READY at `b58ca601` and the expected custom-domain assignments; explicitly team-scoped requests still 403. Among 27 Vercel env entries, `CRON_SECRET`, `STS_GHL_PRODUCT_MAP`, the three `NEXT_PUBLIC_CHECKOUT_*` URLs, and `ALERT_WEBHOOK_URL` remain absent.
+
+**Decision:** `BLOCKED` for commercial launch, despite operational health. HighLevel Products/Payments and Resend readiness, historical Slack revocation, cron/alert configuration, live authenticated >60-file audit, approved payment journey and end-to-end customer acceptance remain unverified. No payments, DNS, secrets, production config or provider accounts were modified. This documentation reconciliation is non-production and requires fresh exact-head CI before any future merge.
+
+---
+
 ## 2026-10-19 — Read-only production release reconciliation (BLOCKED)
 
 **Repository:** `master` is still `b58ca601ed78823cfdcdadd7877959bebdd6c2a7`; 16 PRs remain open, including #177. The prior exact-head checks for PR #177 passed CI, CodeQL, Security Audit and Dependency Review, while full-history Secret Scan failed. No merge is justified without security evidence.
