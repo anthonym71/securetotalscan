@@ -6,6 +6,16 @@ Newest first.
 
 ---
 
+## 2026-10-21 — Read-only release reconciliation (BLOCKED)
+
+**GitHub:** `master` remains `b58ca601ed78823cfdcdadd7877959bebdd6c2a7` with 16 open PRs. PR #177 head `6e8b9b0793bd69fa508dd39651a85709b515757a` passed [CI](https://github.com/anthonym71/securetotalscan/actions/runs/39439867860), [CodeQL](https://github.com/anthonym71/securetotalscan/actions/runs/39439867837), [Security Audit](https://github.com/anthonym71/securetotalscan/actions/runs/39439868016) and [Dependency Review](https://github.com/anthonym71/securetotalscan/actions/runs/39439867880) on October 20. [Full-history Secret Scan](https://github.com/anthonym71/securetotalscan/actions/runs/39439867961) still failed on one redacted historical Slack webhook in `de06dded` (254 commits scanned). Revocation remains unverified; do not suppress or merge with the failing release gate.
+
+**Production:** [October 21 health check](https://github.com/anthonym71/securetotalscan/actions/runs/39685912563) passed all three backend and three web probes by 22:24 UTC. Its job environment still contains an empty `ALERT_WEBHOOK_URL`. Scheduled health runs occurred at 19:07 and 22:21 UTC, more than three hours apart despite configured */15. Vercel project read shows production deployment `dpl_GhdtSvEYNF9Ktr1J9itm6KCzmzAG` READY and both custom domains verified. The current 27-entry Vercel environment inventory still omits `CRON_SECRET`, `STS_GHL_PRODUCT_MAP`, `NEXT_PUBLIC_CHECKOUT_REPORT`, `NEXT_PUBLIC_CHECKOUT_PRO`, `NEXT_PUBLIC_CHECKOUT_BUSINESS` and `ALERT_WEBHOOK_URL`. Explicit team-scoped reads still return HTTP 403; unscoped reads succeed. Railway direct read requires interactive reauthorization in this noninteractive check, so **current Railway state is not independently reverified**; previous online status must not be presented as a fresh result.
+
+**Decision:** Commercial launch remains RED/BLOCKED: credential revocation, authorized provider configuration, HighLevel and Resend readiness, monitoring/alert delivery, live >60-file receipt and approved paid-customer end-to-end acceptance are unverified. No outage was confirmed by the fresh health probes. No production, DNS, payments, credentials or provider-account changes were made. This is a documentation-only branch update and any new head needs exact-head CI before release.
+
+---
+
 ## 2026-10-20 — Read-only release reconciliation (BLOCKED)
 
 **Source:** GitHub master `b58ca601` remains unchanged; 16 PRs open. PR #177 pre-reconciliation head `472e36ee` passed [CI](https://github.com/anthonym71/securetotalscan/actions/runs/39285643686), [CodeQL](https://github.com/anthonym71/securetotalscan/actions/runs/39285643645), [Security Audit](https://github.com/anthonym71/securetotalscan/actions/runs/39285643681) and [Dependency Review](https://github.com/anthonym71/securetotalscan/actions/runs/39285643670) on October 19. [Full-history Secret Scan](https://github.com/anthonym71/securetotalscan/actions/runs/39285643692) failed on the same redacted historical Slack webhook in `de06dded` (253 commits, one finding). Provider revocation is unverified; do not merge or suppress the gate.
