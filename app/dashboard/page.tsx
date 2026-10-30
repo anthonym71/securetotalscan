@@ -204,7 +204,7 @@ export default function Dashboard() {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex gap-4">
           <Link href="/" className="text-sm text-brand-light hover:text-white">
             ← Back to home
@@ -217,14 +217,13 @@ export default function Dashboard() {
           {identity && (
             <span
               data-testid="session-role"
-              className={`rounded-full border px-3 py-1 text-xs ${
+              className={`rounded-full border px-3 py-1 text-xs leading-tight ${
                 identity.kind === "owner"
                   ? "border-brand-light/60 text-brand-light"
                   : "border-white/20 text-white/70"
               }`}
-              title={identity.email}
             >
-              Signed in as {identity.label} · {identity.email}
+              Signed in as {identity.label}
             </span>
           )}
         <button
@@ -240,6 +239,11 @@ export default function Dashboard() {
         </div>
       </div>
       <h1 className="mt-4 text-3xl font-bold">Agent dashboard</h1>
+      {identity && (
+        <p data-testid="session-email" className="mt-1 break-all text-xs text-white/50">
+          Account: {identity.email}
+        </p>
+      )}
       <p className="mt-2 text-white/60">
         Run the deep analysis on a GitHub repo, Docker Hub image, your logs, or
         an uploaded file. Each agent reports live as it finishes.
@@ -706,4 +710,4 @@ function EvalsView({ evals }: { evals: SessionEvals | null }) {
       </div>
     </div>
   );
-}
+                        }
