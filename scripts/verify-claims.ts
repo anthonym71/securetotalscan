@@ -162,7 +162,10 @@ console.log("\nThe agent-dashboard CTA must not send prospects to a login wall:"
 
 console.log("\nThe preview must be unmistakably a sample:");
 {
-  const preview = renderedText("app/preview/page.tsx");
+  // The banner lives in components/SampleAnalysis.tsx, which /preview and the
+  // homepage Demo Scan popup both render, so one sample copy serves both.
+  const preview =
+    renderedText("app/preview/page.tsx") + "\n" + renderedText("components/SampleAnalysis.tsx");
   check(
     "it says so on the page",
     /this is a sample, not a scan of your site/i.test(preview),

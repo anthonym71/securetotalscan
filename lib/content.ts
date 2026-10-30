@@ -19,6 +19,9 @@ export const TRUST = {
   body: "Surface-scan results are stored when storage is available, with a six-month retention review date. Stored reports omit URL query strings and fragments; fetched pages and JavaScript bundles are not stored with the report. Automatic deletion and online history are still being built. Your email is kept in our CRM for security updates; you can unsubscribe.",
 };
 
+/** Dashboard mode labels, in order. The homepage mock renders the same list. */
+export const DASHBOARD_TABS = ["Deep Website Scan", "GitHub repo", "Docker Hub image", "System logs", "Upload logs"] as const;
+
 export const SCAN_SECTION = {
   eyebrow: "FREE Surface Scan",
   title: "Scan it now",

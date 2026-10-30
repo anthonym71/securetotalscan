@@ -1,5 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
+import { DemoScanModal } from "@/components/DemoScanModal";
+import { DASHBOARD_TABS } from "@/lib/content";
 import { BRAND } from "@/lib/brand";
 import {
   AGENTS,
@@ -44,7 +45,7 @@ export function NavBar() {
   );
 }
 
-/** Shown under the free scan: the paid path. Both the image and the button go to sign-in. */
+/** Shown under the free scan: the paid path. The mock mirrors the real dashboard tabs. */
 export function DashboardCta() {
   return (
     <div className="mx-auto mt-12 max-w-3xl text-center">
@@ -52,21 +53,38 @@ export function DashboardCta() {
       <p className="mt-3 text-2xl font-bold">
         Go to the <span className="text-brand-light">Dashboard</span> for deep scans
       </p>
-      <Link href="/login" className="mt-6 block overflow-hidden rounded-2xl border border-white/10 shadow-glow transition hover:border-brand/60">
-        <Image
-          src="/dashboard-preview.png"
-          alt="Agent dashboard with GitHub repo, Docker Hub image and log analysis tabs"
-          width={850}
-          height={177}
-          className="h-auto w-full"
-        />
-      </Link>
       <Link
         href="/login"
-        className="mt-6 inline-block rounded-xl bg-brand-gradient px-8 py-3 font-semibold text-white hover:opacity-90"
+        aria-label="Go to the agent dashboard"
+        className="mt-6 block rounded-2xl border border-white/10 bg-card-gradient p-6 text-left shadow-glow transition hover:border-brand/60"
       >
-        Go to Dashboard
+        <p className="text-2xl font-bold">Agent dashboard</p>
+        <p className="mt-2 text-sm text-white/60">
+          Run the deep analysis on a website, GitHub repo, Docker Hub image, your logs, or an uploaded file.
+          Each agent reports live as it finishes.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {DASHBOARD_TABS.map((t, i) => (
+            <span
+              key={t}
+              className={`rounded-lg border px-4 py-2 text-sm font-medium ${
+                i === 0 ? "border-brand bg-brand/15 text-white" : "border-white/15 text-white/60"
+              }`}
+            >
+              {t}
+            </span>
+          ))}
+        </div>
       </Link>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <DemoScanModal />
+        <Link
+          href="/login"
+          className="rounded-xl bg-brand-gradient px-8 py-3 font-semibold text-white hover:opacity-90"
+        >
+          Go to Dashboard
+        </Link>
+      </div>
       <p className="mt-2 text-xs text-white/40">Pro and Business plans. Sign in with your email link or access code.</p>
     </div>
   );
