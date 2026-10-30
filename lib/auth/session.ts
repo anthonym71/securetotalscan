@@ -27,6 +27,9 @@ export interface SessionPayload {
   role?: "owner" | "customer";
   /** Keyed binding invalidates owner sessions when their credentials change. */
   ownerBinding?: string;
+  /** Unix seconds the session was issued. Customer sessions only; compared with
+   *  customer.sessions_revoked_at by lib/auth/revocation.ts ("Sign out everywhere"). */
+  iat?: number;
 }
 
 function ownerCredentials(): { email: string; code: string } | null {
@@ -154,6 +157,7 @@ export async function createCustomerSession(email: string, plan: string): Promis
     email: email.trim().toLowerCase(),
     plan,
     role: "customer",
+    iat: Math.floor(Date.now() / 1000),
     // Keep paid sessions short enough that cancellation/refund revocation is
     // bounded even if the user leaves a browser open.
     exp: Math.floor(Date.now() / 1000) + 60 * 60,

@@ -209,9 +209,11 @@ console.log("\nMigration files split into individual statements:");
 {
   for (const migration of migrations) {
     const statements = splitStatements(migration.sql);
+    // At least one: a single-statement migration (0003 adds one column) is
+    // legitimate. The splitter itself is exercised by the synthetic cases below.
     check(
       `${migration.name} yields ${statements.length} statement(s)`,
-      statements.length > 1,
+      statements.length >= 1,
     );
     check(
       `${migration.name}: no statement still contains a bare semicolon`,

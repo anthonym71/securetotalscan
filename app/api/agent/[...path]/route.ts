@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { postAlert } from "@/lib/alerting";
-import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
+import { liveSession } from "@/lib/auth/liveSession";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { assertSameOrigin } from "@/lib/security/origin";
 import { anyUnavailable, limiterUnavailable } from "@/lib/security/limits";
@@ -51,7 +51,7 @@ async function guard(req: NextRequest, path: string) {
   const originError = assertSameOrigin(req);
   if (originError) return originError;
 
-  const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await liveSession(req);
   if (!session) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
@@ -149,7 +149,7 @@ export async function GET(
   const path = (await ctx.params).path.join("/");
   const denied = await guard(req, path);
   if (denied) return denied;
-  const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await liveSession(req);
   if (!session) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
 
   const reportMatch = /^report\/([\w-]{1,64})$/.exec(path);
@@ -175,7 +175,7 @@ export async function POST(
   const denied = await guard(req, path);
   if (denied) return denied;
 
-  const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await liveSession(req);
   if (!session) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
 
   const isDeepStart = /^analyze(?:\/github|\/docker|\/upload)?$/.test(path);

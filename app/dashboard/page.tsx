@@ -113,7 +113,15 @@ export default function Dashboard() {
   useEffect(() => {
     let cancelled = false;
     fetch("/api/account/session", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        // A revoked session ("Sign out everywhere" from another browser) still
+        // passes the stateless middleware; this is where it is caught.
+        if (res.status === 401) {
+          window.location.assign("/login?next=/dashboard");
+          return null;
+        }
+        return res.ok ? res.json() : null;
+      })
       .then((data) => {
         if (!cancelled && data && typeof data.label === "string") setIdentity(data);
       })
@@ -268,13 +276,30 @@ export default function Dashboard() {
         <button
           type="button"
           onClick={async () => {
-            await fetch("/api/auth/logout", { method: "POST" });
+            await fetch("/api/auth/logout", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
             window.location.assign("/");
           }}
           className="text-sm text-white/40 hover:text-white"
         >
           Sign out
         </button>
+        {identity?.kind === "customer" && (
+          <button
+            type="button"
+            title="Ends your session in every browser and device, not just this one"
+            onClick={async () => {
+              await fetch("/api/auth/logout", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ everywhere: true }),
+              });
+              window.location.assign("/login");
+            }}
+            className="text-sm text-white/40 hover:text-grade-f"
+          >
+            Sign out everywhere
+          </button>
+        )}
         </div>
       </div>
       {identity && (
