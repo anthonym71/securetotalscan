@@ -49,7 +49,7 @@ type Tab = "analysis" | "evals";
 const MODES: { id: Mode; label: string }[] = [
   { id: "github", label: "GitHub repo" },
   { id: "docker", label: "Docker Hub image" },
-  { id: "synthetic", label: "Synthetic logs" },
+  { id: "synthetic", label: "Synthetic logs (demo)" },
   { id: "system", label: "System logs" },
   { id: "upload", label: "Upload logs" },
 ];
@@ -214,6 +214,12 @@ export default function Dashboard() {
           </Link>
         </div>
         <div className="flex items-center gap-4">
+          <Link
+            href="/#pricing"
+            className="rounded-lg bg-brand-gradient px-4 py-1.5 text-sm font-semibold text-white hover:opacity-90"
+          >
+            Upgrade
+          </Link>
           {identity && (
             <span
               data-testid="session-role"
@@ -238,12 +244,10 @@ export default function Dashboard() {
         </button>
         </div>
       </div>
-      <h1 className="mt-4 text-3xl font-bold">Agent dashboard</h1>
       {identity && (
-        <p data-testid="session-email" className="mt-1 break-all text-xs text-white/50">
-          Account: {identity.email}
-        </p>
+        <p data-testid="session-email" className="mt-1 text-right text-xs text-white/50 break-all">{identity.email}</p>
       )}
+      <h1 className="mt-4 text-3xl font-bold">Agent dashboard</h1>
       <p className="mt-2 text-white/60">
         Run the deep analysis on a GitHub repo, Docker Hub image, your logs, or
         an uploaded file. Each agent reports live as it finishes.

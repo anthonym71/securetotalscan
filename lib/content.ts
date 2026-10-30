@@ -20,6 +20,7 @@ export const TRUST = {
 };
 
 export const SCAN_SECTION = {
+  eyebrow: "FREE Surface Scan",
   title: "Scan it now",
   body: "Paste a public URL. We'll tell you exactly what's exposed, for free.",
   button: "Run scan",
