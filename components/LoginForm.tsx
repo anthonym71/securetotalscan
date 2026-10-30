@@ -111,13 +111,13 @@ export function LoginForm({ next }: { next: string }) {
       >
         Email me a secure sign-in link
       </button>
-      <p className="text-center text-xs text-white/40">
-        Paid customers can use the email link above. Don&apos;t have a plan?{" "}
-        <Link href="/#pricing" className="underline hover:text-white/70">
+      <div className="space-y-1 text-center text-xs text-white/40">
+        <p className="whitespace-nowrap">Paid customers can use the email link above.</p>
+        <p>Don&apos;t have a plan?</p>
+        <Link href="/#pricing" className="block text-base font-bold text-brand-light underline hover:text-white">
           See plans
         </Link>
-        .
-      </p>
+      </div>
     </form>
   );
 }

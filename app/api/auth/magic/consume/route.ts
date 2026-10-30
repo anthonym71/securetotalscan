@@ -58,7 +58,11 @@ function confirmPage(token: string): NextResponse {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
-      "Referrer-Policy": "no-referrer",
+      // Not `no-referrer`: under that policy browsers submit the form with
+      // `Origin: null`, which assertSameOrigin rightly rejects (seen in
+      // production on 2026-10-30 as "Forbidden."). same-origin keeps the token
+      // out of cross-site referrers while leaving Origin intact for our POST.
+      "Referrer-Policy": "same-origin",
     },
   });
 }
