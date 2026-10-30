@@ -43,13 +43,15 @@ async function fetchReportWithRetry(
   throw lastError ?? new Error("Failed to load analysis report");
 }
 
-type Mode = "github" | "docker" | "synthetic" | "system" | "upload";
+type Mode = "website" | "github" | "docker" | "synthetic" | "system" | "upload";
 type Tab = "analysis" | "evals";
 
+// Order and labels mirror DASHBOARD_TABS in lib/content.ts (the homepage mock).
+// "synthetic" is not a tab: it is the Example run link under the Run button.
 const MODES: { id: Mode; label: string }[] = [
+  { id: "website", label: "Deep Website Scan" },
   { id: "github", label: "GitHub repo" },
   { id: "docker", label: "Docker Hub image" },
-  { id: "synthetic", label: "Synthetic logs (demo)" },
   { id: "system", label: "System logs" },
   { id: "upload", label: "Upload logs" },
 ];
@@ -81,11 +83,16 @@ const CORE_AGENTS = [
 // Never ship a real webhook URL to the browser: anything in client code is
 // public. Users paste their own; operators can pre-fill one via
 // NEXT_PUBLIC_DEFAULT_SLACK_WEBHOOK_URL if they accept that it is public.
+// HighLevel customer-portal link for invoices and card changes. The app holds
+// no payment data; billing lives with the payment provider.
+const BILLING_PORTAL_URL = process.env.NEXT_PUBLIC_BILLING_PORTAL_URL ?? "";
+
 const DEFAULT_SLACK_WEBHOOK_URL =
   process.env.NEXT_PUBLIC_DEFAULT_SLACK_WEBHOOK_URL ?? "";
 
 export default function Dashboard() {
-  const [mode, setMode] = useState<Mode>("github");
+  const [mode, setMode] = useState<Mode>("website");
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [repo, setRepo] = useState("");
   const [dockerImage, setDockerImage] = useState("");
   const [targetUrl, setTargetUrl] = useState("");
@@ -122,6 +129,7 @@ export default function Dashboard() {
 
   function canRun() {
     if (running) return false;
+    if (mode === "website") return /^https?:\/\/\S+\.\S+/.test(targetUrl.trim());
     if (mode === "github") return repo.trim().length > 0;
     if (mode === "docker") return dockerImage.trim().length > 0;
     if (mode === "upload") return file !== null;
@@ -131,6 +139,16 @@ export default function Dashboard() {
   async function run(e: React.FormEvent) {
     e.preventDefault();
     if (!canRun()) return;
+    await start(mode);
+  }
+
+  /** The bundled example dataset — a no-input run so a new customer can see the agents work. */
+  async function runExample() {
+    if (running) return;
+    await start("synthetic");
+  }
+
+  async function start(runMode: Mode) {
     setRunning(true);
     setError(null);
     setReport(null);
@@ -144,14 +162,19 @@ export default function Dashboard() {
       const slack = slackUrl.trim();
       const url = targetUrl.trim();
       let session_id: string;
-      if (mode === "github") {
+      if (runMode === "github") {
         ({ session_id } = await analyzeGithub(repo.trim(), false, slack, url));
-      } else if (mode === "docker") {
+      } else if (runMode === "docker") {
         ({ session_id } = await analyzeDocker(dockerImage.trim(), false, slack, url));
-      } else if (mode === "upload") {
+      } else if (runMode === "upload") {
         ({ session_id } = await analyzeUpload(file as File, slack));
+      } else if (runMode === "website") {
+        // Website mode: the agents run with the site as the target. Today that
+        // means HTTP posture and threat-intel context over the example log set;
+        // the crawl-and-test website scanner is the next backend milestone.
+        ({ session_id } = await analyzeLogs("synthetic", slack, url));
       } else {
-        ({ session_id } = await analyzeLogs(mode, slack, url));
+        ({ session_id } = await analyzeLogs(runMode, slack, url));
       }
 
       const es = new EventSource(streamUrl(session_id));
@@ -214,6 +237,16 @@ export default function Dashboard() {
           </Link>
         </div>
         <div className="flex items-center gap-4">
+          {BILLING_PORTAL_URL && (
+            <a
+              href={BILLING_PORTAL_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-white/60 hover:text-white"
+            >
+              Manage billing
+            </a>
+          )}
           <Link
             href="/#pricing"
             className="rounded-lg bg-brand-gradient px-4 py-1.5 text-sm font-semibold text-white hover:opacity-90"
@@ -249,8 +282,8 @@ export default function Dashboard() {
       )}
       <h1 className="mt-4 text-3xl font-bold">Agent dashboard</h1>
       <p className="mt-2 text-white/60">
-        Run the deep analysis on a GitHub repo, Docker Hub image, your logs, or
-        an uploaded file. Each agent reports live as it finishes.
+        Run the deep analysis on a website, GitHub repo, Docker Hub image, your
+        logs, or an uploaded file. Each agent reports live as it finishes.
       </p>
 
       {/* Mode selector */}
@@ -273,6 +306,22 @@ export default function Dashboard() {
 
       <form onSubmit={run} className="mt-4 space-y-3">
         {/* Per-mode input */}
+        {mode === "website" && (
+          <div className="space-y-2">
+            <input
+              type="url"
+              value={targetUrl}
+              onChange={(e) => setTargetUrl(e.target.value)}
+              placeholder="https://your-site.com"
+              className="w-full rounded-xl bg-black/40 px-4 py-3.5 text-white placeholder-white/30 outline-none ring-brand/50 transition focus:ring-2"
+              disabled={running}
+            />
+            <p className="px-1 text-xs text-white/50">
+              Public URL you own or are authorised to test. The agents check HTTP posture, threat intelligence,
+              incident response and compliance for the site. Full crawl and active testing is coming next.
+            </p>
+          </div>
+        )}
         {mode === "github" && (
           <div className="space-y-2">
           <input
@@ -311,40 +360,49 @@ export default function Dashboard() {
             disabled={running}
           />
         )}
-        {(mode === "synthetic" || mode === "system") && (
+        {mode === "system" && (
           <p className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/60">
-            {mode === "synthetic"
-              ? "Runs the agents over bundled synthetic logs (SSH brute force, port scans, path traversal). No input needed."
-              : "Reads recent OS log files on the server (auth.log, syslog). Falls back to synthetic logs if none are readable."}
+            Reads recent OS log files on the server (auth.log, syslog). Falls back to the example log set if none are readable.
           </p>
         )}
 
-        {/* Optional target URL for HTTP header checks (all modes) */}
-        <div>
-          <input
-            type="url"
-            value={targetUrl}
-            onChange={(e) => setTargetUrl(e.target.value)}
-            placeholder="Optional: https://your-site.com for HTTP header checks"
-            className="w-full rounded-xl bg-black/40 px-4 py-3 text-sm text-white placeholder-white/30 outline-none ring-brand/50 transition focus:ring-2"
-            disabled={running}
-          />
-        </div>
-
-        {/* Slack webhook (optional, all modes) */}
-        <div>
-          <input
-            type="url"
-            value={slackUrl}
-            onChange={(e) => setSlackUrl(e.target.value)}
-            placeholder="Optional: Slack incoming webhook URL"
-            className="w-full rounded-xl bg-black/40 px-4 py-3 text-sm text-white placeholder-white/30 outline-none ring-brand/50 transition focus:ring-2"
-            disabled={running}
-          />
-          <p className="mt-1 px-1 text-xs text-white/40">
-            Optional. Leave blank to disable Slack alerts.
-          </p>
-        </div>
+        {/* Advanced: optional target URL (non-website modes) and the customer's own Slack webhook */}
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          className="text-xs text-white/50 underline-offset-2 hover:text-white hover:underline"
+        >
+          {showAdvanced ? "Hide advanced options" : "Advanced options"}
+        </button>
+        {showAdvanced && (
+          <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-4">
+            {mode !== "website" && (
+              <div>
+                <input
+                  type="url"
+                  value={targetUrl}
+                  onChange={(e) => setTargetUrl(e.target.value)}
+                  placeholder="Optional: https://your-site.com for HTTP header checks"
+                  className="w-full rounded-xl bg-black/40 px-4 py-3 text-sm text-white placeholder-white/30 outline-none ring-brand/50 transition focus:ring-2"
+                  disabled={running}
+                />
+              </div>
+            )}
+            <div>
+              <input
+                type="url"
+                value={slackUrl}
+                onChange={(e) => setSlackUrl(e.target.value)}
+                placeholder="Optional: your Slack incoming webhook URL"
+                className="w-full rounded-xl bg-black/40 px-4 py-3 text-sm text-white placeholder-white/30 outline-none ring-brand/50 transition focus:ring-2"
+                disabled={running}
+              />
+              <p className="mt-1 px-1 text-xs text-white/40">
+                Posts the incident summary to your own Slack channel. Leave blank to disable.
+              </p>
+            </div>
+          </div>
+        )}
 
         <button
           type="submit"
@@ -353,6 +411,18 @@ export default function Dashboard() {
         >
           {running ? "Analyzing…" : "Run analysis"}
         </button>
+        <p className="text-xs text-white/40">
+          New here?{" "}
+          <button
+            type="button"
+            onClick={runExample}
+            disabled={running}
+            className="text-brand-light underline-offset-2 hover:underline disabled:opacity-50"
+          >
+            Example run
+          </button>{" "}
+          runs the agents over a bundled example log set (SSH brute force, port scans, path traversal). No input needed.
+        </p>
       </form>
 
       {error && (
