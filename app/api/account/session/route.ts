@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
+import { liveSession } from "@/lib/auth/liveSession";
 import { describeSession } from "@/lib/auth/roleLabel";
 
 export const runtime = "nodejs";
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /** Who am I signed in as? Reads the signed session cookie server-side only. */
 export async function GET(req: NextRequest) {
-  const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
+  const session = await liveSession(req);
   if (!session) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }

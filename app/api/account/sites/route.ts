@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
+import { liveSession } from "@/lib/auth/liveSession";
 import { addSite, deleteSite, listSites } from "@/lib/db/sites";
 import { normalizeTarget, ScanError } from "@/lib/scanner";
 import { assertSameOrigin } from "@/lib/security/origin";
 
 async function sessionFor(req:NextRequest){
-  return verifySession(req.cookies.get(SESSION_COOKIE)?.value);
+  return liveSession(req);
 }
 
 export async function GET(req:NextRequest){
