@@ -119,7 +119,7 @@ export async function ensureMonthlyCredits(email: string, tier: string): Promise
           ORDER BY updated_at DESC LIMIT 1
        ) s ON true
       WHERE lower(c.email) = lower($1)
-     ON CONFLICT (external_ref) DO NOTHING`,
+     ON CONFLICT (external_ref) WHERE external_ref IS NOT NULL DO NOTHING`,
     [email, tier, allowance],
     { arrayMode: false, fullResults: false },
   );
@@ -167,7 +167,7 @@ export async function spendCredit(email: string, externalRef: string): Promise<{
      ), ins AS (
        INSERT INTO credit_ledger (customer_id, delta, reason, external_ref)
        SELECT id, -1, 'deep_scan', $2 FROM target WHERE balance > 0
-       ON CONFLICT (external_ref) DO NOTHING
+       ON CONFLICT (external_ref) WHERE external_ref IS NOT NULL DO NOTHING
        RETURNING customer_id
      )
      SELECT COALESCE((SELECT sum(delta) FROM credit_ledger cl
