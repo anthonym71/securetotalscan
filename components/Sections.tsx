@@ -1,3 +1,5 @@
+import Link from "next/link";
+import Image from "next/image";
 import { BRAND } from "@/lib/brand";
 import {
   AGENTS,
@@ -12,7 +14,8 @@ import {
 
 export function NavBar() {
   return (
-    <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+    <div className="sticky top-0 z-40 border-b border-white/10 bg-[#0b0f19]/90 backdrop-blur">
+    <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
       <a href="#" className="flex items-center gap-2 font-bold">
         <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-gradient text-sm">
           🛡️
@@ -29,8 +32,58 @@ export function NavBar() {
         >
           Run scan
         </a>
+        <Link
+          href="/login"
+          className="rounded-lg bg-brand-gradient px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+        >
+          Login
+        </Link>
       </div>
     </nav>
+    </div>
+  );
+}
+
+/** Shown under the free scan: the paid path. Both the image and the button go to sign-in. */
+export function DashboardCta() {
+  return (
+    <div className="mx-auto mt-12 max-w-3xl text-center">
+      <p className="text-sm font-semibold uppercase tracking-[0.3em] text-white/40">or</p>
+      <p className="mt-3 text-2xl font-bold">
+        Go to the <span className="text-brand-light">Dashboard</span> for deep scans
+      </p>
+      <Link href="/login" className="mt-6 block overflow-hidden rounded-2xl border border-white/10 shadow-glow transition hover:border-brand/60">
+        <Image
+          src="/dashboard-preview.png"
+          alt="Agent dashboard with GitHub repo, Docker Hub image and log analysis tabs"
+          width={850}
+          height={177}
+          className="h-auto w-full"
+        />
+      </Link>
+      <Link
+        href="/login"
+        className="mt-6 inline-block rounded-xl bg-brand-gradient px-8 py-3 font-semibold text-white hover:opacity-90"
+      >
+        Go to Dashboard
+      </Link>
+      <p className="mt-2 text-xs text-white/40">Pro and Business plans. Sign in with your email link or access code.</p>
+    </div>
+  );
+}
+
+/** Under the plans grid: the returning-customer path. */
+export function AlreadyHavePlan() {
+  return (
+    <div className="mx-auto mt-12 max-w-2xl text-center">
+      <Link
+        href="/login"
+        className="block rounded-2xl border border-brand/40 bg-brand/10 px-8 py-6 transition hover:border-brand hover:bg-brand/20"
+      >
+        <span className="block text-2xl font-bold">Already have a plan?</span>
+        <span className="mt-2 block text-base text-brand-light">Click here to log in to the Dashboard</span>
+      </Link>
+    </div>
   );
 }
 
