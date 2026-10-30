@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { additionalVulnerabilities, highestCandidateSeverity, completeSourceCoverage } from "@/lib/audit-report";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AGENT_LABELS,
   AgentEvent,
@@ -101,6 +101,20 @@ export default function Dashboard() {
 
   const esRef = useRef<EventSource | null>(null);
   const doneRef = useRef(false);
+  const [identity, setIdentity] = useState<{ kind: string; label: string; email: string } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/account/session", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data && typeof data.label === "string") setIdentity(data);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const pipeline = slackUrl.trim()
     ? [...CORE_AGENTS, "slack_notifier"]
@@ -190,7 +204,7 @@ export default function Dashboard() {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex gap-4">
           <Link href="/" className="text-sm text-brand-light hover:text-white">
             ← Back to home
@@ -199,6 +213,19 @@ export default function Dashboard() {
             My sites & history
           </Link>
         </div>
+        <div className="flex items-center gap-4">
+          {identity && (
+            <span
+              data-testid="session-role"
+              className={`rounded-full border px-3 py-1 text-xs leading-tight ${
+                identity.kind === "owner"
+                  ? "border-brand-light/60 text-brand-light"
+                  : "border-white/20 text-white/70"
+              }`}
+            >
+              Signed in as {identity.label}
+            </span>
+          )}
         <button
           type="button"
           onClick={async () => {
@@ -209,8 +236,14 @@ export default function Dashboard() {
         >
           Sign out
         </button>
+        </div>
       </div>
       <h1 className="mt-4 text-3xl font-bold">Agent dashboard</h1>
+      {identity && (
+        <p data-testid="session-email" className="mt-1 break-all text-xs text-white/50">
+          Account: {identity.email}
+        </p>
+      )}
       <p className="mt-2 text-white/60">
         Run the deep analysis on a GitHub repo, Docker Hub image, your logs, or
         an uploaded file. Each agent reports live as it finishes.
