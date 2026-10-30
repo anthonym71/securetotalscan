@@ -30,6 +30,11 @@ async function upsertCustomer(email: string, ghlContactId?: string): Promise<str
   return String(rows[0].id);
 }
 
+// The unique indexes on subscription.external_id and purchase.external_id are
+// partial (`WHERE external_id IS NOT NULL`, migrations/0001_init.sql). Postgres
+// only matches ON CONFLICT to a partial index when the statement repeats the
+// predicate; without it the insert fails with SQLSTATE 42P10 — reproduced on
+// production on 2026-10-30 before any real invoice had arrived.
 export async function recordPaidInvoice(invoice: PaidInvoice): Promise<{ customerId: string }> {
   const customerId = await upsertCustomer(invoice.email, invoice.ghlContactId);
 
@@ -40,7 +45,7 @@ export async function recordPaidInvoice(invoice: PaidInvoice): Promise<{ custome
         `INSERT INTO subscription
            (customer_id, tier, status, external_id, renews_on)
          VALUES ($1, $2, 'active', $3, (current_date + interval '1 month')::date)
-         ON CONFLICT (external_id)
+         ON CONFLICT (external_id) WHERE external_id IS NOT NULL
          DO UPDATE SET status = 'active',
                        tier = EXCLUDED.tier,
                        renews_on = (current_date + interval '1 month')::date,
@@ -55,7 +60,7 @@ export async function recordPaidInvoice(invoice: PaidInvoice): Promise<{ custome
         `INSERT INTO purchase
            (customer_id, product, amount_cents, currency, status, external_id)
          VALUES ($1, $2, $3, $4, 'paid', $5)
-         ON CONFLICT (external_id)
+         ON CONFLICT (external_id) WHERE external_id IS NOT NULL
          DO UPDATE SET status = 'paid'`,
         [customerId, grant.product, grant.amountCents ?? invoice.amountPaid, invoice.currency, externalId],
         { arrayMode: false, fullResults: false },
