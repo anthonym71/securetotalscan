@@ -19,9 +19,15 @@ export function LoginForm({ next }: { next: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
       });
+      if (res.status === 429) {
+        const data = await res.json().catch(() => null) as { error?: string } | null;
+        setState("error");
+        setMsg(data?.error ?? "Too many sign-in link requests. Please wait a few minutes and try again.");
+        return;
+      }
       if (!res.ok) throw new Error("request failed");
       setState("sent");
-      setMsg("If that email has an active paid plan, a secure sign-in link is on its way.");
+      setMsg("If that email has an active paid plan, a secure sign-in link is on its way. Open it and click Sign in.");
     } catch {
       setState("error");
       setMsg("Could not send the sign-in link. Please try again.");

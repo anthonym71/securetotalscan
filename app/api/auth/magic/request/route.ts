@@ -12,10 +12,21 @@ export async function POST(req: NextRequest) {
   const originError = assertSameOrigin(req);
   if (originError) return originError;
 
+  // Per-IP, not global: each customer gets their own allowance. The window
+  // used to answer `{ ok: true }` when exhausted, which hid the limit from the
+  // one person it applied to — the owner spent an afternoon on 2026-10-30
+  // requesting links that were silently dropped. A 429 reveals nothing about
+  // whether an account exists, so it is safe to say so.
   const ip = clientIp(req.headers);
-  const limit = await rateLimit(`magic:ip:${ip}`, 5, 15 * 60);
+  const limit = await rateLimit(`magic:ip:${ip}`, 10, 15 * 60);
   if (!limit.available) return limiterUnavailable();
-  if (!limit.ok) return NextResponse.json({ ok: true }, { status: 200 });
+  if (!limit.ok) {
+    const minutes = Math.max(1, Math.ceil(limit.resetIn / 60));
+    return NextResponse.json(
+      { error: `Too many sign-in link requests. Please try again in ${minutes} minute${minutes === 1 ? "" : "s"}.` },
+      { status: 429, headers: { "Retry-After": String(limit.resetIn), "Cache-Control": "no-store" } },
+    );
+  }
 
   const body = await req.json().catch(() => null) as { email?: unknown } | null;
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";

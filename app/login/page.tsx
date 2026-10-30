@@ -13,11 +13,17 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const { next } = await searchParams;
+  const { next, error } = await searchParams;
   const configured = isAccessConfigured();
   const target = next && next.startsWith("/") ? next : "/dashboard";
+  const notice =
+    error === "expired-link"
+      ? "That sign-in link has expired or was already used. Request a new one below."
+      : error === "invalid-link"
+        ? "That sign-in link is not valid. Request a new one below."
+        : null;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16">
@@ -26,6 +32,11 @@ export default async function LoginPage({
         <p className="mt-2 text-sm text-white/60">
           Sign in with your email and access code to open the agent dashboard.
         </p>
+        {notice && (
+          <p className="mt-4 rounded-xl border border-grade-c/40 bg-grade-c/10 p-3 text-sm text-white/80">
+            {notice}
+          </p>
+        )}
         <div className="mt-6">
           {configured ? (
             <LoginForm next={target} />
