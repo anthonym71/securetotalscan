@@ -8,7 +8,7 @@ function must(path,patterns){
   return text;
 }
 
-const db=must("lib/db/sites.ts",[
+must("lib/db/sites.ts",[
   ["site reads join customer",/FROM site s[\s\S]*JOIN customer c ON c\.id=s\.customer_id[\s\S]*lower\(c\.email\)=lower\(\$1\)/],
   ["site delete checks customer ownership",/DELETE FROM site s USING customer c[\s\S]*s\.customer_id=c\.id[\s\S]*lower\(c\.email\)=lower\(\$1\)/],
   ["history scopes customer",/FROM scan sc JOIN customer c ON c\.id=sc\.customer_id[\s\S]*lower\(c\.email\)=lower\(\$1\)/],
