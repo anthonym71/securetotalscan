@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "verify:scanner": "tsc -p tsconfig.verify.json && node .verify/scripts/verify-scanner.js && npm run verify:input-validation && npm run verify:ratelimit && npm run verify:alerting && npm run verify:findings && npm run verify:target && npm run verify:http-posture && npm run verify:claims && npm run verify:schema && npm run verify:ssrf && node .verify/scripts/verify-request-body.js && node .verify/scripts/verify-owner-access.js && node .verify/scripts/verify-scan-storage.js && node .verify/scripts/verify-report-access.js && node .verify/scripts/verify-report.js && node .verify/scripts/verify-paywall.js && node .verify/scripts/verify-audit-report.js && npm run verify:tenant",
     "verify:input-validation": "node .verify/scripts/verify-input-validation.js",
@@ -26,10 +26,10 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
-    "next": "15.5.27",
+    "next": "16.4.3",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "undici": "7.30.0"
+    "undici": "8.12.3"
   },
   "devDependencies": {
     "@types/node": "22.10.5",
@@ -37,7 +37,7 @@
     "@types/react-dom": "19.0.3",
     "autoprefixer": "10.4.20",
     "eslint": "9.39.4",
-    "eslint-config-next": "15.5.27",
+    "eslint-config-next": "16.4.3",
     "postcss": "8.5.28",
     "tailwindcss": "3.4.17",
     "typescript": "5.7.3"
@@ -46,8 +46,13 @@
     "postcss": "8.5.28",
     "sharp": "^0.35.5",
     "js-yaml": "^4.3.1",
-    "brace-expansion": "^5.0.12",
-    "source-map-js": "1.2.2"
+    "source-map-js": "1.2.2",
+    "minimatch@3": {
+      "brace-expansion": "^1.1.12"
+    },
+    "minimatch@>=5": {
+      "brace-expansion": "^5.0.12"
+    }
   },
   "engines": {
     "node": ">=20.18.1"
