@@ -17,7 +17,7 @@ if(/customerId\s*[:=]/.test(fs.readFileSync("app/api/account/sites/route.ts","ut
   throw new Error("sites route must not accept a caller-supplied customerId");
 }
 for(const route of ["app/api/account/sites/route.ts","app/api/account/history/route.ts"]){
-  const text=must(route,[["session-derived identity",/verifySession|sessionFor/],["session email",/session\.email/]]);
+  const text=must(route,[["session-derived identity",/verifySession|liveSession|sessionFor/],["session email",/session\.email/]]);
   if(/searchParams\.get\(["']customer/i.test(text)||/body\.customer/i.test(text)){
     throw new Error(`${route}: caller-controlled customer identity detected`);
   }
