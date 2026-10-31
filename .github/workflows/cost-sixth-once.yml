@@ -22,8 +22,8 @@ jobs:
       STS_BACKEND_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://securetotalscan-api-production.up.railway.app' }}
       STS_SERVICE_TOKEN: ${{ secrets.STS_SERVICE_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -38,7 +38,7 @@ jobs:
         run: |
           echo "## Sixth authorized cost run: OWASP Juice Shop" >> "$GITHUB_STEP_SUMMARY"
           cat cost-results-sixth.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: securetotalscan-cost-sixth
