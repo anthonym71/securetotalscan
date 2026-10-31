@@ -44,12 +44,17 @@ export function DemoVideo() {
             aria-label="Play the Secure Total Scan demo"
             className="group absolute inset-0 block h-full w-full cursor-pointer"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/AI-Powered_Web_Defense_Platform.png"
-              alt="Secure Total Scan: Autonomous AI Defense for the Modern Web"
-              className="absolute inset-0 h-full w-full object-cover"
+            <span
+              aria-hidden
+              className="absolute inset-0"
+              style={{ background: "radial-gradient(120% 120% at 50% 0%, #1a1038 0%, #0a0e1a 60%)" }}
             />
+            <span className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
+              <span className="text-2xl font-extrabold sm:text-3xl">Secure Total Scan</span>
+              <span className="mt-1 bg-brand-gradient bg-clip-text text-sm font-semibold text-transparent sm:text-base">
+                Autonomous AI Defense for the Modern Web
+              </span>
+            </span>
             <span className="absolute inset-0 grid place-items-center bg-black/25 transition group-hover:bg-black/10">
               <span className="grid h-20 w-20 place-items-center rounded-full bg-white/95 shadow-glow transition group-hover:scale-105">
                 <svg viewBox="0 0 24 24" className="ml-1 h-8 w-8 fill-[#0a0e1a]" aria-hidden>
