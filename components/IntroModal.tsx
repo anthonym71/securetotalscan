@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Infographic } from "@/components/Infographic";
 
-// Intro splash shown once per browser session. The infographic lives at
-// public/AI-Powered_Web_Defense_Platform.png (NotebookLM logo removed before commit).
+// Intro splash shown once per browser session. Renders the HTML Infographic
+// (replaced the old PNG so the stats and model wording stay in sync and never
+// go stale).
 export function IntroModal() {
   const [open, setOpen] = useState(false);
 
@@ -50,12 +52,7 @@ export function IntroModal() {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="min-h-0 flex-1 overflow-auto">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/AI-Powered_Web_Defense_Platform.png"
-            alt="Secure Total Scan: Autonomous AI Defense for the Modern Web"
-            className="block w-full"
-          />
+          <Infographic />
         </div>
         <div className="border-t border-white/10 p-4 text-center">
           <button
