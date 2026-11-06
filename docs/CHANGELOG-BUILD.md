@@ -6,6 +6,62 @@ Newest first.
 
 ---
 
+## 2026-10-21 — Read-only release reconciliation (BLOCKED)
+
+**GitHub:** `master` remains `b58ca601ed78823cfdcdadd7877959bebdd6c2a7` with 16 open PRs. PR #177 head `6e8b9b0793bd69fa508dd39651a85709b515757a` passed [CI](https://github.com/anthonym71/securetotalscan/actions/runs/39439867860), [CodeQL](https://github.com/anthonym71/securetotalscan/actions/runs/39439867837), [Security Audit](https://github.com/anthonym71/securetotalscan/actions/runs/39439868016) and [Dependency Review](https://github.com/anthonym71/securetotalscan/actions/runs/39439867880) on October 20. [Full-history Secret Scan](https://github.com/anthonym71/securetotalscan/actions/runs/39439867961) still failed on one redacted historical Slack webhook in `de06dded` (254 commits scanned). Revocation remains unverified; do not suppress or merge with the failing release gate.
+
+**Production:** [October 21 health check](https://github.com/anthonym71/securetotalscan/actions/runs/39685912563) passed all three backend and three web probes by 22:24 UTC. Its job environment still contains an empty `ALERT_WEBHOOK_URL`. Scheduled health runs occurred at 19:07 and 22:21 UTC, more than three hours apart despite configured */15. Vercel project read shows production deployment `dpl_GhdtSvEYNF9Ktr1J9itm6KCzmzAG` READY and both custom domains verified. The current 27-entry Vercel environment inventory still omits `CRON_SECRET`, `STS_GHL_PRODUCT_MAP`, `NEXT_PUBLIC_CHECKOUT_REPORT`, `NEXT_PUBLIC_CHECKOUT_PRO`, `NEXT_PUBLIC_CHECKOUT_BUSINESS` and `ALERT_WEBHOOK_URL`. Explicit team-scoped reads still return HTTP 403; unscoped reads succeed. Railway direct read requires interactive reauthorization in this noninteractive check, so **current Railway state is not independently reverified**; previous online status must not be presented as a fresh result.
+
+**Decision:** Commercial launch remains RED/BLOCKED: credential revocation, authorized provider configuration, HighLevel and Resend readiness, monitoring/alert delivery, live >60-file receipt and approved paid-customer end-to-end acceptance are unverified. No outage was confirmed by the fresh health probes. No production, DNS, payments, credentials or provider-account changes were made. This is a documentation-only branch update and any new head needs exact-head CI before release.
+
+---
+
+## 2026-10-20 — Read-only release reconciliation (BLOCKED)
+
+**Source:** GitHub master `b58ca601` remains unchanged; 16 PRs open. PR #177 pre-reconciliation head `472e36ee` passed [CI](https://github.com/anthonym71/securetotalscan/actions/runs/39285643686), [CodeQL](https://github.com/anthonym71/securetotalscan/actions/runs/39285643645), [Security Audit](https://github.com/anthonym71/securetotalscan/actions/runs/39285643681) and [Dependency Review](https://github.com/anthonym71/securetotalscan/actions/runs/39285643670) on October 19. [Full-history Secret Scan](https://github.com/anthonym71/securetotalscan/actions/runs/39285643692) failed on the same redacted historical Slack webhook in `de06dded` (253 commits, one finding). Provider revocation is unverified; do not merge or suppress the gate.
+
+**Runtime:** The [October 20 health check](https://github.com/anthonym71/securetotalscan/actions/runs/39426797048) passed 3/3 backend and 3/3 frontend probes at 13:03 UTC. GitHub `prod` still has an empty `ALERT_WEBHOOK_URL`; scheduled starts remain hours apart, not every configured 15 minutes. Railway is online 1/1 with six warnings and zero critical alerts; the latest sampled 24 HTTP requests since October 19 all returned 200 for health probes. The old competing source deployment is failed but is **not** the active production deployment. Vercel unscoped inspection confirms production READY at `b58ca601` and the expected custom-domain assignments; explicitly team-scoped requests still 403. Among 27 Vercel env entries, `CRON_SECRET`, `STS_GHL_PRODUCT_MAP`, the three `NEXT_PUBLIC_CHECKOUT_*` URLs, and `ALERT_WEBHOOK_URL` remain absent.
+
+**Decision:** `BLOCKED` for commercial launch, despite operational health. HighLevel Products/Payments and Resend readiness, historical Slack revocation, cron/alert configuration, live authenticated >60-file audit, approved payment journey and end-to-end customer acceptance remain unverified. No payments, DNS, secrets, production config or provider accounts were modified. This documentation reconciliation is non-production and requires fresh exact-head CI before any future merge.
+
+---
+
+## 2026-10-19 — Read-only production release reconciliation (BLOCKED)
+
+**Repository:** `master` is still `b58ca601ed78823cfdcdadd7877959bebdd6c2a7`; 16 PRs remain open, including #177. The prior exact-head checks for PR #177 passed CI, CodeQL, Security Audit and Dependency Review, while full-history Secret Scan failed. No merge is justified without security evidence.
+
+**Fresh October 19 CI and runtime evidence:** scheduled [Secret Scan #39278081180](https://github.com/anthonym71/securetotalscan/actions/runs/39278081180) failed on exactly the same redacted historical Slack webhook in commit `de06dded` (252 commits scanned, one finding); provider revocation remains unverified. Scheduled [Security Audit #39268745180](https://github.com/anthonym71/securetotalscan/actions/runs/39268745180) and [CodeQL #39246150748](https://github.com/anthonym71/securetotalscan/actions/runs/39246150748) passed. The latest completed [health check #39268752210](https://github.com/anthonym71/securetotalscan/actions/runs/39268752210), at 14:28 UTC, reported backend 3/3 and web 3/3 successful. It also confirms `ALERT_WEBHOOK_URL` is empty in the GitHub `prod` environment. Scheduled health checks remain hours apart (06:55 to 14:25 UTC on October 19), not a guaranteed 15-minute cadence.
+
+**Deployment and configuration:** Vercel's latest production deployment `dpl_GhdtSvEYNF9Ktr1J9itm6KCzmzAG` remains READY at `b58ca601`; unscoped authenticated reads succeed, explicitly scoped requests still return HTTP 403. The 27-entry Vercel environment inventory still lacks `CRON_SECRET`, `STS_GHL_PRODUCT_MAP`, the three `NEXT_PUBLIC_CHECKOUT_*` URLs and `ALERT_WEBHOOK_URL`. Railway reports an active previously successful deployment, one configured sfo replica, no pending staging, and 21 HTTP 2xx, one 4xx and **zero 5xx** among 22 requests in the preceding 24 hours; its newer GitHub-source deployment is failed (snapshot cannot find root `railway.toml`), but there is no observed active-backend regression. No paid-customer end-to-end acceptance evidence was obtained.
+
+**Release decision: BLOCKED.** No production, DNS, payment, provider-account or credential changes were made. Human-owned approval/configuration/revocation gates remain. This PR is a documentation-only reconciliation and must not be merged while Secret Scan is red. Any new commit requires fresh exact-head checks.
+
+---
+
+## 2026-10-13 — Commercial release verification (BLOCKED)
+
+**Repository:** master remains `b58ca601ed78823cfdcdadd7877959bebdd6c2a7`; 16 PRs remain open, including the canonical release-state PR #177. Its exact head `3f201f057c1fb91a1226a3ec29e193656b490e2f` passed CI, CodeQL, Security Audit and Dependency Review. Full-history Secret Scan failed on the historical Slack incoming webhook at `de06dded` (247 commits scanned, one redacted finding). Provider-side credential revocation is unverified; do not suppress the finding or merge #177 while that gate fails.
+
+**Production:** GitHub health-check run [38369439934](https://github.com/anthonym71/securetotalscan/actions/runs/38369439934) passed three backend and three frontend probes by 08:31 UTC on October 13. Its logs show `ALERT_WEBHOOK_URL` empty; although configured for 15-minute cadence, the preceding two successful runs were nearly seven hours apart, so neither delivery of failure alerts nor prompt detection is established. Railway production is online with 1/1 replicas and zero crashes; the active successful backend deployment dates to October 8, while the newer competing source-triggered deployment failed due to the root `railway.toml` path, without evidence of a current outage. Vercel's deployment listing reports the master production deploy READY, but direct project/deployment inspections returned HTTP 403 in the production team scope on October 13.
+
+**Human/acceptance gates:** historical Slack webhook revocation evidence; authorized Vercel project access and confirmation of `CRON_SECRET`, `ALERT_WEBHOOK_URL`, checkout product map and URLs; HighLevel Products/Payments authorization and Resend sender readiness; evidence of monitored cron/retention/alert execution, live authenticated >60-file audit, and the expressly approved end-to-end paid customer journey. No provider accounts, credentials, DNS or payments were changed in this documentation reconciliation. Production operational health does **not** constitute commercial launch completion.
+
+**NEXT:** remain RED/BLOCKED, require actual security and provider proof, then repeat exact-head checks and full acceptance before any merge/release sign-off.
+
+---
+
+## 2026-10-08 — Commercial core and customer durability advanced
+
+**Engine:** ChatGPT. **Master:** `b58ca601ed78823cfdcdadd7877959bebdd6c2a7`.
+
+Verified/merged during launch push: five-tier pricing and commercial core, signed HighLevel paid-event intake, customer/subscription records, magic-link auth, scan credits, billing lifecycle hardening, saved sites/history, tenant isolation, monitoring, retention, paid surface-report email trigger, and sanitized paid deep-report persistence. CI, CodeQL and Security Audit pass on current master. Railway production remains online. Railway's competing GitHub source was pinned to current master so GitHub CD remains the moving release authority. Six bounded cost runs completed successfully, but reported zero tokens/cost; this is recorded as an instrumentation gap rather than zero-cost proof.
+
+**External blockers:** HighLevel Products/Payments authorization returns 401; Resend provider verification remains; checkout/product mapping awaits live provider identifiers; historical Slack webhook revocation remains unverified; final paid end-to-end production journey remains pending.
+
+**NEXT:** maintain blocked commercial release classification and obtain independently verified provider authorization, production alert/cron configuration, webhook revocation, and approved paid-customer acceptance.
+
+---
+
 ## 2026-10-08 — Service-auth deployment sync hardened
 
 **Engine:** ChatGPT orchestration. **Branch:** `fix/service-auth-sync-2026-10-08`.
@@ -1092,3 +1148,4 @@ set. No deployment triggered.
 
 **Still missing:** everything in PRD §5. Implementation has not begun and is
 awaiting phase-by-phase approval.
+
